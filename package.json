@@ -1,0 +1,30 @@
+{
+  "name": "zvelte",
+  "version": "0.0.1",
+  "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PivotStick/zvelte.git"
+  },
+  "keywords": [
+    "svelte",
+    "zvelte",
+    "compiler",
+    "php",
+    "ssr",
+    "csr",
+    "js",
+    "reactivity",
+    "signals"
+  ],
+  "author": "Maxime DI NATALE",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PivotStick/zvelte/issues"
+  },
+  "homepage": "https://github.com/PivotStick/zvelte#readme"
+}
