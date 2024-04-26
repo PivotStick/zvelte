@@ -2,39 +2,41 @@ const STATE_SYMBOL = Symbol();
 const UNINITIALIZED = Symbol();
 
 /**
- * @template T
- * @typedef {{ value: T }} Source
- */
-
-/**
- * @typedef {Node | DocumentFragment | Node[]} Dom
- */
-
-/**
  * @template [T = any]
  * @typedef {{
- *  signals: Map<string | symbol, Signal>;
- *  version: Signal<number>;
- *  array: boolean;
+ *  signals: Map<string | symbol, Signal<T[keyof T]>>;
  *  proxy: T;
+ *  array: boolean;
+ *  version: Signal<number>;
  *  target: T;
  * }} ProxyMetadata
  */
 
 /**
- * @template [T = unknown]
+ * @template T
+ * @typedef {{ value: T }} Source
+ */
+
+/**
+ * @template [T=unknown]
  * @typedef {{
- *  value: T;
  *  effects?: Set<Effect>;
+ *  value: T;
  *  equals(this: Signal<T>, value: unknown): boolean;
+ *  version: number;
  * }} Signal
  */
 
 /**
  * @typedef {{
+ *  deps?: Set<Signal>;
  *  fn: () => void;
- *  deps?: Set<Signal<any>>;
  * }} Effect
+ */
+
+/**
+ * @typedef {Text | Element | Comment} TemplateNode
+ * @typedef {TemplateNode | TemplateNode[]} Dom;
  */
 
 /**
@@ -68,10 +70,11 @@ const currentContext = () => currentContexts[currentContexts.length - 1];
  * This add a list of callbacks to be called when "flush" is called AND
  * it schedules a "flush" if not already scheduled
  *
- * @param {Set<Effect>} effects
+ * @param {Set<Effect> | null} effects
  */
 function schedule(effects) {
-    effects.forEach((effect) => scheduledEffects.add(effect));
+    if (!effects) return;
+    effects.forEach((e) => scheduledEffects.add(e));
     if (scheduled) return;
     scheduled = true;
     queueMicrotask(flush);
@@ -92,14 +95,13 @@ function flush() {
  */
 function executeEffect(effect) {
     if (effect.deps) {
-        effect.deps.forEach((signal) => signal.effects?.delete(effect));
+        effect.deps.forEach((dep) => dep.effects?.delete(effect));
         effect.deps.clear();
     }
 
-    const prev = currentEffect;
     currentEffect = effect;
     effect.fn();
-    currentEffect = prev;
+    currentEffect = null;
 }
 
 /**
@@ -108,13 +110,13 @@ function executeEffect(effect) {
  *
  * Usefull for nesting effects and controlling deep reactivity
  *
- * @param {() => void} fn
+ * @param {() => void} callback
  */
-export function untrack(fn) {
-    const prev = currentEffect;
-    currentEffect = undefined;
-    fn();
-    currentEffect = prev;
+export function untrack(callback) {
+    let previousEffect = currentEffect;
+    currentEffect = null;
+    callback();
+    currentEffect = previousEffect;
 }
 
 /**
@@ -126,6 +128,8 @@ export function untrack(fn) {
  * it will "flush" all it's observers for all signals
  */
 export function pushContext() {
+    const previousCtx = currentContext();
+
     /**
      * @type {typeof currentContexts[number]}
      */
@@ -135,15 +139,20 @@ export function pushContext() {
 
     currentContexts.push(ctx);
 
-    return {
-        pop() {
-            currentContexts.pop();
-        },
-        flush() {
-            ctx.removeListeners.forEach((listener) => listener());
-            ctx.removeListeners.length = 0;
-        },
-    };
+    if (previousCtx) {
+        previousCtx.removeListeners.push(flush);
+    }
+
+    function pop() {
+        currentContexts.pop();
+    }
+
+    function flush() {
+        ctx.removeListeners.forEach((listener) => listener());
+        ctx.removeListeners.length = 0;
+    }
+
+    return { pop, flush };
 }
 
 /**
@@ -152,18 +161,16 @@ export function pushContext() {
  *
  * Which will make the given callback scheduled on any updates of those signals
  *
- * @param {() => void} fn
+ * @param {() => void} callback
  */
-export function effects(fn) {
-    /**
-     * @type {Effect}
-     */
-    const effect = {
-        fn,
-        deps: undefined,
+export function effect(callback) {
+    const previous = currentEffect;
+    currentEffect = {
+        fn: callback,
+        deps: null,
     };
-
-    executeEffect(effect);
+    callback();
+    currentEffect = previous;
 }
 
 /**
@@ -171,20 +178,19 @@ export function effects(fn) {
  * signals in the given callback
  *
  * @template T
- * @param {() => T} fn
+ * @param {() => T} callback
  * @returns {Source<T>}
  */
-export function derived(fn) {
-    const prev = currentEffect;
-
+export function derived(callback) {
+    const previous = currentEffect;
     currentEffect = {
-        fn: () => (signal.value = fn()),
-        deps: undefined,
+        fn: () => (signal.value = callback()),
+        deps: null,
     };
 
-    const signal = source(fn());
+    const signal = source(callback());
 
-    currentEffect = prev;
+    currentEffect = previous;
 
     return signal;
 }
@@ -192,15 +198,17 @@ export function derived(fn) {
 /**
  * @template T
  * @param {T} value
+ * @returns {Signal<T>}
  */
 function createSignal(value) {
     /** @type {Signal<T>} */
     const signal = {
-        value,
         effects: undefined,
         equals(value) {
             return this.value === value;
         },
+        value,
+        version: 0,
     };
 
     return signal;
@@ -226,8 +234,8 @@ export function source(value) {
         /**
          * setting its value will signal effects to trigger
          */
-        set value(v) {
-            set(signal, v);
+        set value(value) {
+            set(signal, value);
         },
     };
 }
@@ -237,16 +245,13 @@ export function source(value) {
  * @param {Signal<T>} signal
  */
 function get(signal) {
-    if (currentEffect) {
-        const effect = currentEffect;
-        const ctx = currentContext();
-
+    const effect = currentEffect;
+    if (effect) {
         (signal.effects ??= new Set()).add(effect);
-        (effect.deps ??= new Set()).add(signal);
-
+        const ctx = currentContext();
         if (ctx) {
             ctx.removeListeners.push(() => {
-                signal.effects?.delete(effect);
+                signal.effects.delete(effect);
             });
         }
     }
@@ -262,15 +267,16 @@ function get(signal) {
 function set(signal, value) {
     if (!signal.equals(value)) {
         signal.value = value;
-
-        if (signal.effects) {
-            schedule(signal.effects);
-        }
+        signal.version++;
+        schedule(signal.effects);
     }
+
+    return signal.value;
 }
 
 /**
- * @param {Signal<number>} signal
+ * @param {Signal<any>} signal
+ * @param {1 | -1} [d]
  */
 function updateVersion(signal, d = 1) {
     set(signal, signal.value + d);
@@ -459,9 +465,7 @@ export function proxy(value) {
     if (typeof value === "object" && value != null && !Object.isFrozen(value)) {
         // If we have an existing proxy, return it...
         if (STATE_SYMBOL in value) {
-            const metadata = /** @type {ProxyMetadata<T>} */ (
-                value[STATE_SYMBOL]
-            );
+            const metadata = /** @type {ProxyMetadata} */ (value[STATE_SYMBOL]);
 
             // ...unless the proxy belonged to a different object, because
             // someone copied the state symbol using `Reflect.ownKeys(...)`
@@ -470,25 +474,22 @@ export function proxy(value) {
             }
         }
 
-        const prototype = Object.getPrototypeOf(value);
+        const proxy = new Proxy(value, stateProxyHandler);
 
-        if (prototype === Object.prototype || prototype === Array.prototype) {
-            const proxy = new Proxy(value, stateProxyHandler);
+        Object.defineProperty(value, STATE_SYMBOL, {
+            /** @type {ProxyMetadata} */
+            value: {
+                signals: new Map(),
+                version: createSignal(0),
+                array: Array.isArray(value),
+                proxy,
+                target: value,
+            },
+            writable: true,
+            enumerable: false,
+        });
 
-            Object.defineProperty(value, STATE_SYMBOL, {
-                value: /** @type {ProxyMetadata<T>} */ ({
-                    signals: new Map(),
-                    version: createSignal(0),
-                    array: Array.isArray(value),
-                    proxy: proxy,
-                    target: value,
-                }),
-                writable: true,
-                enumerable: false,
-            });
-
-            return proxy;
-        }
+        return proxy;
     }
 
     return value;
@@ -504,12 +505,12 @@ export function inspect(callback) {
         console.log(JSON.parse(JSON.stringify(callback())));
     };
 
-    const prev = currentEffect;
     currentEffect = {
+        deps: null,
         fn,
     };
     JSON.stringify(callback()); // deep read
-    currentEffect = prev;
+    currentEffect = null;
     fn();
 }
 
@@ -521,14 +522,14 @@ export function inspect(callback) {
  * @template T
  * @param {Comment} anchor this is from where it will append elements
  * @param {() => T[]} get function to get the reactive array
- * @param {(item: T, array: T[], index: () => number) => Dom} render
- * @param {() => HTMLElement} [emptyRender=null]
+ * @param {(item: T, array: T[], index: () => number) => DocumentFragment | TemplateNode} render
+ * @param {() => DocumentFragment | TemplateNode} [emptyRender=null]
  */
 export function eachBlock(anchor, get, render, emptyRender = null) {
     /**
      * @type {Map<T, {
      *   index: Source<number>;
-     *   dom: ReturnType<typeof render>;
+     *   dom: Node[];
      *   ctx: ReturnType<typeof pushContext>;
      * }>}
      */
@@ -551,7 +552,7 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
 
     // This ignore effects is usefull if you use "each" in another effects
     untrack(() => {
-        effects(() => {
+        effect(() => {
             const array = get();
 
             // We don't want this effect to observe signals used inside the given render callbacks
@@ -566,8 +567,9 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
 
                 if (!array.length && emptyRender && !emptyCtx) {
                     const ctx = pushContext();
-                    const dom = getElements(emptyRender());
-                    anchor.before(dom);
+                    const root = emptyRender();
+                    const dom = getElements(root);
+                    anchor.before(root);
                     ctx.pop();
                     emptyCtx = { dom, ctx };
                 } else if (array.length) {
@@ -577,7 +579,11 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
                     }
                     emptyCtx = undefined;
 
+                    /**
+                     * @type {Node}
+                     */
                     let previousFirstElement = anchor;
+
                     for (let i = array.length - 1; i >= 0; i--) {
                         const item = array[i];
                         let pair = pairs.get(item);
@@ -612,8 +618,8 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
  *
  * @param {Comment} anchor this is from where it will add the result element
  * @param {() => boolean} conditions you can use your signals in this function, must return a boolean
- * @param {() => Dom} consequentRender called when "conditions" returns true
- * @param {() => Dom} [alternateRender=null] called when "conditions" returns false
+ * @param {() => Dom | DocumentFragment} consequentRender called when "conditions" returns true
+ * @param {() => Dom | DocumentFragment} [alternateRender=null] called when "conditions" returns false
  */
 export function ifBlock(
     anchor,
@@ -626,27 +632,26 @@ export function ifBlock(
      */
     let current;
 
+    function flush() {
+        if (current) {
+            current.ctx.flush();
+            removeNodes(current.dom);
+        }
+    }
+
     const ctx = currentContext();
 
     if (ctx) {
-        ctx.removeListeners.push(() => {
-            if (current) {
-                current.ctx.flush();
-                removeNodes(current.dom);
-            }
-        });
+        ctx.removeListeners.push(flush);
     }
 
     let result;
 
-    effects(() => {
+    effect(() => {
         if (result === (result = !!conditions())) return;
 
         untrack(() => {
-            if (current) {
-                current.ctx.flush();
-                removeNodes(current.dom);
-            }
+            flush();
 
             const render = result ? consequentRender : alternateRender;
 
@@ -665,14 +670,12 @@ export function ifBlock(
 }
 
 /**
- * @param {Dom} value
+ * @param {TemplateNode} value
  * @returns {Node[]}
  */
 function getElements(value) {
     if (value instanceof DocumentFragment) {
         return [...value.childNodes];
-    } else if (value instanceof Array) {
-        return value;
     }
 
     return [value];
@@ -689,7 +692,15 @@ function removeNodes(nodes) {
     });
 }
 
+/**
+ * Easy way to rapidly create many elements and walk
+ * trough it to get wanted nodes
+ *
+ * Will ignores text nodes that only that are between nodes have whitespaces with at least on new line inside that whitespace
+ */
 export function template(content = "") {
+    content = content.replace(/(?<=>)\s*\n\s*(?=<)/g, "").trim(); // Removes only whitespaces with at least one new line inside
+
     const template = document.createElement("template");
     template.innerHTML = content;
     const walker = document.createTreeWalker(template.content);
@@ -697,11 +708,25 @@ export function template(content = "") {
     return /** @type {const} */ ([
         template.content,
         {
-            next(skip = 0) {
-                for (let i = 0; i < skip; i++) {
+            /**
+             * @override
+             * @template {typeof Node | typeof Element | typeof Comment} T
+             * @param {T} type
+             * @returns {InstanceType<T>}
+             */
+            next(moveCount = 1, type = null) {
+                for (let i = 0; i < moveCount; i++) {
                     walker.nextNode();
                 }
-                return walker.nextNode();
+
+                if (!(walker.currentNode instanceof (type ?? Node))) {
+                    throw new Error(
+                        `Expected ${type.name} but got "${walker.currentNode.nodeName}"`,
+                    );
+                }
+
+                // @ts-ignore
+                return walker.currentNode;
             },
         },
     ]);

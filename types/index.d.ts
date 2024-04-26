@@ -30,7 +30,43 @@ declare module "@pivotass/zvelte/compiler" {
     };
 }
 
-declare module "@pivotass/zvelte/reactivity" {}
+declare module "@pivotass/zvelte/reactivity" {
+    export function proxy<T>(object: T): T;
+    export function source<T>(value: T): { value: T };
+    export function effect(fn: () => void): void;
+    export function derived<Value>(fn: () => Value): Value;
+
+    /**
+     * Allows you to conditionally render reactive element from
+     * reactive conditions!
+     */
+    export function ifBlock(
+        anchor: Comment,
+        conditions: () => boolean,
+        consequentRender: () => DocumentFragment,
+        alternateRender?: () => DocumentFragment,
+    ): void;
+
+    /**
+     * This lets you sync a reactive array with a list of dom elements!
+     */
+    export function eachBlock<T>(
+        anchor: Comment,
+        get: () => T[],
+        render: (item: T, array: T[], index: () => number) => DocumentFragment,
+        emptyRender: () => DocumentFragment,
+    ): void;
+
+    export function template(content: string): [
+        DocumentFragment,
+        {
+            next<T = typeof Node>(
+                walkCount?: number,
+                type?: T,
+            ): InstanceType<T>;
+        },
+    ];
+}
 
 declare module "@pivotass/zvelte/parser" {
     export function parse(template: string): {
@@ -89,6 +125,8 @@ declare module "@pivotass/zvelte/parser" {
         modifier: null | string;
         name: string;
         value: (Text | Expression)[];
+        start: number;
+        end: number;
     };
 
     export type Expression =
@@ -96,7 +134,35 @@ declare module "@pivotass/zvelte/parser" {
         | Identifier
         | UnaryExpression
         | BinaryExpression
-        | StringLiteral;
+        | StringLiteral
+        | BooleanLiteral
+        | NullLiteral
+        | NumericLiteral
+        | MemberExpression;
+
+    export type MemberExpression = {
+        type: "MemberExpression";
+        computed: boolean;
+        object: Identifier | MemberExpression;
+        property: Identifier | MemberExpression;
+    };
+
+    export type NumericLiteral = {
+        type: "NumericLiteral";
+        value: number;
+    };
+
+    export type BooleanLiteral = {
+        type: "BooleanLiteral";
+        value: boolean;
+        raw: string;
+    };
+
+    export type NullLiteral = {
+        type: "NullLiteral";
+        value: null;
+        raw: string;
+    };
 
     export type StringLiteral = {
         type: "StringLiteral";
