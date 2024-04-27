@@ -525,7 +525,7 @@ export function inspect(callback) {
  * @param {(item: T, array: T[], index: () => number) => DocumentFragment | TemplateNode} render
  * @param {() => DocumentFragment | TemplateNode} [emptyRender=null]
  */
-export function eachBlock(anchor, get, render, emptyRender = null) {
+export function forBlock(anchor, get, render, emptyRender = null) {
     /**
      * @type {Map<T, {
      *   index: Source<number>;
@@ -554,6 +554,7 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
     untrack(() => {
         effect(() => {
             const array = get();
+            const length = array.length;
 
             // We don't want this effect to observe signals used inside the given render callbacks
             untrack(() => {
@@ -565,14 +566,14 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
                     }
                 });
 
-                if (!array.length && emptyRender && !emptyCtx) {
+                if (!length && emptyRender && !emptyCtx) {
                     const ctx = pushContext();
                     const root = emptyRender();
                     const dom = getElements(root);
                     anchor.before(root);
                     ctx.pop();
                     emptyCtx = { dom, ctx };
-                } else if (array.length) {
+                } else if (length) {
                     if (emptyCtx) {
                         emptyCtx.ctx.flush();
                         removeNodes(emptyCtx.dom);
@@ -584,7 +585,7 @@ export function eachBlock(anchor, get, render, emptyRender = null) {
                      */
                     let previousFirstElement = anchor;
 
-                    for (let i = array.length - 1; i >= 0; i--) {
+                    for (let i = length - 1; i >= 0; i--) {
                         const item = array[i];
                         let pair = pairs.get(item);
 

@@ -50,11 +50,11 @@ declare module "@pivotass/zvelte/reactivity" {
     /**
      * This lets you sync a reactive array with a list of dom elements!
      */
-    export function eachBlock<T>(
+    export function forBlock<T>(
         anchor: Comment,
         get: () => T[],
         render: (item: T, array: T[], index: () => number) => DocumentFragment,
-        emptyRender: () => DocumentFragment,
+        emptyRender?: () => DocumentFragment,
     ): void;
 
     export function template(content: string): [
@@ -70,10 +70,7 @@ declare module "@pivotass/zvelte/reactivity" {
 
 declare module "@pivotass/zvelte/parser" {
     export function parse(template: string): {
-        html: {
-            type: string;
-            children: any[];
-        };
+        html: FragmentRoot;
         js: any;
         css: any;
     };
@@ -138,7 +135,21 @@ declare module "@pivotass/zvelte/parser" {
         | BooleanLiteral
         | NullLiteral
         | NumericLiteral
-        | MemberExpression;
+        | MemberExpression
+        | FilterExpression
+        | CallExpression;
+
+    export type CallExpression = {
+        type: "CallExpression";
+        name: Identifier | MemberExpression;
+        arguments: Expression[];
+    };
+
+    export type FilterExpression = {
+        type: "FilterExpression";
+        name: Identifier | MemberExpression;
+        arguments: Expression[];
+    };
 
     export type MemberExpression = {
         type: "MemberExpression";
@@ -202,7 +213,7 @@ declare module "@pivotass/zvelte/parser" {
 
     export type Variable = {
         type: "Variable";
-        name: string;
+        name: Identifier | MemberExpression;
         value: Expression;
     };
 }
