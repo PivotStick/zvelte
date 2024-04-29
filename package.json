@@ -31,17 +31,11 @@
     "homepage": "https://github.com/PivotStick/zvelte#readme",
     "exports": {
         "./package.json": "./package.json",
-        "./compiler": {
-            "types": "./types/index.d.ts",
-            "default": "./src/compiler/index.js"
-        },
         "./parser": {
-            "types": "./types/index.d.ts",
             "default": "./src/compiler/parse/index.js"
         },
-        "./reactivity": {
-            "types": "./types/index.d.ts",
-            "default": "./src/internal/client/reactivity.js"
+        "./client": {
+            "default": "./src/internal/client/index.js"
         }
     },
     "dependencies": {
