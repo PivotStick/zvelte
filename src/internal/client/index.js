@@ -7,6 +7,8 @@ export {
     getComponentByKey,
 } from "./astToDom.js";
 
+export { registerFilter } from "./filters.js";
+
 export {
     proxy,
     source,

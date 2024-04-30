@@ -70,7 +70,7 @@ export type CallExpression = {
 
 export type FilterExpression = {
     type: "FilterExpression";
-    name: Identifier | MemberExpression;
+    name: Identifier;
     arguments: Expression[];
 };
 

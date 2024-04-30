@@ -1,4 +1,5 @@
 import { parse } from "../../compiler/parse";
+import { getFilter } from "./filters";
 import { derived, effect, forBlock, ifBlock, proxy } from "./reactivity";
 
 /**
@@ -174,8 +175,13 @@ function handleExpression(node, scope) {
 
             case "CallExpression":
             case "FilterExpression": {
-                const fn = traverse(node.name, ctx);
+                const fn =
+                    (node.type === "FilterExpression"
+                        ? getFilter(node.name.name)
+                        : null) ?? traverse(node.name, ctx);
+
                 const args = node.arguments.map((arg) => traverse(arg, ctx));
+
                 return fn(...args);
             }
 
