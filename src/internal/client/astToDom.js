@@ -94,6 +94,26 @@ function handleExpression(node, scope) {
             }
 
             case "BinaryExpression": {
+                switch (node.operator) {
+                    case "??":
+                        return (
+                            traverse(node.left, ctx) ??
+                            traverse(node.right, ctx)
+                        );
+
+                    case "&&":
+                        return (
+                            traverse(node.left, ctx) &&
+                            traverse(node.right, ctx)
+                        );
+
+                    case "||":
+                        return (
+                            traverse(node.left, ctx) ||
+                            traverse(node.right, ctx)
+                        );
+                }
+
                 const left = traverse(node.left, ctx);
                 const right = traverse(node.right, ctx);
 
