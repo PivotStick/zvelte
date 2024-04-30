@@ -569,7 +569,7 @@ export function mountComponent({ js, template, target, props = {} }) {
 
         ForBlock(node, scope) {
             const fragment = new DocumentFragment();
-            const anchor = document.createComment(` for block `);
+            const anchor = document.createComment("");
 
             fragment.appendChild(anchor);
 
@@ -624,9 +624,7 @@ export function mountComponent({ js, template, target, props = {} }) {
 
         IfBlock(node, scope) {
             const fragment = new DocumentFragment();
-            const anchor = document.createComment(
-                node.elseif ? ` elseif block ` : ` if block `,
-            );
+            const anchor = document.createComment("");
 
             fragment.appendChild(anchor);
 
@@ -677,7 +675,7 @@ export function mountComponent({ js, template, target, props = {} }) {
                     handleExpression(node.value, scope),
                 ),
             );
-            return document.createComment(` var ${node.name} `);
+            return document.createComment("");
         },
 
         MustacheTag(node, scope) {
