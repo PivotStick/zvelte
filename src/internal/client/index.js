@@ -3,6 +3,7 @@ export {
     onMount,
     onDestroy,
     setListeners,
+    registerComponent,
 } from "./astToDom.js";
 
 export {
