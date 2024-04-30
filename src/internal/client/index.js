@@ -4,6 +4,7 @@ export {
     onDestroy,
     setListeners,
     registerComponent,
+    getComponentByKey,
 } from "./astToDom.js";
 
 export {

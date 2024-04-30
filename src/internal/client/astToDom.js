@@ -15,6 +15,13 @@ export function registerComponent(key, component) {
 }
 
 /**
+ * @param {string} key
+ */
+export function getComponentByKey(key) {
+    return allComponents[key];
+}
+
+/**
  * @template {Record<string, any>} [Props = Record<string, any>]
  * @template {Record<string, HTMLElement | undefined>} [BindedElements = Record<string, HTMLElement>]
  * @typedef {{
