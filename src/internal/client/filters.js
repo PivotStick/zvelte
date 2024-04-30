@@ -33,7 +33,19 @@ const filters = {
     html_to_markdown: notImplemented("html_to_markdown"),
     inline_css: notImplemented("inline_css"),
     inky_to_html: notImplemented("inky_to_html"),
-    join: notImplemented("join"),
+    join: (array, glue = "", and = glue) => {
+        if (Array.isArray(array)) {
+            let result = "";
+            for (let i = 0; i < array.length; i++) {
+                const value = array[i];
+                if (i > 0) {
+                    result += i === array.length - 1 ? and : glue;
+                }
+                result += value;
+            }
+            return result;
+        }
+    },
     json_encode: notImplemented("json_encode"),
     keys: notImplemented("keys"),
     language_name: notImplemented("language_name"),
