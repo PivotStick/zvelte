@@ -93,6 +93,24 @@ function handleExpression(node, scope) {
                 return traverse(node.property, object);
             }
 
+            case "ObjectExpression": {
+                /** @type {any} */
+                const object = {};
+                node.properties.forEach((property) => {
+                    object[property.key.name] = traverse(property.value);
+                });
+                return object;
+            }
+
+            case "ArrayExpression": {
+                /** @type {any[]} */
+                const array = [];
+                node.elements.forEach((element) => {
+                    array.push(traverse(element));
+                });
+                return array;
+            }
+
             case "BinaryExpression": {
                 switch (node.operator) {
                     case "??":
@@ -324,6 +342,8 @@ export function mountComponent({ js, template, target, props = {} }) {
     const componentContext = currentComponentContext;
     const ast = parse(template);
 
+    console.log(ast);
+
     /**
      * @param {any} value
      */
@@ -547,6 +567,11 @@ export function mountComponent({ js, template, target, props = {} }) {
 
             if (subComponent) {
                 const instantiate = allComponents[subComponent.key];
+
+                if (!instantiate)
+                    throw new Error(
+                        `Component "${subComponent.key}" not found...`,
+                    );
 
                 instantiate({
                     target: subComponent.target,

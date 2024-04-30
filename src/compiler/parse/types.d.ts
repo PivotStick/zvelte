@@ -58,9 +58,27 @@ export type Expression =
     | BooleanLiteral
     | NullLiteral
     | NumericLiteral
+    | ObjectExpression
+    | ArrayExpression
     | MemberExpression
     | FilterExpression
     | CallExpression;
+
+export type Property = {
+    type: "Property";
+    key: Identifier;
+    value: Expression;
+};
+
+export type ObjectExpression = {
+    type: "ObjectExpression";
+    properties: Property[];
+};
+
+export type ArrayExpression = {
+    type: "ArrayExpression";
+    elements: Expression[];
+};
 
 export type CallExpression = {
     type: "CallExpression";
