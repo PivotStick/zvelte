@@ -529,7 +529,7 @@ export function forBlock(anchor, get, render, emptyRender = null) {
     /**
      * @type {Map<T, {
      *   index: Source<number>;
-     *   dom: Node[];
+     *   dom: TemplateNode[];
      *   ctx: ReturnType<typeof pushContext>;
      * }>}
      */
@@ -581,7 +581,7 @@ export function forBlock(anchor, get, render, emptyRender = null) {
                     emptyCtx = undefined;
 
                     /**
-                     * @type {Node}
+                     * @type {TemplateNode}
                      */
                     let previousFirstElement = anchor;
 
@@ -619,8 +619,8 @@ export function forBlock(anchor, get, render, emptyRender = null) {
  *
  * @param {Comment} anchor this is from where it will add the result element
  * @param {() => boolean} conditions you can use your signals in this function, must return a boolean
- * @param {() => Dom | DocumentFragment} consequentRender called when "conditions" returns true
- * @param {() => Dom | DocumentFragment} [alternateRender=null] called when "conditions" returns false
+ * @param {() => TemplateNode | DocumentFragment} consequentRender called when "conditions" returns true
+ * @param {() => TemplateNode | DocumentFragment} [alternateRender=null] called when "conditions" returns false
  */
 export function ifBlock(
     anchor,
@@ -671,11 +671,12 @@ export function ifBlock(
 }
 
 /**
- * @param {TemplateNode} value
- * @returns {Node[]}
+ * @param {TemplateNode | DocumentFragment} value
+ * @returns {TemplateNode[]}
  */
 function getElements(value) {
     if (value instanceof DocumentFragment) {
+        // @ts-ignore
         return [...value.childNodes];
     }
 
