@@ -2,6 +2,19 @@ import { parse } from "../../compiler/parse";
 import { derived, effect, forBlock, ifBlock, proxy } from "./reactivity";
 
 /**
+ * @type {Record<string, (args: { props: any; target: HTMLElement; }) => DocumentFragment>}
+ */
+const allComponents = {};
+
+/**
+ * @param {string} key
+ * @param {any} component
+ */
+export function registerComponent(key, component) {
+    allComponents[key] = component;
+}
+
+/**
  * @template {Record<string, any>} [Props = Record<string, any>]
  * @template {Record<string, HTMLElement | undefined>} [BindedElements = Record<string, HTMLElement>]
  * @typedef {{
@@ -206,6 +219,25 @@ export function setListeners(listeners) {
 }
 
 /**
+ * @param {import("../../compiler/parse/types").Element} node
+ */
+function getZonePathFromNode(node) {
+    const zonePath = node.attributes.find((a) => a.name === "zone-path");
+
+    if (!zonePath) throw new Error("Expected zone-path in attributes");
+
+    const value = zonePath.value;
+
+    if (value === true || value.length > 1 || value[0].type !== "Text") {
+        throw new Error(
+            `"zone-path" cannot be dynamic and need to statictly be a string`,
+        );
+    }
+
+    return value[0].data;
+}
+
+/**
  * @typedef {(
  * | import('../../compiler/parse/types').Text
  * | import('../../compiler/parse/types').FragmentRoot
@@ -354,6 +386,7 @@ export function mountComponent({ js, template, target, props = {} }) {
                 node.attributes.some((a) => a.name === "zone-name") &&
                 node.attributes.some((a) => a.name === "zone-path")
                     ? {
+                          key: getZonePathFromNode(node),
                           target: element,
                           /** @type {any} */
                           props: proxy({}),
@@ -480,10 +513,14 @@ export function mountComponent({ js, template, target, props = {} }) {
             });
 
             if (subComponent) {
-                mountComponent({
-                    ...subComponent,
-                    template: "subComponent",
+                const instantiate = allComponents[subComponent.key];
+
+                instantiate({
+                    target: subComponent.target,
+                    props: subComponent.props,
                 });
+
+                return subComponent.target;
             } else {
                 node.children.forEach((child) => {
                     element.appendChild(handle(child, scope));
