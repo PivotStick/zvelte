@@ -1,3 +1,13 @@
+/**
+ * @template {Record<string, any>} [Props = Record<string, any>]
+ * @template {Record<string, HTMLElement | undefined>} [BindedElements = Record<string, HTMLElement>]
+ * @typedef {{
+ *    props: Props;
+ *    els: BindedElements;
+ *    emit(type: string, detail?: any): void;
+ * }} ComponentArgs
+ */
+
 export {
     mountComponent,
     onMount,
