@@ -332,8 +332,6 @@ export function mountComponent({ js, template, target, props = {} }) {
     const componentContext = currentComponentContext;
     const ast = parse(template);
 
-    console.log(ast);
-
     /**
      * @param {any} value
      */
