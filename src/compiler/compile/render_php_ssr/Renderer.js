@@ -103,40 +103,7 @@ export default class Renderer {
             $${nodes};
         }`;
 
-        const body = cr.b`
-        import { execSync } from 'child_process';
-
-        const #text = \`${print(php)
-            .code.replace(/\\/g, "\\\\")
-            .replace(/\$\{/g, "\\${")}\`
-
-        export default class Component {
-            render(props) {
-                let php = "";
-
-                php += #text.slice(5).trim();
-                php += \`echo Component::render(json_decode('\${JSON.stringify(props).replace(/'/g, "\\'")}'));\`;
-
-                php = php.replace(/"/g, '\\\\"').replace(/\\$/g, "\\\\$");
-
-                try {
-                    const html = execSync(\`php -r "\${php}"\`);
-                    return {
-                        html: html.toString(),
-                        error: null,
-                    }
-                } catch (error) {
-                    return {
-                        html: null,
-                        error: error.stderr.toString(),
-                    }
-                }
-            }
-        }
-        `;
-
-        // @ts-ignore
-        return cr.print({ type: "Program", body });
+        return print(php);
     }
 
     /**

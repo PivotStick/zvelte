@@ -1,9 +1,8 @@
-import { parse } from "../../compiler/parse";
 import { getFilter } from "./filters";
-import { derived, effect, forBlock, ifBlock, proxy } from "./reactivity";
+import { effect, forBlock, ifBlock, proxy } from "./reactivity";
 
 /**
- * @type {Record<string, (args: { props: any; target: HTMLElement; }) => DocumentFragment>}
+ * @type {Record<string, (args: { props: any; target: HTMLElement; slots: Record<string, () => DocumentFragment> }) => DocumentFragment>}
  */
 const allComponents = {};
 
@@ -265,7 +264,8 @@ export function setListeners(listeners) {
 function getZonePathFromNode(node) {
     const zonePath = node.attributes.find((a) => a.name === "zone-path");
 
-    if (!zonePath) throw new Error("Expected zone-path in attributes");
+    if (!zonePath || zonePath.type !== "Attribute")
+        throw new Error("Expected zone-path in attributes");
 
     const value = zonePath.value;
 
@@ -281,13 +281,15 @@ function getZonePathFromNode(node) {
 /**
  * @typedef {(
  * | import('../../compiler/parse/types').Text
- * | import('../../compiler/parse/types').FragmentRoot
+ * | import('../../compiler/parse/types').Root
  * | import('../../compiler/parse/types').Element
  * | import('../../compiler/parse/types').IfBlock
  * | import('../../compiler/parse/types').ForBlock
- * | import('../../compiler/parse/types').ElseBlock
  * | import('../../compiler/parse/types').Variable
- * | import('../../compiler/parse/types').MustacheTag
+ * | import('../../compiler/parse/types').ExpressionTag
+ * | import("../../compiler/parse/types").Fragment
+ * | import("../../compiler/parse/types").Component
+ * | import("../../compiler/parse/types").SlotElement
  * )} HandledNode
  */
 
@@ -308,9 +310,10 @@ function getZonePathFromNode(node) {
  * @template Exposed
  * @param {{
  *  js?: (args: import(".").ComponentArgs<Props, any>) => Exposed;
- *  template: string;
+ *  ast: import("../../compiler/parse/types").Root;
  *  target: Element;
  *  props?: Props
+ *  slots?: Record<string, () => DocumentFragment>;
  * }} args
  *
  * @returns {{
@@ -320,7 +323,7 @@ function getZonePathFromNode(node) {
  * }}
  */
 // @ts-ignore
-export function mountComponent({ js, template, target, props = {} }) {
+export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
     props = proxy(props);
 
     currentComponentContext = {
@@ -330,7 +333,6 @@ export function mountComponent({ js, template, target, props = {} }) {
     };
 
     const componentContext = currentComponentContext;
-    const ast = parse(template);
 
     /**
      * @param {any} value
@@ -422,158 +424,67 @@ export function mountComponent({ js, template, target, props = {} }) {
     const handlers = {
         Element(node, scope) {
             const element = document.createElement(node.name);
-            const isInput = node.name === "input";
-            const subComponent =
-                node.attributes.some((a) => a.name === "zone-name") &&
-                node.attributes.some((a) => a.name === "zone-path")
-                    ? {
-                          key: getZonePathFromNode(node),
-                          target: element,
-                          /** @type {any} */
-                          props: proxy({}),
-                      }
-                    : false;
 
             node.attributes.forEach((attr) => {
-                if (attr.name === "on" && attr.modifier) {
-                    const expression = attr.value[0];
-                    if (
-                        attr.value === true ||
-                        attr.value.length !== 1 ||
-                        expression.type === "Text"
-                    ) {
-                        throw new Error(
-                            `Expected an "Expression" but got <${node.name} ${template.slice(attr.start, attr.end)} />`,
-                        );
+                switch (attr.type) {
+                    case "Attribute": {
+                        effect(() => {
+                            const value = handleAttributeValue(attr, scope);
+                            if (shouldSkipAttribute(attr.value)) {
+                                element.removeAttribute(attr.name);
+                            } else {
+                                element.setAttribute(attr.name, value);
+                            }
+                        });
+                        break;
                     }
 
-                    element.addEventListener(attr.modifier, (_event) => {
-                        handleExpression(
-                            expression,
-                            pushNewScope(scope, {
-                                ...componentContext.listeners,
-                                _event,
-                            }),
-                        );
-                    });
-
-                    return;
-                }
-
-                let modifier = (/** @type {any} */ v) => v;
-
-                if (subComponent && attr.name.startsWith("zone-")) {
-                    if (attr.modifier) {
-                        throw new Error(
-                            `Unhandled modifiers are deprecated... directly use ${attr.name}="{{ variable_name_to_directly_pass_to_component }}"`,
-                        );
-                    }
-                }
-
-                const value = derived(() =>
-                    modifier(handleAttributeValue(attr, scope)),
-                );
-
-                if (subComponent && attr.name.startsWith("zone-data-")) {
-                    const key = attr.name
-                        .replace(/^zone-data-/, "")
-                        .replace(/\-(\w)/g, (_, l) => l.toUpperCase());
-
-                    effect(() => {
-                        subComponent.props[key] = value.value;
-                    });
-                } else if (
-                    isInput &&
-                    (attr.name === "checked" ||
-                        attr.name === "disabled" ||
-                        attr.name === "readonly" ||
-                        attr.name === "required" ||
-                        attr.name === "value")
-                ) {
-                    const key =
-                        attr.name === "readonly" ? "readOnly" : attr.name;
-
-                    effect(() => {
-                        // @ts-ignore
-                        element[key] = value.value;
-                    });
-                } else if (
-                    isInput &&
-                    attr.name === "bind" &&
-                    (attr.modifier === "checked" || attr.modifier === "value")
-                ) {
-                    effect(() => {
-                        // @ts-ignore
-                        element[attr.modifier] = handleAttributeValue(
-                            attr,
-                            scope,
-                        );
-                    });
-
-                    const attrValue = attr.value[0];
-                    if (
-                        attrValue.type !== "Identifier" &&
-                        attrValue.type !== "MemberExpression"
-                    ) {
-                        throw new Error(
-                            `Expected an "Identifier" or a "MemberExpression" but got <input ${template.slice(attr.start, attr.end)} />`,
-                        );
+                    case "OnDirective": {
+                        element.addEventListener(attr.name, (_event) => {
+                            handleExpression(
+                                attr.expression,
+                                pushNewScope(scope, {
+                                    ...componentContext.listeners,
+                                    _event,
+                                }),
+                            );
+                        });
+                        break;
                     }
 
-                    element.addEventListener("input", () => {
-                        setValueFromNode(
-                            attrValue,
-                            scope,
-                            // @ts-ignore
-                            element[attr.modifier],
-                        );
-                    });
-                } else if (attr.name === "bind" && attr.modifier === "this") {
-                    const attrValue = attr.value[0];
-                    if (
-                        attrValue.type !== "Identifier" &&
-                        attrValue.type !== "MemberExpression"
-                    ) {
-                        throw new Error(
-                            `Expected an "Identifier" or a "MemberExpression" but got <${node.name} ${template.slice(attr.start, attr.end)} />`,
-                        );
-                    }
-
-                    effect(() => {
-                        setValueFromNode(attrValue, [els], element);
-                    });
-                } else {
-                    effect(() => {
-                        if (shouldSkipAttribute(value.value)) {
-                            element.removeAttribute(attr.name);
-                        } else {
-                            element.setAttribute(attr.name, value.value);
+                    case "BindDirective": {
+                        if (element instanceof HTMLInputElement) {
+                            effect(() => {
+                                element[attr.name] = handleExpression(
+                                    attr.expression,
+                                    scope,
+                                );
+                            });
+                            element.addEventListener("input", () => {
+                                setValueFromNode(
+                                    attr.expression,
+                                    scope,
+                                    element[attr.name],
+                                );
+                            });
                         }
-                    });
+                        break;
+                    }
+
+                    default:
+                        // @ts-expect-error
+                        throw new Error(`Unhandled "${attr.type}" attribute`);
                 }
             });
 
-            if (subComponent) {
-                const instantiate = allComponents[subComponent.key];
-
-                if (!instantiate)
-                    throw new Error(
-                        `Component "${subComponent.key}" not found...`,
-                    );
-
-                instantiate({
-                    target: subComponent.target,
-                    props: subComponent.props,
-                });
-
-                return subComponent.target;
-            } else {
-                node.children.forEach((child) => {
-                    element.appendChild(handle(child, scope));
-                });
-            }
+            element.appendChild(handle(node.fragment, scope));
 
             return element;
+        },
+
+        SlotElement(node, scope) {
+            if (!slots.default) return handle(node.fragment, scope);
+            return slots.default();
         },
 
         Text(node) {
@@ -590,9 +501,8 @@ export function mountComponent({ js, template, target, props = {} }) {
                 anchor,
                 () => handleExpression(node.expression, scope),
                 (item, array, index) => {
-                    const itemFragment = new DocumentFragment();
                     const itemScope = pushNewScope(scope, {
-                        [node.itemVar]: item,
+                        [node.context.name]: item,
                         loop: {
                             get index() {
                                 return index() + 1;
@@ -621,14 +531,10 @@ export function mountComponent({ js, template, target, props = {} }) {
                         },
                     });
 
-                    node.children.forEach((child) =>
-                        itemFragment.appendChild(handle(child, itemScope)),
-                    );
-
-                    return itemFragment;
+                    return handle(node.body, itemScope);
                 },
-                node.else
-                    ? () => handle(node.else, pushNewScope(scope))
+                node.fallback
+                    ? () => handle(node.fallback, pushNewScope(scope))
                     : undefined,
             );
 
@@ -643,30 +549,11 @@ export function mountComponent({ js, template, target, props = {} }) {
 
             ifBlock(
                 anchor,
-                () => handleExpression(node.expression, scope),
-                () => {
-                    const fragment = new DocumentFragment();
-                    const ifScope = pushNewScope(scope);
-
-                    node.children.forEach((child) => {
-                        fragment.appendChild(handle(child, ifScope));
-                    });
-
-                    return fragment;
-                },
-                node.else
-                    ? () => handle(node.else, pushNewScope(scope))
+                () => handleExpression(node.test, scope),
+                () => handle(node.consequent, pushNewScope(scope)),
+                node.alternate
+                    ? () => handle(node.alternate, pushNewScope(scope))
                     : undefined,
-            );
-
-            return fragment;
-        },
-
-        ElseBlock(node, scope) {
-            const fragment = new DocumentFragment();
-
-            node.children.forEach((child) =>
-                fragment.appendChild(handle(child, scope)),
             );
 
             return fragment;
@@ -674,10 +561,15 @@ export function mountComponent({ js, template, target, props = {} }) {
 
         Fragment(node, scope) {
             const fragment = new DocumentFragment();
-            node.children.forEach((child) => {
-                fragment.appendChild(handle(child, scope));
+            node.nodes.forEach((child) => {
+                const childNode = handle(child, scope);
+                if (childNode) fragment.appendChild(childNode);
             });
             return fragment;
+        },
+
+        Root(node, scope) {
+            return handle(node.fragment, scope);
         },
 
         Variable(node, scope) {
@@ -688,15 +580,84 @@ export function mountComponent({ js, template, target, props = {} }) {
                     handleExpression(node.value, scope),
                 ),
             );
-            return document.createComment("");
         },
 
-        MustacheTag(node, scope) {
+        ExpressionTag(node, scope) {
             const text = document.createTextNode("");
             effect(() => {
                 text.data = handleExpression(node.expression, scope);
             });
             return text;
+        },
+
+        Component(node, scope) {
+            const target = document.createElement(node.name);
+
+            const mount = getComponentByKey(node.key.data);
+
+            if (!mount) {
+                throw new Error(
+                    `Component with key "${node.key.data}" not found`,
+                );
+            }
+
+            const slots = {
+                default: node.fragment.nodes.length
+                    ? () => handle(node.fragment, scope)
+                    : undefined,
+            };
+
+            /** @type {any} */
+            const props = proxy({});
+
+            node.attributes.forEach((attr) => {
+                switch (attr.type) {
+                    case "Attribute":
+                        effect(() => {
+                            props[attr.name] = handleAttributeValue(
+                                attr,
+                                scope,
+                            );
+                        });
+                        break;
+
+                    case "OnDirective":
+                        target.addEventListener(attr.name, (_event) => {
+                            handleExpression(
+                                attr.expression,
+                                pushNewScope(scope, {
+                                    ...componentContext.listeners,
+                                    _event,
+                                }),
+                            );
+                        });
+                        break;
+
+                    case "BindDirective":
+                        effect(() => {
+                            setValueFromNode(
+                                attr.expression,
+                                scope,
+                                props[attr.name],
+                            );
+                        });
+                        break;
+
+                    default:
+                        throw new Error(
+                            // @ts-expect-error
+                            `Unexpected "${attr?.type}" in component attributes`,
+                        );
+                }
+            });
+
+            mount({
+                target,
+                props,
+                slots,
+            });
+
+            return target;
         },
     };
 
@@ -728,7 +689,7 @@ export function mountComponent({ js, template, target, props = {} }) {
         },
     });
 
-    const fragment = handle(ast.html, [props]);
+    const fragment = handle(ast, [props]);
 
     target.appendChild(fragment);
 

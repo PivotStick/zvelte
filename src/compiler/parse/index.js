@@ -1,22 +1,43 @@
 import { fragment } from "./states/fragment.js";
+import { createFragment } from "./utils/createFragment.js";
 import { regexWhitespace } from "./utils/patterns.js";
 
 export class Parser {
     /**
      * @param {string} template
+     * @param {{
+     *  component?: { name: RegExp; key: string; }
+     * }} [options={}]
      */
-    constructor(template) {
+    constructor(template, options = {}) {
         this.template = template;
-        this.html = {
-            type: "Fragment",
-            children: [],
-        };
-
-        this.js = null;
-        this.css = null;
 
         this.index = 0;
-        this.stack = [this.html];
+        this.component = options.component;
+
+        if (this.component?.name.test("slot")) {
+            throw new Error(
+                "`slot` is a reserved element, it cannot be used for components",
+            );
+        }
+
+        /**
+         * @type {import("./types.d.ts").Root}
+         */
+        this.root = {
+            type: "Root",
+            start: this.index,
+            end: null,
+            js: null,
+            css: null,
+            fragment: createFragment(),
+        };
+
+        /**
+         * @type {import("./types.d.ts").TemplateNode[]}
+         */
+        this.stack = [this.root];
+        this.fragments = [this.root.fragment];
 
         /**
          * @typedef {(parser: Parser) => ParserState | void} ParserState
@@ -26,10 +47,45 @@ export class Parser {
         while (this.index < this.template.length) {
             state = state(this) || fragment;
         }
+
+        this.root.end = this.index;
     }
 
     current() {
-        return this.stack[this.stack.length - 1];
+        return this.stack.at(-1);
+    }
+
+    pop() {
+        this.fragments.pop();
+        return this.stack.pop();
+    }
+
+    /**
+     * @template T
+     * @param {Omit<T, "prev" | "parent">} node
+     * @returns {T}
+     */
+    append(node) {
+        const current = this.current();
+        const fragment = this.fragments.at(-1);
+
+        Object.defineProperties(node, {
+            prev: {
+                enumerable: false,
+                value: fragment?.nodes.at(-1) ?? null,
+            },
+            parent: {
+                enumerable: false,
+                configurable: true,
+                value: current,
+            },
+        });
+
+        // @ts-expect-error
+        fragment.nodes.push(node);
+
+        // @ts-expect-error
+        return node;
     }
 
     /**
@@ -109,14 +165,12 @@ export class Parser {
         this.allowWhitespace();
     }
 
-    error(message = "Something went wrong") {
-        const i = this.index;
-
+    error(message = "Something went wrong", start = this.index) {
         let col = 0;
         let ln = 0;
         let cursor = 0;
 
-        while (cursor <= i) {
+        while (cursor <= start) {
             col++;
 
             if (this.template[cursor] === "\n") {
@@ -149,13 +203,9 @@ export class Parser {
 
 /**
  * @param {string} template
+ * @param {ConstructorParameters<typeof Parser>[1]=} options
  */
-export function parse(template) {
-    const parser = new Parser(template);
-
-    return {
-        html: parser.html,
-        js: parser.js,
-        css: parser.css,
-    };
+export function parse(template, options) {
+    const parser = new Parser(template, options);
+    return parser.root;
 }

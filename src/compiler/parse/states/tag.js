@@ -1,200 +1,236 @@
-import { is_void } from '../../shared/utils/names.js';
-import { readExpression } from '../read/expression.js';
-import * as csstree from 'css-tree';
-
-const validTagName = /^\!?[a-zA-Z]{1,}:?[a-zA-Z0-9\-]*/;
-const regexWhitespaceOrSlashOrClosingTag = /(\s|\/|>)/;
-const regexTokenEndingCharacter = /[\s=\/>"']/;
+import { Parser } from "../index.js";
+import { readExpression } from "../read/expression.js";
+import { createFragment } from "../utils/createFragment.js";
 
 /**
- * @param {import("../index.js").Parser} parser
+ * @param {Parser} parser
  */
 export const tag = (parser) => {
-	const start = parser.index;
-	parser.index++;
+    parser.index++;
 
-	// Ignore comments
-	if (parser.eat('!--')) {
-		parser.readUntil(/-->/);
-		parser.eat('-->', true);
-		return;
-	}
+    if (parser.eat("%")) return block(parser);
+    if (parser.eat("{")) return expressionTag(parser);
 
-	const isClosingTag = parser.eat('/');
-	const name = readTagName(parser);
-
-	const element = {
-		start,
-		end: null,
-		type: 'Element',
-		name,
-		attributes: [],
-		children: [],
-	};
-	parser.allowWhitespace();
-
-	if (isClosingTag) {
-		parser.eat('>', true);
-		let parent = parser.current();
-
-		while (parent.name !== name) {
-			if (parent.type !== 'Element') {
-				throw parser.error(`"${name}" has no opening tag`);
-			}
-			parent.end = start;
-			parser.stack.pop();
-			parent = parser.current();
-		}
-
-		parent.end = start;
-		parser.stack.pop();
-		return;
-	}
-
-	let attribute;
-	let uniqueNames = new Set();
-	while ((attribute = readAttribute(parser, uniqueNames))) {
-		element.attributes.push(attribute);
-		parser.allowWhitespace();
-	}
-
-	const selfClosing = parser.eat('/') || is_void(name);
-
-	parser.eat('>', true);
-
-	if (element.name === 'style') {
-		if (parser.css)
-			throw parser.error(
-				'Only one style tag can be declared in a component',
-			);
-
-		let code = '';
-		let start = parser.index;
-		let end = start;
-
-		if (!selfClosing) {
-			code = parser.readUntil(/<\/style>/);
-			end = parser.index;
-			parser.eat('</style>', true);
-		}
-
-		parser.css = {
-			start,
-			end,
-			code,
-			ast: csstree.toPlainObject(
-				csstree.parse(code, {
-					offset: start,
-				}),
-			),
-		};
-	} else {
-		parser.current().children.push(element);
-
-		if (selfClosing) {
-			element.end = parser.index;
-		} else {
-			parser.stack.push(element);
-		}
-	}
+    throw parser.error(`Unexpected token`);
 };
 
 /**
- * @param {import("../index.js").Parser} parser
+ * @param {Parser} parser
  */
-const readTagName = (parser) => {
-	const name = parser.readUntil(regexWhitespaceOrSlashOrClosingTag);
+function expressionTag(parser) {
+    const start = parser.index - 2;
+    const expression = readExpression(parser.readUntil(/}}/), parser);
+    parser.eat("}}", true);
 
-	if (!validTagName.test(name)) {
-		throw parser.error(`Invalid tag name "${name}"`);
-	}
-
-	return name;
-};
+    /**
+     * @type {import("../types.js").ExpressionTag}
+     */
+    parser.append({
+        start,
+        end: parser.index,
+        type: "ExpressionTag",
+        expression,
+    });
+}
 
 /**
- * @param {import("../index.js").Parser} parser
- * @param {Set<string>} uniqueNames
+ * @param {Parser} parser
  */
-const readAttribute = (parser, uniqueNames) => {
-	const start = parser.index;
+function block(parser) {
+    const start = parser.index - 2;
+    parser.allowWhitespace();
 
-	/**
-	 * @param {string} name
-	 */
-	const checkUnique = (name) => {
-		if (uniqueNames.has(name)) {
-			throw parser.error(`Duplicate attribute "${name}"`);
-		}
-		uniqueNames.add(name);
-	};
+    if (parser.eat("else")) return next(parser);
+    if (parser.eat("end")) return close(parser);
 
-	const name = parser.readUntil(regexTokenEndingCharacter);
-	if (!name) return null;
-	let end = parser.index;
-	const [, trueName = name, modifier = null] =
-		/(.*):([^:]+)$/.exec(name) ?? [];
-
-	parser.allowWhitespace();
-
-	/**
-	 * @type {any[] | boolean}
-	 */
-	let value = true;
-
-	if (parser.eat('=')) {
-		parser.allowWhitespace();
-		value = readAttributeValue(parser);
-		end = parser.index;
-	}
-
-	checkUnique(trueName === 'on' ? name : trueName);
-
-	return {
-		start,
-		end,
-		type: 'Attribute',
-		name: trueName,
-		modifier,
-		value,
-	};
-};
+    return open(parser, start);
+}
 
 /**
- * @param {import("../index.js").Parser} parser
+ * @param {Parser} parser
+ * @param {number} start
  */
-const readAttributeValue = (parser) => {
-	const quoteMark = parser.eat("'") ? "'" : parser.eat('"') ? '"' : null;
+function open(parser, start) {
+    if (parser.eat("if")) {
+        parser.requireWhitespace();
 
-	if (!quoteMark)
-		throw parser.error(`Expected quote mark after attribute name`);
+        /** @type {import("../types.js").IfBlock} */
+        const block = parser.append({
+            type: "IfBlock",
+            elseif: false,
+            start,
+            end: -1,
+            test: readExpression(parser.readUntil(/%}/), parser),
+            consequent: createFragment(),
+            alternate: undefined,
+        });
 
-	let value = [];
+        parser.allowWhitespace();
+        parser.eat("%}", true);
 
-	while (!parser.match(quoteMark)) {
-		if (parser.eat('{{')) {
-			const expression = readExpression(parser.readUntil(/}}/), parser);
-			parser.eat('}}', true);
-			value.push(expression);
-		} else {
-			let text = value[value.length - 1];
+        parser.stack.push(block);
+        parser.fragments.push(block.consequent);
 
-			if (text?.type !== 'Text') {
-				text = {
-					start: parser.index,
-					end: parser.index,
-					type: 'Text',
-					data: '',
-				};
-				value.push(text);
-			}
+        return;
+    }
 
-			text.data += parser.template[parser.index++];
-			text.end = parser.index;
-		}
-	}
+    if (parser.eat("for")) {
+        parser.requireWhitespace();
+        let keyVar = null;
+        let context = null;
 
-	parser.eat(quoteMark, true);
+        context = readExpression(parser.readUntil(/[,\s]/), parser);
+        parser.allowWhitespace();
 
-	return value;
-};
+        if (parser.eat(",")) {
+            parser.allowWhitespace();
+            keyVar = context;
+            context = readExpression(parser.readUntil(/\s/), parser);
+            parser.allowWhitespace();
+        }
+
+        parser.eat("in", true);
+        const expression = readExpression(parser.readUntil(/%}/), parser);
+        parser.eat("%}", true);
+
+        /** @type {import("../types.js").ForBlock} */
+        const block = parser.append({
+            start,
+            end: null,
+            type: "ForBlock",
+            expression,
+            context,
+            body: createFragment(),
+            fallback: undefined,
+        });
+
+        parser.stack.push(block);
+        parser.fragments.push(block.body);
+
+        return;
+    }
+
+    if (parser.eat("set")) {
+        parser.requireWhitespace();
+
+        let name = readExpression(parser.readUntil(/\s*=/), parser);
+        if (name.type !== "Identifier" && name.type !== "MemberExpression") {
+            throw parser.error(`Unexpected ${name.type}`);
+        }
+        parser.allowWhitespace();
+        parser.eat("=", true);
+        let value = readExpression(parser.readUntil(/%}/), parser);
+        parser.eat("%}", true);
+
+        /**
+         * @type {import("../types.js").Variable}
+         */
+        parser.append({
+            type: "Variable",
+            start,
+            end: parser.index,
+            name,
+            value,
+        });
+
+        return;
+    }
+
+    throw parser.error(`Unknown block type`);
+}
+
+/**
+ * @param {Parser} parser
+ */
+function next(parser) {
+    const block = parser.current();
+
+    if (block.type === "IfBlock") {
+        block.alternate = createFragment();
+
+        parser.fragments.pop();
+        parser.fragments.push(block.alternate);
+
+        // {% elseif ... %}
+        if (parser.eat("if")) {
+            parser.requireWhitespace();
+
+            const expression = readExpression(parser.readUntil(/%}/), parser);
+            parser.eat("%}", true);
+
+            /** @type {import("../types.js").IfBlock} */
+            const child = parser.append({
+                start: parser.index,
+                end: -1,
+                type: "IfBlock",
+                elseif: true,
+                test: expression,
+                consequent: createFragment(),
+                alternate: null,
+            });
+
+            parser.stack.push(child);
+            parser.fragments.pop();
+            parser.fragments.push(child.consequent);
+        } else {
+            // {% else %}
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+        }
+
+        return;
+    }
+
+    if (block.type === "ForBlock") {
+        parser.allowWhitespace();
+        parser.eat("%}", true);
+
+        block.fallback = createFragment();
+
+        parser.fragments.pop();
+        parser.fragments.push(block.fallback);
+
+        return;
+    }
+
+    throw parser.error(
+        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)",
+    );
+}
+
+/**
+ * @param {Parser} parser
+ */
+function close(parser) {
+    let block = parser.current();
+
+    switch (block.type) {
+        case "IfBlock": {
+            parser.eat("if", true);
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+
+            while (block.elseif) {
+                block.end = parser.index;
+                parser.stack.pop();
+                block = /** @type {import('../types.d.ts').IfBlock} */ (
+                    parser.current()
+                );
+            }
+
+            block.end = parser.index;
+            parser.pop();
+            break;
+        }
+
+        case "ForBlock": {
+            parser.eat("for", true);
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+            break;
+        }
+
+        default:
+            throw parser.error(`Unexpected end block`);
+    }
+}

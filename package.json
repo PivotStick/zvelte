@@ -1,52 +1,52 @@
 {
-    "name": "@pivotass/zvelte",
-    "version": "0.0.17",
-    "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
-    "type": "module",
-    "module": "src/runtime/index.js",
-    "main": "src/runtime/index.js",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "@pivotass/zvelte",
+  "version": "0.0.17",
+  "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
+  "type": "module",
+  "module": "src/runtime/index.js",
+  "main": "src/runtime/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PivotStick/zvelte.git"
+  },
+  "keywords": [
+    "svelte",
+    "zvelte",
+    "compiler",
+    "php",
+    "ssr",
+    "csr",
+    "js",
+    "reactivity",
+    "signals"
+  ],
+  "author": "Maxime DI NATALE",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PivotStick/zvelte/issues"
+  },
+  "homepage": "https://github.com/PivotStick/zvelte#readme",
+  "exports": {
+    "./package.json": "./package.json",
+    "./parser": {
+      "default": "./src/compiler/parse/index.js"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/PivotStick/zvelte.git"
+    "./compiler": {
+      "default": "./src/compiler/index.js"
     },
-    "keywords": [
-        "svelte",
-        "zvelte",
-        "compiler",
-        "php",
-        "ssr",
-        "csr",
-        "js",
-        "reactivity",
-        "signals"
-    ],
-    "author": "Maxime DI NATALE",
-    "license": "ISC",
-    "bugs": {
-        "url": "https://github.com/PivotStick/zvelte/issues"
-    },
-    "homepage": "https://github.com/PivotStick/zvelte#readme",
-    "exports": {
-        "./package.json": "./package.json",
-        "./parser": {
-            "default": "./src/compiler/parse/index.js"
-        },
-        "./compiler": {
-            "default": "./src/compiler/index.js"
-        },
-        "./client": {
-            "default": "./src/internal/client/index.js"
-        }
-    },
-    "dependencies": {
-        "code-red": "^1.0.4",
-        "css-tree": "^2.3.1",
-        "estree-walker": "^3.0.3",
-        "php-parser": "^3.1.5",
-        "svelte": "^4.2.15",
-        "twig-lexer": "^1.0.0"
+    "./client": {
+      "default": "./src/internal/client/index.js"
     }
+  },
+  "dependencies": {
+    "code-red": "^1.0.4",
+    "css-tree": "^2.3.1",
+    "estree-walker": "^3.0.3",
+    "php-parser": "^3.1.5",
+    "svelte": "^5.0.0-next.120",
+    "twig-lexer": "^1.0.0"
+  }
 }

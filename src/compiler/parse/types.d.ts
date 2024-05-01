@@ -1,52 +1,108 @@
-export type Fragment = Element | Text | MustacheTag | IfBlock | ForBlock;
-
-export type IfBlock = {
-    type: "IfBlock";
-    children: Fragment[];
-    elseif: boolean;
-    expression: Expression;
-    else?: ElseBlock<"if">;
-};
-
-export type ForBlock = {
-    type: "ForBlock";
-    keyVar: null;
-    itemVar: string;
-    expression: Expression;
-    children: Fragment[];
-    else?: ElseBlock<"for">;
-};
-
-export type ElseBlock<In extends "if" | "for" = "if" | "for"> = {
-    type: "ElseBlock";
-    in: In;
-    children: Fragment[];
-};
-
-export type MustacheTag = {
-    type: "MustacheTag";
-    expression: Expression;
-};
-
-export type FragmentRoot = {
-    type: "Fragment";
-    children: Fragment[];
-};
-
-export type Element = {
-    type: "Element";
-    attributes: Attribute[];
-    children: Fragment[];
-    name: string;
-};
-
-export type Attribute = {
-    type: "Attribute";
-    modifier: null | string;
-    name: string;
-    value: (Text | Expression)[] | true;
+type BaseNode = {
     start: number;
     end: number;
+};
+
+export type TemplateNode =
+    | Root
+    | Text
+    | Tag
+    | ElementLike
+    | Attribute
+    | Directive
+    | Comment
+    | Block;
+
+export type Directive = BindDirective | OnDirective;
+
+export type ElementLike = Element | Component | SlotElement;
+
+export interface OnDirective extends BaseNode {
+    type: "OnDirective";
+    /** The 'x' in `on:x` */
+    name: string;
+    /** The 'y' in `on:x={y}` */
+    expression: null | Expression;
+    modifiers: string[]; // TODO specify
+}
+
+/** A `bind:` directive */
+export interface BindDirective extends BaseNode {
+    type: "BindDirective";
+    /** The 'x' in `bind:x` */
+    name: string;
+    /** The y in `bind:x={y}` */
+    expression: Identifier | MemberExpression;
+}
+
+export type Tag = ExpressionTag;
+
+export type Block = ForBlock | IfBlock;
+
+export type Component = BaseNode & {
+    type: "Component";
+    attributes: Array<Attribute | Directive>;
+    fragment: Fragment;
+    name: string;
+    key: Text;
+};
+
+export type Comment = BaseNode & {
+    type: "Comment";
+    data: string;
+};
+
+export type Fragment = {
+    type: "Fragment";
+    nodes: (ElementLike | Text | ExpressionTag | IfBlock | ForBlock)[];
+};
+
+export type IfBlock = BaseNode & {
+    type: "IfBlock";
+    test: Expression;
+    consequent: Fragment;
+    elseif: boolean;
+    alternate?: Fragment;
+};
+
+export type ForBlock = BaseNode & {
+    type: "ForBlock";
+    expression: Expression;
+    context: Identifier;
+    body: Fragment;
+    fallback?: Fragment;
+};
+
+export type ExpressionTag = BaseNode & {
+    type: "ExpressionTag";
+    expression: Expression;
+};
+
+export type Root = BaseNode & {
+    type: "Root";
+    fragment: Fragment;
+    js: any;
+    css: any;
+};
+
+export type Element = BaseNode & {
+    type: "Element";
+    attributes: Array<Attribute | Directive>;
+    fragment: Fragment;
+    name: string;
+};
+
+export type SlotElement = BaseNode & {
+    type: "SlotElement";
+    attributes: Array<Attribute>;
+    fragment: Fragment;
+    name: string;
+};
+
+export type Attribute = BaseNode & {
+    type: "Attribute";
+    name: string;
+    value: true | Array<Text | Expression>;
 };
 
 export type Expression =
@@ -147,12 +203,12 @@ export type ConditionalExpression = {
     alternate: Expression;
 };
 
-export type Text = {
+export type Text = BaseNode & {
     type: "Text";
     data: string;
 };
 
-export type Variable = {
+export type Variable = BaseNode & {
     type: "Variable";
     name: Identifier | MemberExpression;
     value: Expression;
