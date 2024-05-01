@@ -34,6 +34,9 @@
         "./parser": {
             "default": "./src/compiler/parse/index.js"
         },
+        "./compiler": {
+            "default": "./src/compiler/index.js"
+        },
         "./client": {
             "default": "./src/internal/client/index.js"
         }
