@@ -227,6 +227,7 @@ function close(parser) {
             parser.eat("for", true);
             parser.allowWhitespace();
             parser.eat("%}", true);
+            parser.pop();
             break;
         }
 
