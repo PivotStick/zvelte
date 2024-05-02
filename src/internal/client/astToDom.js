@@ -324,16 +324,6 @@ function getZonePathFromNode(node) {
  */
 // @ts-ignore
 export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
-    props = proxy(props);
-
-    currentComponentContext = {
-        destroyCallbacks: [],
-        mountCallbacks: [],
-        listeners: {},
-    };
-
-    const componentContext = currentComponentContext;
-
     /**
      * @param {any} value
      */
@@ -672,6 +662,16 @@ export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
         return handler(node, scope);
     }
 
+    props = proxy(props);
+
+    currentComponentContext = {
+        destroyCallbacks: [],
+        mountCallbacks: [],
+        listeners: {},
+    };
+
+    const componentContext = currentComponentContext;
+
     /**
      * @type {Record<string, HTMLElement>}
      */
@@ -689,6 +689,8 @@ export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
         },
     });
 
+    currentComponentContext = undefined;
+
     const fragment = handle(ast, [props]);
 
     target.appendChild(fragment);
@@ -702,11 +704,9 @@ export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
 
     return {
         on(type, listener) {
-            // @ts-ignore
             target.addEventListener(type, listener);
         },
 
-        // @ts-ignore
         exposed,
 
         destroy() {
