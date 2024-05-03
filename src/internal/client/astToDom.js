@@ -1,6 +1,6 @@
 import { walk } from "estree-walker";
 import { getFilter } from "./filters";
-import { effect, forBlock, ifBlock, proxy } from "./reactivity";
+import { effect, forBlock, ifBlock, proxy, pushContext } from "./reactivity";
 
 /**
  * @type {Record<string, (args: { props: any; target: HTMLElement; slots: Record<string, () => DocumentFragment> }) => DocumentFragment>}
@@ -679,6 +679,8 @@ export function mountComponent({
         return handler(node, scope);
     }
 
+    const signalsCtx = pushContext();
+
     props = proxy(props);
 
     currentComponentContext = {
@@ -708,7 +710,18 @@ export function mountComponent({
 
     currentComponentContext = undefined;
 
+    /**
+     * @type {DocumentFragment}
+     */
     const fragment = handle(ast, [props]);
+
+    signalsCtx.pop();
+
+    /**
+     * @type {Node[]}
+     */
+    // @ts-expect-error
+    const rootNodes = [...fragment.childNodes];
 
     target.appendChild(fragment);
 
@@ -727,6 +740,10 @@ export function mountComponent({
         exposed,
 
         destroy() {
+            signalsCtx.flush();
+            rootNodes.forEach(
+                (node) => node.isConnected && node.parentNode.removeChild(node),
+            );
             componentContext.destroyCallbacks.forEach((fn) => fn());
         },
     };
