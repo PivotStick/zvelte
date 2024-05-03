@@ -60,9 +60,15 @@ const filters = {
     map: notImplemented("map"),
     markdown_to_html: notImplemented("markdown_to_html"),
     merge: notImplemented("merge"),
-    nl2br: notImplemented("nl2br"),
+    nl2br: (value) => {
+        return value.replace(/\n/g, "<br />");
+    },
     number_format: notImplemented("number_format"),
-    raw: notImplemented("raw"),
+    raw: () => {
+        throw new Error(
+            `"raw" filter should not be used, please use {{ @html ... }} instead`,
+        );
+    },
     reduce: notImplemented("reduce"),
     replace: notImplemented("replace"),
     reverse: notImplemented("reverse"),

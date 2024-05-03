@@ -35,7 +35,7 @@ export interface BindDirective extends BaseNode {
     expression: Identifier | MemberExpression;
 }
 
-export type Tag = ExpressionTag;
+export type Tag = ExpressionTag | HtmlTag;
 
 export type Block = ForBlock | IfBlock;
 
@@ -54,7 +54,7 @@ export type Comment = BaseNode & {
 
 export type Fragment = {
     type: "Fragment";
-    nodes: (ElementLike | Text | ExpressionTag | IfBlock | ForBlock)[];
+    nodes: (ElementLike | Text | Tag | IfBlock | ForBlock)[];
 };
 
 export type IfBlock = BaseNode & {
@@ -75,6 +75,11 @@ export type ForBlock = BaseNode & {
 
 export type ExpressionTag = BaseNode & {
     type: "ExpressionTag";
+    expression: Expression;
+};
+
+export type HtmlTag = BaseNode & {
+    type: "HtmlTag";
     expression: Expression;
 };
 

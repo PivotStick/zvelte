@@ -19,16 +19,18 @@ export const tag = (parser) => {
  */
 function expressionTag(parser) {
     const start = parser.index - 2;
+    parser.allowWhitespace();
+    const type = parser.eat("@html") ? "HtmlTag" : "ExpressionTag";
     const expression = readExpression(parser.readUntil(/}}/), parser);
     parser.eat("}}", true);
 
     /**
-     * @type {import("../types.js").ExpressionTag}
+     * @type {import("../types.js").Tag }
      */
     parser.append({
         start,
         end: parser.index,
-        type: "ExpressionTag",
+        type,
         expression,
     });
 }

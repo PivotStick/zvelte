@@ -1,3 +1,4 @@
+import { walk } from "estree-walker";
 import { getFilter } from "./filters";
 import { effect, forBlock, ifBlock, proxy } from "./reactivity";
 
@@ -266,7 +267,7 @@ export function setListeners(listeners) {
  * | import('../../compiler/parse/types').IfBlock
  * | import('../../compiler/parse/types').ForBlock
  * | import('../../compiler/parse/types').Variable
- * | import('../../compiler/parse/types').ExpressionTag
+ * | import('../../compiler/parse/types').Tag
  * | import("../../compiler/parse/types").Fragment
  * | import("../../compiler/parse/types").Component
  * | import("../../compiler/parse/types").SlotElement
@@ -563,7 +564,39 @@ export function mountComponent({
             effect(() => {
                 text.data = handleExpression(node.expression, scope);
             });
+
             return text;
+        },
+
+        HtmlTag(node, scope) {
+            const fragment = new DocumentFragment();
+            const anchor = document.createComment("");
+
+            fragment.appendChild(anchor);
+
+            /**
+             * @type {Set<Node>}
+             */
+            const nodesToRemove = new Set();
+
+            effect(() => {
+                nodesToRemove.forEach(
+                    (node) =>
+                        node.isConnected && node.parentNode.removeChild(node),
+                );
+                nodesToRemove.clear();
+
+                const template = document.createElement("template");
+
+                template.innerHTML = handleExpression(node.expression, scope);
+                template.content.childNodes.forEach((child) =>
+                    nodesToRemove.add(child),
+                );
+
+                anchor.before(template.content);
+            });
+
+            return fragment;
         },
 
         Component(node, scope) {
