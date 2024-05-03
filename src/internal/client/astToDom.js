@@ -261,16 +261,13 @@ export function setListeners(listeners) {
 
 /**
  * @typedef {(
- * | import('../../compiler/parse/types').Text
  * | import('../../compiler/parse/types').Root
- * | import('../../compiler/parse/types').Element
- * | import('../../compiler/parse/types').IfBlock
- * | import('../../compiler/parse/types').ForBlock
- * | import('../../compiler/parse/types').Variable
+ * | import('../../compiler/parse/types').Fragment
+ * | import('../../compiler/parse/types').Text
+ * | import('../../compiler/parse/types').Comment
+ * | import('../../compiler/parse/types').ElementLike
+ * | import('../../compiler/parse/types').Block
  * | import('../../compiler/parse/types').Tag
- * | import("../../compiler/parse/types").Fragment
- * | import("../../compiler/parse/types").Component
- * | import("../../compiler/parse/types").SlotElement
  * )} HandledNode
  */
 
@@ -668,6 +665,8 @@ export function mountComponent({
 
             return target;
         },
+
+        Comment() {}, // not handling comments
     };
 
     /**

@@ -3,7 +3,7 @@ import { x } from "../php_printer/index.js";
 import Wrapper from "../shared/Wrapper.js";
 
 /**
- * @extends Wrapper<import("../../../parse/types.d.ts").Variable>
+ * @extends Wrapper<import("../../../parse/types.d.ts").VariableTag>
  */
 export default class Variable extends Wrapper {
     /**

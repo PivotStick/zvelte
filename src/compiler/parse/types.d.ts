@@ -11,6 +11,7 @@ export type TemplateNode =
     | Attribute
     | Directive
     | Comment
+    | VariableTag
     | Block;
 
 export type Directive = BindDirective | OnDirective;
@@ -35,7 +36,7 @@ export interface BindDirective extends BaseNode {
     expression: Identifier | MemberExpression;
 }
 
-export type Tag = ExpressionTag | HtmlTag;
+export type Tag = ExpressionTag | HtmlTag | VariableTag;
 
 export type Block = ForBlock | IfBlock;
 
@@ -213,7 +214,7 @@ export type Text = BaseNode & {
     data: string;
 };
 
-export type Variable = BaseNode & {
+export type VariableTag = BaseNode & {
     type: "Variable";
     name: Identifier | MemberExpression;
     value: Expression;

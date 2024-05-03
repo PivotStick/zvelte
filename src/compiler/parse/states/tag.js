@@ -125,7 +125,7 @@ function open(parser, start) {
         parser.eat("%}", true);
 
         /**
-         * @type {import("../types.js").Variable}
+         * @type {import("../types.js").VariableTag}
          */
         parser.append({
             type: "Variable",
