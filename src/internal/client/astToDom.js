@@ -233,7 +233,7 @@ function handleExpression(node, scope) {
  * @type {{
  *  mountCallbacks: (() => void | (() => void))[];
  *  destroyCallbacks: (() => void)[];
- *  listeners: Record<string, (...args: any[]) => void>;
+ *  listeners: import("./types").Listeners,
  * } | undefined}
  */
 let currentComponentContext;
@@ -257,8 +257,7 @@ export function onDestroy(callback) {
 }
 
 /**
- * @typedef {Record<string, (...args: any[]) => void | Listeners>} Listeners
- * @param {Listeners} listeners
+ * @param {import("./types").Listeners} listeners
  */
 export function setListeners(listeners) {
     if (currentComponentContext) {
