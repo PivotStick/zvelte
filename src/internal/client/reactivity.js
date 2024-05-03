@@ -553,7 +553,14 @@ export function forBlock(anchor, get, render, emptyRender = null) {
     // This ignore effects is usefull if you use "each" in another effects
     untrack(() => {
         effect(() => {
-            const array = get();
+            const collection = get();
+
+            const array = Array.isArray(collection)
+                ? collection
+                : collection == null
+                  ? []
+                  : Array.from(collection);
+
             const length = array.length;
 
             // We don't want this effect to observe signals used inside the given render callbacks

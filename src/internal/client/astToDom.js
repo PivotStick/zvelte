@@ -259,26 +259,6 @@ export function setListeners(listeners) {
 }
 
 /**
- * @param {import("../../compiler/parse/types").Element} node
- */
-function getZonePathFromNode(node) {
-    const zonePath = node.attributes.find((a) => a.name === "zone-path");
-
-    if (!zonePath || zonePath.type !== "Attribute")
-        throw new Error("Expected zone-path in attributes");
-
-    const value = zonePath.value;
-
-    if (value === true || value.length > 1 || value[0].type !== "Text") {
-        throw new Error(
-            `"zone-path" cannot be dynamic and need to statictly be a string`,
-        );
-    }
-
-    return value[0].data;
-}
-
-/**
  * @typedef {(
  * | import('../../compiler/parse/types').Text
  * | import('../../compiler/parse/types').Root
@@ -322,8 +302,14 @@ function getZonePathFromNode(node) {
  *   destroy(): void;
  * }}
  */
-// @ts-ignore
-export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
+export function mountComponent({
+    js,
+    ast,
+    target,
+    // @ts-expect-error
+    props = {},
+    slots = {},
+}) {
     /**
      * @param {any} value
      */
@@ -656,7 +642,6 @@ export function mountComponent({ js, ast, target, props = {}, slots = {} }) {
      * @param {Record<string, any>[]} scope
      */
     function handle(node, scope) {
-        // @ts-ignore
         const handler = handlers[node?.type];
         if (!handler) throw new Error(`Node "${node?.type}" not handled`);
         return handler(node, scope);
