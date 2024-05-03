@@ -1,9 +1,15 @@
-import { walk } from "estree-walker";
 import { getFilter } from "./filters";
-import { effect, forBlock, ifBlock, proxy, pushContext } from "./reactivity";
+import {
+    effect,
+    forBlock,
+    ifBlock,
+    proxy,
+    pushContext,
+    source,
+} from "./reactivity";
 
 /**
- * @type {Record<string, (args: { props: any; target: HTMLElement; slots: Record<string, () => DocumentFragment> }) => DocumentFragment>}
+ * @type {Record<string, (args: { props: any; target: HTMLElement; slots: Record<string, () => DocumentFragment> }) => ReturnType<typeof mountComponent>>}
  */
 const allComponents = {};
 
@@ -427,7 +433,15 @@ export function mountComponent({
                     }
 
                     case "BindDirective": {
-                        if (element instanceof HTMLInputElement) {
+                        if (attr.name === "this") {
+                            effect(() => {
+                                setValueFromNode(
+                                    attr.expression,
+                                    [els],
+                                    element,
+                                );
+                            });
+                        } else if (element instanceof HTMLInputElement) {
                             effect(() => {
                                 element[attr.name] = handleExpression(
                                     attr.expression,
@@ -615,6 +629,10 @@ export function mountComponent({
 
             /** @type {any} */
             const props = proxy({});
+            /**
+             * @type {import("./reactivity").Source<null | ReturnType<typeof mount>>}
+             */
+            const instance = source(null);
 
             node.attributes.forEach((attr) => {
                 switch (attr.type) {
@@ -640,13 +658,23 @@ export function mountComponent({
                         break;
 
                     case "BindDirective":
-                        effect(() => {
-                            setValueFromNode(
-                                attr.expression,
-                                scope,
-                                props[attr.name],
-                            );
-                        });
+                        if (attr.name === "this") {
+                            effect(() => {
+                                setValueFromNode(
+                                    attr.expression,
+                                    [els],
+                                    instance.value,
+                                );
+                            });
+                        } else {
+                            effect(() => {
+                                setValueFromNode(
+                                    attr.expression,
+                                    scope,
+                                    props[attr.name],
+                                );
+                            });
+                        }
                         break;
 
                     default:
@@ -657,7 +685,7 @@ export function mountComponent({
                 }
             });
 
-            mount({
+            instance.value = mount({
                 target,
                 props,
                 slots,
