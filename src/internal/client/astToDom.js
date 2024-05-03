@@ -257,7 +257,8 @@ export function onDestroy(callback) {
 }
 
 /**
- * @param {Record<string, (...args: any[]) => void>} listeners
+ * @typedef {Record<string, (...args: any[]) => void | Listeners>} Listeners
+ * @param {Listeners} listeners
  */
 export function setListeners(listeners) {
     if (currentComponentContext) {
