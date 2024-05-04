@@ -1,5 +1,5 @@
 import { is_void } from "../../shared/utils/names.js";
-import { readExpression } from "../read/expression.js";
+import { parseExpression } from "../read/expression.js";
 import * as csstree from "css-tree";
 import { createFragment } from "../utils/createFragment.js";
 import { Parser } from "../index.js";
@@ -273,7 +273,9 @@ const readAttributeValue = (parser) => {
 
     while (!parser.match(quoteMark)) {
         if (parser.eat("{{")) {
-            const expression = readExpression(parser.readUntil(/}}/), parser);
+            parser.allowWhitespace();
+            const expression = parseExpression(parser);
+            parser.allowWhitespace();
             parser.eat("}}", true);
             value.push(expression);
         } else {

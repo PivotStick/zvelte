@@ -1,4 +1,3 @@
-import * as cr from "code-red";
 import { b, print } from "./php_printer/index.js";
 import PhPParser from "php-parser";
 import Fragment from "./wrappers/Fragment.js";

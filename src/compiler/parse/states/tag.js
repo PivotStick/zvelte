@@ -1,5 +1,5 @@
 import { Parser } from "../index.js";
-import { readExpression } from "../read/expression.js";
+import { parseExpression, parseIdentifier } from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 
 /**
@@ -19,9 +19,16 @@ export const tag = (parser) => {
  */
 function expressionTag(parser) {
     const start = parser.index - 2;
+    let type = "ExpressionTag";
+
     parser.allowWhitespace();
-    const type = parser.eat("@html") ? "HtmlTag" : "ExpressionTag";
-    const expression = readExpression(parser.readUntil(/}}/), parser);
+    if (parser.eat("@html")) {
+        type = "HtmlTag";
+        parser.allowWhitespace();
+    }
+
+    const expression = parseExpression(parser);
+    parser.allowWhitespace();
     parser.eat("}}", true);
 
     /**
@@ -55,6 +62,7 @@ function block(parser) {
 function open(parser, start) {
     if (parser.eat("if")) {
         parser.requireWhitespace();
+        const test = parseExpression(parser);
 
         /** @type {import("../types.js").IfBlock} */
         const block = parser.append({
@@ -62,7 +70,7 @@ function open(parser, start) {
             elseif: false,
             start,
             end: -1,
-            test: readExpression(parser.readUntil(/%}/), parser),
+            test,
             consequent: createFragment(),
             alternate: undefined,
         });
@@ -78,21 +86,14 @@ function open(parser, start) {
 
     if (parser.eat("for")) {
         parser.requireWhitespace();
-        let keyVar = null;
-        let context = null;
-
-        context = readExpression(parser.readUntil(/[,\s]/), parser);
+        const context = parseIdentifier(parser);
+        if (!context) throw parser.error("Expected an Identifier");
         parser.allowWhitespace();
 
-        if (parser.eat(",")) {
-            parser.allowWhitespace();
-            keyVar = context;
-            context = readExpression(parser.readUntil(/\s/), parser);
-            parser.allowWhitespace();
-        }
-
         parser.eat("in", true);
-        const expression = readExpression(parser.readUntil(/%}/), parser);
+        parser.requireWhitespace();
+        const expression = parseExpression(parser);
+        parser.allowWhitespace();
         parser.eat("%}", true);
 
         /** @type {import("../types.js").ForBlock} */
@@ -115,13 +116,15 @@ function open(parser, start) {
     if (parser.eat("set")) {
         parser.requireWhitespace();
 
-        let name = readExpression(parser.readUntil(/\s*=/), parser);
+        let name = parseExpression(parser);
         if (name.type !== "Identifier" && name.type !== "MemberExpression") {
             throw parser.error(`Unexpected ${name.type}`);
         }
         parser.allowWhitespace();
         parser.eat("=", true);
-        let value = readExpression(parser.readUntil(/%}/), parser);
+        parser.allowWhitespace();
+        let value = parseExpression(parser);
+        parser.allowWhitespace();
         parser.eat("%}", true);
 
         /**
@@ -157,7 +160,8 @@ function next(parser) {
         if (parser.eat("if")) {
             parser.requireWhitespace();
 
-            const expression = readExpression(parser.readUntil(/%}/), parser);
+            const expression = parseExpression(parser);
+            parser.allowWhitespace();
             parser.eat("%}", true);
 
             /** @type {import("../types.js").IfBlock} */

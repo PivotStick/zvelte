@@ -108,27 +108,13 @@ function handleExpression(node, scope) {
             }
 
             case "BinaryExpression": {
+                const left = traverse(node.left, ctx);
+
                 switch (node.operator) {
                     case "??":
-                        return (
-                            traverse(node.left, ctx) ??
-                            traverse(node.right, ctx)
-                        );
-
-                    case "&&":
-                        return (
-                            traverse(node.left, ctx) &&
-                            traverse(node.right, ctx)
-                        );
-
-                    case "||":
-                        return (
-                            traverse(node.left, ctx) ||
-                            traverse(node.right, ctx)
-                        );
+                        return left ?? traverse(node.right, ctx);
                 }
 
-                const left = traverse(node.left, ctx);
                 const right = traverse(node.right, ctx);
 
                 switch (node.operator) {
@@ -145,6 +131,7 @@ function handleExpression(node, scope) {
                         return false;
 
                     case "~":
+                    case "+":
                         return left + right;
 
                     case "==":
@@ -188,6 +175,7 @@ function handleExpression(node, scope) {
 
                     default:
                         throw new Error(
+                            // @ts-expect-error
                             `Unhandled UnaryExpression operator "${node.operator}"`,
                         );
                 }

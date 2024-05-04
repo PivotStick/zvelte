@@ -1,7 +1,8 @@
-type BaseNode = {
+interface BaseNode {
+    type: string;
     start: number;
     end: number;
-};
+}
 
 export type TemplateNode =
     | Root
@@ -15,8 +16,23 @@ export type TemplateNode =
     | Block;
 
 export type Directive = BindDirective | OnDirective;
-
 export type ElementLike = Element | Component | SlotElement;
+export type Tag = ExpressionTag | HtmlTag | VariableTag;
+export type Block = ForBlock | IfBlock;
+export type Expression =
+    | ConditionalExpression
+    | Identifier
+    | UnaryExpression
+    | BinaryExpression
+    | StringLiteral
+    | BooleanLiteral
+    | NullLiteral
+    | NumericLiteral
+    | ObjectExpression
+    | ArrayExpression
+    | MemberExpression
+    | FilterExpression
+    | CallExpression;
 
 export interface OnDirective extends BaseNode {
     type: "OnDirective";
@@ -36,186 +52,215 @@ export interface BindDirective extends BaseNode {
     expression: Identifier | MemberExpression;
 }
 
-export type Tag = ExpressionTag | HtmlTag | VariableTag;
-
-export type Block = ForBlock | IfBlock;
-
-export type Component = BaseNode & {
+export interface Component extends BaseNode {
     type: "Component";
     attributes: Array<Attribute | Directive>;
     fragment: Fragment;
     name: string;
     key: Text;
-};
+}
 
-export type Comment = BaseNode & {
+export interface Comment extends BaseNode {
     type: "Comment";
     data: string;
-};
+}
 
-export type Fragment = {
+export interface Fragment extends BaseNode {
     type: "Fragment";
     nodes: (ElementLike | Text | Tag | IfBlock | ForBlock)[];
-};
+}
 
-export type IfBlock = BaseNode & {
+export interface Text extends BaseNode {
+    type: "Text";
+    data: string;
+}
+
+export interface VariableTag extends BaseNode {
+    type: "Variable";
+    name: Identifier | MemberExpression;
+    value: Expression;
+}
+
+export interface IfBlock extends BaseNode {
     type: "IfBlock";
     test: Expression;
     consequent: Fragment;
     elseif: boolean;
     alternate?: Fragment;
-};
+}
 
-export type ForBlock = BaseNode & {
+export interface ForBlock extends BaseNode {
     type: "ForBlock";
     expression: Expression;
     context: Identifier;
     body: Fragment;
     fallback?: Fragment;
-};
+}
 
-export type ExpressionTag = BaseNode & {
+export interface ExpressionTag extends BaseNode {
     type: "ExpressionTag";
     expression: Expression;
-};
+}
 
-export type HtmlTag = BaseNode & {
+export interface HtmlTag extends BaseNode {
     type: "HtmlTag";
     expression: Expression;
-};
+}
 
-export type Root = BaseNode & {
+export interface Root extends BaseNode {
     type: "Root";
     fragment: Fragment;
     js: any;
     css: any;
-};
+}
 
-export type Element = BaseNode & {
+export interface Element extends BaseNode {
     type: "Element";
     attributes: Array<Attribute | Directive>;
     fragment: Fragment;
     name: string;
-};
+}
 
-export type SlotElement = BaseNode & {
+export interface SlotElement extends BaseNode {
     type: "SlotElement";
     attributes: Array<Attribute>;
     fragment: Fragment;
     name: string;
-};
+}
 
-export type Attribute = BaseNode & {
+export interface Attribute extends BaseNode {
     type: "Attribute";
     name: string;
     value: true | Array<Text | Expression>;
-};
+}
 
-export type Expression =
-    | ConditionalExpression
-    | Identifier
-    | UnaryExpression
-    | BinaryExpression
-    | StringLiteral
-    | BooleanLiteral
-    | NullLiteral
-    | NumericLiteral
-    | ObjectExpression
-    | ArrayExpression
-    | MemberExpression
-    | FilterExpression
-    | CallExpression;
-
-export type Property = {
+export interface Property extends BaseNode {
     type: "Property";
     key: Identifier;
     value: Expression;
-};
+}
 
-export type ObjectExpression = {
+export interface ObjectExpression extends BaseNode {
     type: "ObjectExpression";
     properties: Property[];
-};
+}
 
-export type ArrayExpression = {
+export interface ArrayExpression extends BaseNode {
     type: "ArrayExpression";
     elements: Expression[];
-};
+}
 
-export type CallExpression = {
+export interface CallExpression extends BaseNode {
     type: "CallExpression";
-    name: Identifier | MemberExpression;
+    name: Expression;
     arguments: Expression[];
-};
+}
 
-export type FilterExpression = {
+export interface FilterExpression extends BaseNode {
     type: "FilterExpression";
     name: Identifier;
     arguments: Expression[];
-};
+}
 
-export type MemberExpression = {
+export type MemberExpression = BaseNode & {
     type: "MemberExpression";
-    computed: boolean;
-    object: Identifier | MemberExpression;
-    property: Identifier | MemberExpression;
-};
+    object: Expression;
+} & (
+        | { computed: false; property: Identifier }
+        | { computed: true; property: Expression }
+    );
 
-export type NumericLiteral = {
+export interface NumericLiteral extends BaseNode {
     type: "NumericLiteral";
     value: number;
-};
+}
 
-export type BooleanLiteral = {
+export interface BooleanLiteral extends BaseNode {
     type: "BooleanLiteral";
     value: boolean;
     raw: string;
-};
+}
 
-export type NullLiteral = {
+export interface NullLiteral extends BaseNode {
     type: "NullLiteral";
     value: null;
     raw: string;
-};
+}
 
-export type StringLiteral = {
+export interface StringLiteral extends BaseNode {
     type: "StringLiteral";
     value: string;
     raw: string;
-};
+}
 
-export type BinaryExpression = {
+export interface BinaryExpression extends BaseNode {
     type: "BinaryExpression";
     left: Expression;
-    operator: string;
+    operator:
+        | "+"
+        | "-"
+        | "/"
+        | "*"
+        | "~"
+        | "??"
+        | "or"
+        | "and"
+        | "=="
+        | "!="
+        | "<="
+        | ">="
+        | "<"
+        | ">"
+        | "in"
+        | "is";
     right: Expression;
-};
+}
 
-export type Identifier = {
+export interface Identifier extends BaseNode {
     type: "Identifier";
     name: string;
-};
+}
 
-export type UnaryExpression = {
+export interface UnaryExpression extends BaseNode {
     type: "UnaryExpression";
-    operator: string;
+    operator: "not" | "-";
     argument: Expression;
-};
+}
 
-export type ConditionalExpression = {
+export interface ConditionalExpression extends BaseNode {
     type: "ConditionalExpression";
     test: Expression;
     consequent: Expression;
     alternate: Expression;
-};
+}
 
-export type Text = BaseNode & {
-    type: "Text";
-    data: string;
-};
-
-export type VariableTag = BaseNode & {
-    type: "Variable";
-    name: Identifier | MemberExpression;
-    value: Expression;
-};
+export type Any =
+    | OnDirective
+    | BindDirective
+    | Component
+    | Comment
+    | Fragment
+    | IfBlock
+    | ForBlock
+    | ExpressionTag
+    | HtmlTag
+    | Root
+    | Element
+    | SlotElement
+    | Attribute
+    | Property
+    | ObjectExpression
+    | ArrayExpression
+    | CallExpression
+    | FilterExpression
+    | MemberExpression
+    | NumericLiteral
+    | BooleanLiteral
+    | NullLiteral
+    | StringLiteral
+    | BinaryExpression
+    | Identifier
+    | UnaryExpression
+    | ConditionalExpression
+    | Text
+    | VariableTag;

@@ -199,6 +199,10 @@ export class Parser {
 
         return new SyntaxError("\n" + reset + lines.join("\n") + `...${reset}`);
     }
+
+    eof() {
+        return this.index >= this.template.length;
+    }
 }
 
 /**

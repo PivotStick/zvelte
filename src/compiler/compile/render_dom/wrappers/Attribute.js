@@ -1,8 +1,8 @@
 import { x } from "code-red";
 import Wrapper from "../shared/Wrapper.js";
-import { walk } from "svelte/compiler";
 import { attributeValueToJS } from "../shared/attributeValueToJS.js";
 import { parseEventHandler } from "../../../../internal/dom.js";
+import { walk } from "estree-walker";
 
 export class Attribute extends Wrapper {
     /**

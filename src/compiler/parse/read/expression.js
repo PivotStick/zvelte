@@ -1,415 +1,522 @@
-import { Lexer } from "twig-lexer";
-
-const lexer = new Lexer();
+import { Parser } from "../index.js";
 
 /**
- * @param {string} sequence
- * @param {import("../index.js").Parser} parser
+ * @param {Parser} parser
  */
-export const readExpression = (sequence, parser) => {
-    let i = 0;
-    const tokens = lexer
-        .tokenize(`{{${sequence.trim()}}}`)
-        .filter((token) => token.type !== "WHITESPACE");
+export function parseExpression(parser) {
+    return parseConditional(parser);
+}
 
-    tokens.shift(); // Removes the "{{"
-    tokens.pop(); // Removes the "EOF"
-    tokens.pop(); // Removes the "}}"
+/**
+ * @param {Parser} parser
+ */
+export function parseConditional(parser) {
+    const start = parser.index;
+    let test = parseComparison(parser);
 
-    return parseExpression();
+    while (parser.eat("?")) {
+        parser.allowWhitespace();
+        const consequent = parseExpression(parser);
+        parser.allowWhitespace();
+        parser.eat(":", true);
+        parser.allowWhitespace();
+        const alternate = parseExpression(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
 
-    function parseExpression() {
-        return parseConditional();
+        test = /** @type {import("../types.js").ConditionalExpression} */ ({
+            type: "ConditionalExpression",
+            test,
+            consequent,
+            alternate,
+            start,
+            end,
+        });
     }
 
-    function parseConditional() {
-        let test = parseComparison();
+    return test;
+}
 
-        while (match("PUNCTUATION", /\?/)) {
-            eat("PUNCTUATION", true);
-            const consequent = parseConditional();
-            eat("PUNCTUATION", true, /:/);
-            const alternate = parseConditional();
+/**
+ * @param {Parser} parser
+ */
+export function parseComparison(parser) {
+    const start = parser.index;
+    let left = parseAdditive(parser);
+    /**
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "or" | "in" | "and" | "??" | "is"}
+     */
+    let operator;
 
-            test = {
-                type: "ConditionalExpression",
-                test,
-                consequent,
-                alternate,
-            };
-        }
+    while (
+        // @ts-ignore
+        (operator = parser.read(/^(>|<|<=|>=|==|!=|or|in|and|\?\?|is)/))
+    ) {
+        parser.allowWhitespace();
+        const right = parseAdditive(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
 
-        return test;
+        left = {
+            type: "BinaryExpression",
+            operator,
+            left,
+            right,
+            start,
+            end,
+        };
     }
 
-    function parseComparison() {
-        /**
-         * @type {any}
-         */
-        let left = parseAdditive();
+    return left;
+}
 
-        while (
-            match("OPERATOR", />|<|<=|>=|==|!=|or|in|and|\?\?/) ||
-            match("TEST_OPERATOR", /is/)
-        ) {
-            const operator =
-                eat("TEST_OPERATOR", false, /is/)?.value ??
-                eat("OPERATOR", true)?.value;
+/**
+ * @param {Parser} parser
+ */
+export function parseAdditive(parser) {
+    const start = parser.index;
+    let left = parseMultiplicative(parser);
+    /**
+     * @type {"+" | "-"}
+     */
+    let operator;
 
-            const right = parseAdditive();
+    // @ts-ignore
+    while ((operator = parser.read(/^(\+|-)/))) {
+        parser.allowWhitespace();
+        const right = parseMultiplicative(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
 
+        left = {
+            type: "BinaryExpression",
+            operator,
+            left,
+            right,
+            start,
+            end,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseMultiplicative(parser) {
+    const start = parser.index;
+    let left = parseConcatenation(parser);
+    /**
+     * @type {"*" | "/"}
+     */
+    let operator;
+
+    // @ts-ignore
+    while ((operator = parser.read(/^(\*|\/)/))) {
+        parser.allowWhitespace();
+        const right = parseConcatenation(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
+
+        left = {
+            type: "BinaryExpression",
+            operator,
+            left,
+            right,
+            start,
+            end,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseConcatenation(parser) {
+    const start = parser.index;
+    let left = parseChainableExpression(parser);
+
+    while (parser.eat("~")) {
+        parser.allowWhitespace();
+        const right = parseChainableExpression(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
+
+        left = {
+            type: "BinaryExpression",
+            operator: "~",
+            left,
+            right,
+            start,
+            end,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseChainableExpression(parser) {
+    const start = parser.index;
+    let left = parsePrimary(parser);
+
+    while (
+        parseMemberExpression() ??
+        parseFilterExpression() ??
+        parseCallExpression()
+    ) {
+        parser.allowWhitespace();
+    }
+
+    function parseMemberExpression() {
+        if (parser.matchRegex(/^(\.|\[)/)) {
+            const computed = parser.eat("[");
+            if (!computed) {
+                parser.eat(".", true);
+            }
+            parser.allowWhitespace();
+
+            const property = computed
+                ? parseExpression(parser)
+                : parseIdentifier(parser);
+
+            if (!property) {
+                throw parser.error(
+                    computed
+                        ? "Expected an Expression"
+                        : "Expected an Identifier",
+                );
+            }
+
+            parser.allowWhitespace();
+
+            if (computed) {
+                parser.eat("]", true);
+            }
+
+            const end = parser.index;
+
+            // @ts-ignore
             left = {
-                type: "BinaryExpression",
-                operator,
-                left,
-                right,
+                type: "MemberExpression",
+                object: left,
+                property,
+                computed,
+                start,
+                end,
             };
-        }
 
-        return left;
+            return true;
+        }
     }
 
-    function parseAdditive() {
-        /**
-         * @type {any}
-         */
-        let left = parseMultiplicative();
+    function parseFilterExpression() {
+        if (parser.eat("|")) {
+            parser.allowWhitespace();
+            const name = parseIdentifier(parser);
+            if (!name) throw parser.error("Expected an Identifier");
 
-        while (match("OPERATOR", /\+|-/)) {
-            const operator = eat("OPERATOR", true).value;
-            const right = parseMultiplicative();
+            parser.allowWhitespace();
+            const args = [left];
 
-            left = {
-                type: "BinaryExpression",
-                operator,
-                left,
-                right,
-            };
-        }
-
-        return left;
-    }
-
-    function parseMultiplicative() {
-        /**
-         * @type {any}
-         */
-        let left = parseConcatenation();
-
-        while (match("OPERATOR", /\*|\//)) {
-            const operator = eat("OPERATOR", true).value;
-            const right = parseConcatenation();
-
-            left = {
-                type: "BinaryExpression",
-                operator,
-                left,
-                right,
-            };
-        }
-
-        return left;
-    }
-
-    function parseConcatenation() {
-        /**
-         * @type {any}
-         */
-        let left = parsePrimary();
-
-        while (match("OPERATOR", /~/)) {
-            const operator = eat("OPERATOR", true).value;
-            const right = parsePrimary();
-
-            left = {
-                type: "BinaryExpression",
-                operator,
-                left,
-                right,
-            };
-        }
-
-        return left;
-    }
-
-    function parsePrimary() {
-        let primary;
-
-        if (match("OPERATOR", /not|-/)) {
-            primary = parseUnaryExpression();
-        } else if (match("PUNCTUATION", /\(/)) {
-            primary = parseParentheziedExpression();
-        } else if (match("PUNCTUATION", /\{/)) {
-            primary = parseObjectExpression();
-        } else if (match("PUNCTUATION", /\[/)) {
-            primary = parseArrayExpression();
-        } else if (match("NAME", /^((?!true|false|null).*)$/)) {
-            primary = parseVariableExpression();
-
-            if (match("PUNCTUATION", /\(/)) {
-                eat("PUNCTUATION", true, /\(/);
-
-                const parameters = [];
-
-                while (!match("PUNCTUATION", /\)/) && i < tokens.length) {
-                    parameters.push(parseExpression());
-                    eat("PUNCTUATION", false, /,/);
+            if (parser.eat("(")) {
+                parser.allowWhitespace();
+                while (!parser.eof() && !parser.eat(")")) {
+                    args.push(parseExpression(parser));
+                    parser.allowWhitespace();
+                    if (!parser.match(")")) {
+                        parser.eat(",", true);
+                        parser.allowWhitespace();
+                    }
                 }
-
-                eat("PUNCTUATION", true, /\)/);
-
-                const isFilter = primary.type === "Identifier";
-
-                primary = {
-                    type: isFilter ? "FilterExpression" : "CallExpression",
-                    name: primary,
-                    arguments: parameters,
-                };
             }
-        } else {
-            primary = parseLiteral();
-        }
 
-        if (match("PUNCTUATION", /\|/)) {
-            const filter = parseFilterExpression();
-            filter.arguments.unshift(primary);
-            primary = filter;
-        }
+            const end = parser.index;
 
-        return primary;
+            left = {
+                type: "FilterExpression",
+                name,
+                arguments: args,
+                start,
+                end,
+            };
+            return true;
+        }
     }
 
-    function parseArrayExpression() {
-        eat("PUNCTUATION", true, /\[/);
+    function parseCallExpression() {
+        if (parser.eat("(")) {
+            parser.allowWhitespace();
+            const args = [];
 
-        const array = {
+            while (!parser.eof() && !parser.eat(")")) {
+                args.push(parseExpression(parser));
+                parser.allowWhitespace();
+                if (!parser.match(")")) {
+                    parser.eat(",", true);
+                    parser.allowWhitespace();
+                }
+            }
+
+            const end = parser.index;
+
+            // @ts-ignore
+            left = {
+                type:
+                    left.type === "Identifier"
+                        ? "FilterExpression"
+                        : "CallExpression",
+                name: left,
+                arguments: args,
+                start,
+                end,
+            };
+
+            return true;
+        }
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ * @returns {import("../types.js").UnaryExpression | import("../types.js").Expression | import("../types.js").ObjectExpression}
+ */
+export function parsePrimary(parser) {
+    const primary =
+        parseUnaryExpression(parser) ??
+        parseParentheziedExpression(parser) ??
+        parseObjectExpression(parser) ??
+        parseArrayExpression(parser) ??
+        parseBooleanLiteral(parser) ??
+        parseIdentifier(parser) ??
+        parseNumericLiteral(parser) ??
+        parseNullLiteral(parser) ??
+        parseStringLiteral(parser);
+
+    if (!primary) throw parser.error("Unexpected token");
+
+    parser.allowWhitespace();
+
+    return primary;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseArrayExpression(parser) {
+    const start = parser.index;
+    if (parser.eat("[")) {
+        parser.allowWhitespace();
+
+        const elements = [];
+
+        while (!parser.eat("]")) {
+            elements.push(parseExpression(parser));
+            parser.allowWhitespace();
+            if (!parser.match("]")) {
+                parser.eat(",", true);
+                parser.allowWhitespace();
+            }
+        }
+
+        const end = parser.index;
+
+        return /** @type {import("../types.js").ArrayExpression} */ ({
             type: "ArrayExpression",
-            elements: [],
-        };
-
-        while (!match("PUNCTUATION", /\]/)) {
-            array.elements.push(parseExpression());
-            if (!match("PUNCTUATION", /\]/)) {
-                eat("PUNCTUATION", true, /,/);
-            }
-        }
-
-        eat("PUNCTUATION", true, /\]/);
-
-        return array;
+            elements,
+            start,
+            end,
+        });
     }
+}
 
-    function parseObjectExpression() {
-        eat("PUNCTUATION", true, /\{/);
+/**
+ * @param {Parser} parser
+ */
+export function parseObjectExpression(parser) {
+    const start = parser.index;
+    if (parser.eat("{")) {
+        parser.allowWhitespace();
 
-        const object = {
-            type: "ObjectExpression",
-            properties: [],
-        };
+        const properties = [];
 
-        while (!match("PUNCTUATION", /\}/)) {
-            const key = parseStringLiteral() ?? parseIdentifier();
-            eat("PUNCTUATION", true, /:/);
-            const value = parseExpression();
+        while (!parser.eat("}")) {
+            const start = parser.index;
+            const key = parseStringLiteral(parser) ?? parseIdentifier(parser);
+
+            if (!key) throw parser.error("Unexpected token");
+
+            parser.allowWhitespace();
+            parser.eat(":", true);
+            parser.allowWhitespace();
+            const value = parseExpression(parser);
+            parser.allowWhitespace();
+            parser.eat(",", !parser.match("}"));
+            const end = parser.index;
 
             const property = {
                 type: "Property",
                 key,
                 value,
+                start,
+                end,
             };
 
-            if (!match("PUNCTUATION", /\}/)) {
-                eat("PUNCTUATION", true, /,/);
-            }
-
-            object.properties.push(property);
+            properties.push(property);
+            parser.allowWhitespace();
         }
 
-        eat("PUNCTUATION", true, /\}/);
+        const end = parser.index;
 
-        return object;
+        return /** @type {import("../types.js").ObjectExpression} */ ({
+            type: "ObjectExpression",
+            properties,
+            start,
+            end,
+        });
     }
+}
 
-    function parseUnaryExpression() {
-        const operator = eat("OPERATOR", true, /not|-/);
+/**
+ * @param {Parser} parser
+ */
+export function parseUnaryExpression(parser) {
+    const start = parser.index;
+    let operator;
 
-        return {
+    if ((operator = parser.read(/^(not|-)/))) {
+        if (operator === "not") {
+            parser.requireWhitespace();
+        }
+        const argument = parseChainableExpression(parser);
+        const end = parser.index;
+
+        return /** @type {import("../types.js").UnaryExpression} */ ({
             type: "UnaryExpression",
-            operator: operator.value,
-            argument: parsePrimary(),
-        };
+            operator,
+            argument,
+            start,
+            end,
+        });
     }
+}
 
-    function parseParentheziedExpression() {
-        eat("PUNCTUATION", true, /\(/);
-        const expression = parseExpression();
-        eat("PUNCTUATION", true, /\)/);
+/**
+ * @param {Parser} parser
+ */
+export function parseParentheziedExpression(parser) {
+    if (parser.eat("(")) {
+        parser.allowWhitespace();
+        const expression = parseExpression(parser);
+        parser.allowWhitespace();
+        parser.eat(")", true);
 
         return expression;
     }
+}
 
-    function parseVariableExpression() {
-        /**
-         * @type {any}
-         */
-        let identifier = parseIdentifier();
+/**
+ * @param {Parser} parser
+ */
+export function parseIdentifier(parser) {
+    const start = parser.index;
+    let name;
 
-        while (match("PUNCTUATION", /\.|\[/)) {
-            const computed = match("PUNCTUATION", /\[/);
-            if (computed) {
-                eat("PUNCTUATION", true, /\[/);
-            } else {
-                eat("PUNCTUATION", true, /\./);
-            }
+    if ((name = parser.read(/^[a-zA-Z_\$][\w]*/))) {
+        const end = parser.index;
 
-            const property = computed
-                ? parseExpression()
-                : parseVariableExpression();
-
-            if (computed) {
-                eat("PUNCTUATION", true, /\]/);
-            }
-
-            identifier = {
-                type: "MemberExpression",
-                object: identifier,
-                property,
-                computed,
-            };
-        }
-
-        return identifier;
-    }
-
-    function parseIdentifier() {
-        const name = eat("NAME", true).value;
-        return {
+        return /** @type {import("../types.js").Identifier} */ ({
             type: "Identifier",
             name,
-        };
+            start,
+            end,
+        });
     }
+}
 
-    function parseLiteral() {
-        if (match("NUMBER")) {
-            const token = eat("NUMBER", true);
-            return {
-                type: "NumericLiteral",
-                value: Number(token.value),
-            };
-        }
+/**
+ * @param {Parser} parser
+ */
+export function parseNumericLiteral(parser) {
+    const start = parser.index;
+    let raw;
 
-        if (match("NAME", /^true|false$/)) {
-            const value = eat("NAME", true).value;
-            return {
-                type: "BooleanLiteral",
-                value: value === "true",
-                raw: value,
-            };
-        }
+    if ((raw = parser.read(/^\d+/))) {
+        const end = parser.index;
 
-        if (match("NAME", /^null$/)) {
-            const value = eat("NAME", true).value;
-            return {
-                type: "NullLiteral",
-                value: null,
-                raw: value,
-            };
-        }
-
-        return (
-            parseStringLiteral() ??
-            (() => {
-                const token = current();
-                throw parser.error(
-                    `Unexpected literal type token, got ${token.type} "${token.value}"`,
-                );
-            })()
-        );
+        return /** @type {import("../types.js").NumericLiteral} */ ({
+            type: "NumericLiteral",
+            raw,
+            value: Number(raw),
+            start,
+            end,
+        });
     }
+}
 
-    function parseStringLiteral() {
-        if (match("OPENING_QUOTE")) {
-            const openingQuote = eat("OPENING_QUOTE", true);
-            const value = eat("STRING", false)?.value ?? "";
-            const closingQuote = eat("CLOSING_QUOTE", true);
+/**
+ * @param {Parser} parser
+ */
+export function parseBooleanLiteral(parser) {
+    const start = parser.index;
+    let raw;
 
-            return {
-                type: "StringLiteral",
-                value,
-                raw: `${openingQuote.value}${value}${closingQuote.value}`,
-            };
-        }
+    if ((raw = parser.read(/^(true|false)(?!\w)/))) {
+        const end = parser.index;
+
+        return /** @type {import("../types.js").BooleanLiteral} */ ({
+            type: "BooleanLiteral",
+            value: raw === "true",
+            raw,
+            start,
+            end,
+        });
     }
+}
 
-    function parseFilterExpression() {
-        eat("PUNCTUATION", true, /\|/);
-        const name = parseIdentifier();
-        const parameters = [];
+/**
+ * @param {Parser} parser
+ */
+export function parseStringLiteral(parser) {
+    const start = parser.index;
+    let raw;
 
-        if (match("PUNCTUATION", /\(/)) {
-            eat("PUNCTUATION", true, /\(/);
-            while (!match("PUNCTUATION", /\)/) && i < tokens.length) {
-                parameters.push(parseExpression());
-                eat("PUNCTUATION", false, /,/);
-            }
-            eat("PUNCTUATION", true, /\)/);
-        }
+    if ((raw = parser.read(/^("[^"]*"|'[^']*')/))) {
+        const end = parser.index;
 
-        return {
-            type: "FilterExpression",
-            name,
-            arguments: parameters,
-        };
+        return /** @type {import("../types.js").StringLiteral} */ ({
+            type: "StringLiteral",
+            raw,
+            value: raw.slice(1, -1),
+            start,
+            end,
+        });
     }
+}
 
-    // -- Utils
+/**
+ * @param {Parser} parser
+ */
+export function parseNullLiteral(parser) {
+    const start = parser.index;
+    let raw;
 
-    /**
-     * @param {string} type
-     * @param {RegExp=} value
-     */
-    function match(type, value = undefined) {
-        const token = current();
-        const validType = token.type === type;
-        const validValue = value === undefined ? true : value.test(token.value);
+    if ((raw = parser.read(/^null(?!\w)/))) {
+        const end = parser.index;
 
-        return validType && validValue;
+        return /** @type {import("../types.js").NullLiteral} */ ({
+            type: "NullLiteral",
+            value: null,
+            raw,
+            start,
+            end,
+        });
     }
-
-    /**
-     * @param {string} type
-     * @param {boolean=} required
-     * @param {RegExp=} value
-     * @returns {import("twig-lexer").Token}
-     */
-    function eat(type, required = false, value = undefined) {
-        if (match(type, value)) {
-            return tokens[i++];
-        }
-
-        if (required) {
-            if (value === undefined) {
-                throw parser.error(
-                    `Unexpected token "${current().type}", expected "${type}"`,
-                );
-            } else {
-                throw parser.error(
-                    `Unexpected token "${current().type}" with value "${
-                        current().value
-                    }", expected "${type}" with value matching "${value}"`,
-                );
-            }
-        }
-    }
-
-    /**
-     * @returns {any}
-     */
-    function current() {
-        if (i >= tokens.length) {
-            return { type: "EOF" };
-        }
-
-        return tokens[i];
-    }
-};
+}
