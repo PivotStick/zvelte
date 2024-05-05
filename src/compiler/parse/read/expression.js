@@ -163,7 +163,7 @@ export function parseConcatenation(parser) {
  */
 export function parseChainableExpression(parser) {
     const start = parser.index;
-    let left = parsePrimary(parser);
+    let left = parseRangeExpression(parser);
 
     while (
         parseMemberExpression() ??
@@ -286,17 +286,50 @@ export function parseChainableExpression(parser) {
 
 /**
  * @param {Parser} parser
+ */
+export function parseRangeExpression(parser) {
+    const start = parser.index;
+    let from = parsePrimary(parser);
+
+    if (parser.eat("..")) {
+        if (from.type !== "NumericLiteral") {
+            throw parser.error("Expected NumericLiteral", from.start);
+        }
+        parser.allowWhitespace();
+        const to = parsePrimary(parser);
+
+        if (to.type !== "NumericLiteral") {
+            throw parser.error("Expected NumericLiteral");
+        }
+
+        const end = parser.index;
+
+        from = {
+            type: "RangeExpression",
+            from,
+            to,
+            step: from.value < to.value ? 1 : -1,
+            start,
+            end,
+        };
+    }
+
+    return from;
+}
+
+/**
+ * @param {Parser} parser
  * @returns {import("../types.js").UnaryExpression | import("../types.js").Expression | import("../types.js").ObjectExpression}
  */
 export function parsePrimary(parser) {
     const primary =
-        parseUnaryExpression(parser) ??
         parseParentheziedExpression(parser) ??
         parseObjectExpression(parser) ??
         parseArrayExpression(parser) ??
         parseBooleanLiteral(parser) ??
         parseIdentifier(parser) ??
         parseNumericLiteral(parser) ??
+        parseUnaryExpression(parser) ??
         parseNullLiteral(parser) ??
         parseStringLiteral(parser);
 
@@ -448,7 +481,7 @@ export function parseNumericLiteral(parser) {
     const start = parser.index;
     let raw;
 
-    if ((raw = parser.read(/^\d+/))) {
+    if ((raw = parser.read(/^-?\d+/))) {
         const end = parser.index;
 
         return /** @type {import("../types.js").NumericLiteral} */ ({

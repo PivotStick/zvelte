@@ -32,6 +32,7 @@ export type Expression =
     | ArrayExpression
     | MemberExpression
     | FilterExpression
+    | RangeExpression
     | CallExpression;
 
 export interface OnDirective extends BaseNode {
@@ -234,6 +235,13 @@ export interface ConditionalExpression extends BaseNode {
     alternate: Expression;
 }
 
+export interface RangeExpression extends BaseNode {
+    type: "RangeExpression";
+    from: NumericLiteral;
+    to: NumericLiteral;
+    step: 1 | -1;
+}
+
 export type Any =
     | OnDirective
     | BindDirective
@@ -254,6 +262,7 @@ export type Any =
     | CallExpression
     | FilterExpression
     | MemberExpression
+    | RangeExpression
     | NumericLiteral
     | BooleanLiteral
     | NullLiteral

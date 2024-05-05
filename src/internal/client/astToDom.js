@@ -207,6 +207,18 @@ function handleExpression(node, scope) {
                 return fn(...args);
             }
 
+            case "RangeExpression": {
+                const values = [];
+                for (
+                    let i = node.from.value;
+                    node.step === 1 ? i < node.to.value : i > node.to.value;
+                    i += node.step
+                ) {
+                    values.push(i);
+                }
+                return values;
+            }
+
             default:
                 console.error(node);
                 // @ts-ignore
