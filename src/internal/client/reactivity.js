@@ -248,10 +248,12 @@ function get(signal) {
     const effect = currentEffect;
     if (effect) {
         (signal.effects ??= new Set()).add(effect);
+        (effect.deps ??= new Set()).add(signal);
         const ctx = currentContext();
         if (ctx) {
             ctx.removeListeners.push(() => {
-                signal.effects.delete(effect);
+                signal.effects?.delete(effect);
+                effect.deps?.delete(signal);
             });
         }
     }
