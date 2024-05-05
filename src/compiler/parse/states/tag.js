@@ -86,9 +86,18 @@ function open(parser, start) {
 
     if (parser.eat("for")) {
         parser.requireWhitespace();
-        const context = parseIdentifier(parser);
+        let key;
+        let context = parseIdentifier(parser);
         if (!context) throw parser.error("Expected an Identifier");
         parser.allowWhitespace();
+
+        if (parser.eat(",")) {
+            parser.allowWhitespace();
+            key = context;
+            context = parseIdentifier(parser);
+            if (!context) throw parser.error("Expected an Identifier");
+            parser.allowWhitespace();
+        }
 
         parser.eat("in", true);
         parser.requireWhitespace();
@@ -102,6 +111,7 @@ function open(parser, start) {
             end: null,
             type: "ForBlock",
             expression,
+            key,
             context,
             body: createFragment(),
             fallback: undefined,

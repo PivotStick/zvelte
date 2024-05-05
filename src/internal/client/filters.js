@@ -1,18 +1,52 @@
+import { sprintf } from "sprintf-js";
+
+const constants = {
+    JSON_PRETTY_PRINT: 1 << 1,
+};
+
 /**
  * @param {string} key
  */
 const notImplemented = (key) => () => {
-    throw new Error(`Filter "${key}" is not implemented yet`);
+    throw new Error(`The filter "${key}" is not implemented yet`);
 };
 
 /**
  * @type {Record<string, (...args: any[]) => any>}
  */
 const filters = {
-    abs: notImplemented("abs"),
-    batch: notImplemented("batch"),
-    capitalize: notImplemented("capitalize"),
-    column: notImplemented("column"),
+    abs: Math.abs,
+    /**
+     * @param {any[]} array
+     * @param {number} size
+     * @param {any} fill
+     * @param {boolean} preserveKeys
+     */
+    batch: (array, size, fill, preserveKeys = true) => {
+        const batches = [];
+        const totalCount = Math.ceil(array.length / size);
+
+        for (let i = 0; i < totalCount; i++) {
+            const offset = i * size;
+            const batch = [];
+            for (let j = 0; j < size; j++) {
+                const value = array[offset + j] ?? fill;
+                batch[preserveKeys ? offset + j : j] = value;
+            }
+            batches.push(batch);
+        }
+
+        return batches;
+    },
+    capitalize: (str) =>
+        str.toLowerCase().replace(/\b\w/, (l) => l.toUpperCase()),
+    column: (array, key) => {
+        const values = [];
+        array.forEach((item) => {
+            values.push(item?.[key]);
+        });
+        return values;
+    },
     convert_encoding: notImplemented("convert_encoding"),
     country_name: notImplemented("country_name"),
     currency_name: notImplemented("currency_name"),
@@ -20,11 +54,11 @@ const filters = {
     data_uri: notImplemented("data_uri"),
     date: notImplemented("date"),
     date_modify: notImplemented("date_modify"),
-    default: notImplemented("default"),
+    default: (value, fallback) => value ?? fallback,
     escape: notImplemented("escape"),
-    filter: notImplemented("filter"),
-    first: notImplemented("first"),
-    format: notImplemented("format"),
+    filter: (array, callback) => array?.filter(callback),
+    first: (array) => Object.keys(array).at(0),
+    format: sprintf,
     format_currency: notImplemented("format_currency"),
     format_date: notImplemented("format_date"),
     format_datetime: notImplemented("format_datetime"),
@@ -46,20 +80,31 @@ const filters = {
             return result;
         }
     },
-    json_encode: notImplemented("json_encode"),
-    keys: notImplemented("keys"),
+    /**
+     * @param {any} value
+     * @param {number} flags
+     */
+    json_encode: (value, flags) => {
+        if ((flags & constants.JSON_PRETTY_PRINT) !== 0) {
+            return JSON.stringify(value, null, 2);
+        }
+        return JSON.stringify(value);
+    },
+    keys: Object.keys,
     language_name: notImplemented("language_name"),
-    last: notImplemented("last"),
+    last: (value) => Object.keys(value).at(-1),
     length: (value) => {
         if (typeof value === "object" && value !== null) {
             return value.length;
         }
     },
     locale_name: notImplemented("locale_name"),
-    lower: notImplemented("lower"),
-    map: notImplemented("map"),
+    lower: (str) => str.toLowerCase(),
+    map: (arr, callback) => arr.map(callback),
     markdown_to_html: notImplemented("markdown_to_html"),
-    merge: notImplemented("merge"),
+    merge: (a, b) => {
+        return Array.isArray(a) ? [...a, ...b] : { ...a, ...b };
+    },
     nl2br: (value) => {
         return value.replace(/\n/g, "<br />");
     },
@@ -77,14 +122,17 @@ const filters = {
     slug: notImplemented("slug"),
     sort: notImplemented("sort"),
     spaceless: notImplemented("spaceless"),
-    split: notImplemented("split"),
+    split: (arr, ...args) => arr.split(...args),
     striptags: notImplemented("striptags"),
     timezone_name: notImplemented("timezone_name"),
     title: notImplemented("title"),
-    trim: notImplemented("trim"),
+    trim: (str) => str.trim(),
     u: notImplemented("u:"),
-    upper: notImplemented("upper"),
+    upper: (str) => str.toUpperCase(),
     url_encode: notImplemented("url_encode"),
+    constant(key) {
+        return constants[key];
+    },
 };
 
 /**

@@ -93,6 +93,7 @@ export interface IfBlock extends BaseNode {
 export interface ForBlock extends BaseNode {
     type: "ForBlock";
     expression: Expression;
+    key?: Identifier;
     context: Identifier;
     body: Fragment;
     fallback?: Fragment;
@@ -137,7 +138,7 @@ export interface Attribute extends BaseNode {
 
 export interface Property extends BaseNode {
     type: "Property";
-    key: Identifier;
+    key: Identifier | StringLiteral;
     value: Expression;
 }
 

@@ -93,7 +93,11 @@ function handleExpression(node, scope) {
                 /** @type {any} */
                 const object = {};
                 node.properties.forEach((property) => {
-                    object[property.key.name] = traverse(property.value);
+                    object[
+                        property.key.type === "StringLiteral"
+                            ? property.key.value
+                            : property.key.name
+                    ] = traverse(property.value);
                 });
                 return object;
             }
