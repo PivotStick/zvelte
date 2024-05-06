@@ -14,6 +14,8 @@ export function parseConditional(parser) {
     const start = parser.index;
     let test = parseComparison(parser);
 
+    parser.allowWhitespace();
+
     while (parser.eat("?")) {
         parser.allowWhitespace();
         const consequent = parseExpression(parser);
@@ -43,6 +45,8 @@ export function parseConditional(parser) {
 export function parseComparison(parser) {
     const start = parser.index;
     let left = parseAdditive(parser);
+
+    parser.allowWhitespace();
     /**
      * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "or" | "in" | "and" | "??" | "is"}
      */
@@ -50,7 +54,7 @@ export function parseComparison(parser) {
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(>|<|<=|>=|==|!=|or|in|and|\?\?|is)/))
+        (operator = parser.read(/^(<=|>=|==|!=|or|in|and|\?\?|>|<|is)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
@@ -76,6 +80,8 @@ export function parseComparison(parser) {
 export function parseAdditive(parser) {
     const start = parser.index;
     let left = parseMultiplicative(parser);
+
+    parser.allowWhitespace();
     /**
      * @type {"+" | "-"}
      */
@@ -107,6 +113,8 @@ export function parseAdditive(parser) {
 export function parseMultiplicative(parser) {
     const start = parser.index;
     let left = parseConcatenation(parser);
+
+    parser.allowWhitespace();
     /**
      * @type {"*" | "/"}
      */
@@ -139,6 +147,8 @@ export function parseConcatenation(parser) {
     const start = parser.index;
     let left = parseChainableExpression(parser);
 
+    parser.allowWhitespace();
+
     while (parser.eat("~")) {
         parser.allowWhitespace();
         const right = parseChainableExpression(parser);
@@ -164,6 +174,8 @@ export function parseConcatenation(parser) {
 export function parseChainableExpression(parser) {
     const start = parser.index;
     let left = parseRangeExpression(parser);
+
+    parser.allowWhitespace();
 
     while (
         parseMemberExpression() ??
@@ -291,6 +303,8 @@ export function parseRangeExpression(parser) {
     const start = parser.index;
     let from = parsePrimary(parser);
 
+    parser.allowWhitespace();
+
     if (parser.eat("..")) {
         if (from.type !== "NumericLiteral") {
             throw parser.error("Expected NumericLiteral", from.start);
@@ -334,8 +348,6 @@ export function parsePrimary(parser) {
         parseStringLiteral(parser);
 
     if (!primary) throw parser.error("Unexpected token");
-
-    parser.allowWhitespace();
 
     return primary;
 }
