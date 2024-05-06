@@ -337,7 +337,7 @@ export function mountComponent({
 
         Root(node, scope) {
             if (node.css) {
-                const styleSheetId = hash(node.css.code);
+                const styleSheetId = "zvelte-" + hash(node.css.code);
                 walk(node.fragment, {
                     leave(
                         /** @type {import("../../compiler/parse/types").Any} */ node,
