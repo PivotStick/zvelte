@@ -341,11 +341,11 @@ export function parsePrimary(parser) {
         parseObjectExpression(parser) ??
         parseArrayExpression(parser) ??
         parseBooleanLiteral(parser) ??
-        parseIdentifier(parser) ??
         parseNumericLiteral(parser) ??
         parseUnaryExpression(parser) ??
         parseNullLiteral(parser) ??
-        parseStringLiteral(parser);
+        parseStringLiteral(parser) ??
+        parseIdentifier(parser);
 
     if (!primary) throw parser.error("Unexpected token");
 
