@@ -373,7 +373,10 @@ export function mountComponent({
                                     classAttr.value.push(text);
                                 }
 
-                                if (text.data.trim() !== "") {
+                                if (
+                                    text.data.trim() !== "" &&
+                                    classAttr.value.length === 1
+                                ) {
                                     text.data += " ";
                                 }
                                 text.data += styleSheetId;
