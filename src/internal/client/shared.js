@@ -251,3 +251,35 @@ export function handleAttributeValue(node, scope) {
 
     return values.map(handleNode).join("");
 }
+
+/**
+ * @param {Node} target
+ * @param {string} styleSheetId
+ * @param {string} styles
+ */
+export async function appendStyles(target, styleSheetId, styles) {
+    const appendStylesTo = getRootForStyle(target);
+
+    if (!appendStylesTo.getElementById(styleSheetId)) {
+        const style = document.createElement("style");
+        style.id = styleSheetId;
+        style.textContent = styles;
+
+        /** @type {Document} */ (
+            // @ts-ignore
+            appendStylesTo.head || appendStylesTo
+        ).appendChild(style);
+    }
+}
+
+/**
+ * @param {Node} node
+ */
+function getRootForStyle(node) {
+    if (!node) return document;
+    const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
+    if (root && /** @type {ShadowRoot} */ (root).host) {
+        return /** @type {ShadowRoot} */ (root);
+    }
+    return /** @type {Document} */ (node.ownerDocument);
+}

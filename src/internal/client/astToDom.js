@@ -1,5 +1,7 @@
+import { walk } from "estree-walker";
+import { hash } from "../../compiler/parse/utils/hash";
 import { astToString } from "./astToString";
-import { getFilter } from "./filters";
+import * as cssTree from "css-tree";
 import {
     effect,
     forBlock,
@@ -9,6 +11,7 @@ import {
     source,
 } from "./reactivity";
 import {
+    appendStyles,
     findScopeFrom,
     handleAttributeValue,
     handleExpression,
@@ -333,6 +336,68 @@ export function mountComponent({
         },
 
         Root(node, scope) {
+            if (node.css) {
+                const styleSheetId = hash(node.css.code);
+                walk(node.fragment, {
+                    leave(
+                        /** @type {import("../../compiler/parse/types").Any} */ node,
+                    ) {
+                        if (node.type === "Element") {
+                            let classAttr = node.attributes.find(
+                                (attr) =>
+                                    attr.type === "Attribute" &&
+                                    attr.name === "class",
+                            );
+                            if (classAttr?.type !== "Attribute") {
+                                classAttr = {
+                                    type: "Attribute",
+                                    name: "class",
+                                    start: -1,
+                                    end: -1,
+                                    value: [],
+                                };
+                                node.attributes.push(classAttr);
+                            }
+
+                            if (classAttr.value !== true) {
+                                let text = classAttr.value.find(
+                                    (t) => t.type === "Text",
+                                );
+                                if (text?.type !== "Text") {
+                                    text = {
+                                        type: "Text",
+                                        end: -1,
+                                        start: -1,
+                                        data: "",
+                                    };
+                                    classAttr.value.push(text);
+                                }
+
+                                if (text.data.trim() !== "") {
+                                    text.data += " ";
+                                }
+                                text.data += styleSheetId;
+                            }
+                        }
+                    },
+                });
+
+                cssTree.walk(node.css.ast, {
+                    leave(node) {
+                        if (node.type === "Selector") {
+                            node.children.push({
+                                type: "ClassSelector",
+                                name: styleSheetId,
+                                loc: null,
+                            });
+                        }
+                    },
+                });
+
+                node.css.code = cssTree.generate(node.css.ast);
+
+                appendStyles(undefined, styleSheetId, node.css.code);
+            }
             return handle(node.fragment, scope);
         },
 
