@@ -325,6 +325,9 @@ function handle(node, walker, ctx) {
             return handle(node.property, walker, { ...ctx, scope: [object] });
         }
 
+        case "NumericLiteral":
+        case "NullLiteral":
+        case "BooleanLiteral":
         case "StringLiteral": {
             return node.value;
         }
