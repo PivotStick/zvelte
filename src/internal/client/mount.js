@@ -42,7 +42,7 @@ export function mount({
     source = "",
     // @ts-expect-error
     props = {},
-    init = () => {},
+    init,
 }) {
     props = $.proxy(props);
 
@@ -50,7 +50,7 @@ export function mount({
     addTemplatesToAST(ast);
 
     const component = ($$anchor, $$props) => {
-        $.push($$props, true);
+        if (init) $.push($$props, true);
         const fragment = getRoot(ast);
 
         currentCtx = {
@@ -59,7 +59,7 @@ export function mount({
             els: {},
         };
 
-        init({
+        init?.({
             props: $$props,
             els: currentCtx.els,
         });
@@ -67,7 +67,7 @@ export function mount({
         handle(ast, document.createTreeWalker(fragment), currentCtx);
 
         $.append($$anchor, fragment);
-        $.pop();
+        if (init) $.pop();
         currentCtx = undefined;
     };
 
