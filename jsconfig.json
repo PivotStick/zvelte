@@ -1,5 +1,7 @@
 {
     "compilerOptions": {
-        "checkJs": true
+        "strict": true,
+        "checkJs": true,
+        "moduleResolution": "NodeNext"
     }
 }

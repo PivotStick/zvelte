@@ -8,26 +8,10 @@
  * }} ComponentArgs
  */
 
-export {
-    mountComponent,
-    onMount as _onMount,
-    onDestroy as _onDestroy,
-    setListeners as _setListeners,
-    registerComponent,
-    getComponentByKey,
-} from "./astToDom.js";
-
 export { registerFilter, getFilter } from "./filters.js";
 
 export { mount, setListeners } from "./mount.js";
-export { onMount, onDestroy } from "svelte";
+export { onMount, onDestroy, tick } from "svelte";
+export { source, proxy } from "svelte/internal/client";
 
-export {
-    proxy,
-    source,
-    derived,
-    effect,
-    ifBlock,
-    forBlock,
-    template,
-} from "./reactivity.js";
+export { template } from "./reactivity.js";
