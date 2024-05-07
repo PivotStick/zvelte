@@ -1,5 +1,5 @@
 // @ts-ignore
-import * as $ from "svelte/internal/client.js";
+import * as $ from "svelte/internal/client";
 import { mount as svelte, unmount } from "svelte";
 import { addTemplatesToAST } from "./astToTemplate.js";
 import { parse } from "../../compiler/parse/index.js";
