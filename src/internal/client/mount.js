@@ -54,6 +54,7 @@ export function mount({
     props = $.proxy(props);
 
     const ast = parse(source);
+    console.log(ast);
     addTemplatesToAST(ast);
 
     const component = ($$anchor, $$props) => {
@@ -357,6 +358,7 @@ function handle(node, walker, ctx) {
 
                 case "and":
                     return left && right;
+                case "||":
                 case "or":
                     return left || right;
 

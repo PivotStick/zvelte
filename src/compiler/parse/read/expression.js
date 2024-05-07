@@ -12,7 +12,7 @@ export function parseExpression(parser) {
  */
 export function parseConditional(parser) {
     const start = parser.index;
-    let test = parseComparison(parser);
+    let test = parseLogicExpression(parser);
 
     parser.allowWhitespace();
 
@@ -42,19 +42,54 @@ export function parseConditional(parser) {
 /**
  * @param {Parser} parser
  */
+export function parseLogicExpression(parser) {
+    const start = parser.index;
+    let left = parseComparison(parser);
+
+    parser.allowWhitespace();
+    /**
+     * @type {"or" | "and" | "||"}
+     */
+    let operator;
+
+    while (
+        // @ts-ignore
+        (operator = parser.read(/^(or|and|\|\|)/))
+    ) {
+        parser.allowWhitespace();
+        const right = parseComparison(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
+
+        left = {
+            type: "BinaryExpression",
+            operator,
+            left,
+            right,
+            start,
+            end,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
 export function parseComparison(parser) {
     const start = parser.index;
     let left = parseAdditive(parser);
 
     parser.allowWhitespace();
     /**
-     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "or" | "in" | "and" | "??" | "is"}
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "in" | "??" | "is"}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(<=|>=|==|!=|or|in|and|\?\?|>|<|is)/))
+        (operator = parser.read(/^(<=|>=|==|!=|in|\?\?|>|<|is)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);

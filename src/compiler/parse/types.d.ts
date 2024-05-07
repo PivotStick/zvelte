@@ -205,6 +205,7 @@ export interface BinaryExpression extends BaseNode {
         | "*"
         | "~"
         | "??"
+        | "||"
         | "or"
         | "and"
         | "=="
