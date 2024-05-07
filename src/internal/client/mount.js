@@ -54,7 +54,6 @@ export function mount({
     props = $.proxy(props);
 
     const ast = parse(source);
-    console.log(ast);
     addTemplatesToAST(ast);
 
     const component = ($$anchor, $$props) => {
