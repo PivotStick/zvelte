@@ -1,34 +1,22 @@
 {
   "name": "@pivotass/zvelte",
   "version": "0.1.25",
-  "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
-  "type": "module",
-  "module": "src/runtime/index.js",
-  "main": "src/runtime/index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "author": "Maxime DI NATALE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PivotStick/zvelte.git"
   },
-  "keywords": [
-    "svelte",
-    "zvelte",
-    "compiler",
-    "php",
-    "ssr",
-    "csr",
-    "js",
-    "reactivity",
-    "signals"
-  ],
-  "author": "Maxime DI NATALE",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/PivotStick/zvelte/issues"
+  "main": "src/runtime/index.js",
+  "module": "src/runtime/index.js",
+  "dependencies": {
+    "code-red": "^1.0.4",
+    "css-tree": "^2.3.1",
+    "estree-walker": "^3.0.3",
+    "php-parser": "^3.1.5",
+    "sass": "^1.77.0",
+    "sprintf-js": "^1.1.3",
+    "svelte": "^5.0.0-next.123"
   },
-  "homepage": "https://github.com/PivotStick/zvelte#readme",
   "exports": {
     "./package.json": "./package.json",
     "./parser": {
@@ -44,15 +32,25 @@
       "default": "./src/compiler/parse/types.d.ts"
     }
   },
-  "dependencies": {
-    "code-red": "^1.0.4",
-    "css-tree": "^2.3.1",
-    "estree-walker": "^3.0.3",
-    "php-parser": "^3.1.5",
-    "sprintf-js": "^1.1.3",
-    "svelte": "^5.0.0-next.123"
+  "bugs": {
+    "url": "https://github.com/PivotStick/zvelte/issues"
   },
-  "devDependencies": {
-    "sass": "^1.77.0"
-  }
+  "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
+  "homepage": "https://github.com/PivotStick/zvelte#readme",
+  "keywords": [
+    "svelte",
+    "zvelte",
+    "compiler",
+    "php",
+    "ssr",
+    "csr",
+    "js",
+    "reactivity",
+    "signals"
+  ],
+  "license": "ISC",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module"
 }
