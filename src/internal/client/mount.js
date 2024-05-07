@@ -1,10 +1,10 @@
 // @ts-ignore
-import * as $ from "svelte/internal/client";
+import * as $ from "svelte/internal/client.js";
 import { mount as svelte, unmount } from "svelte";
-import { addTemplatesToAST } from "./astToTemplate";
-import { parse } from "../../compiler/parse";
-import { getFilter } from "./filters";
-import { findScopeFrom, searchInScope } from "./shared";
+import { addTemplatesToAST } from "./astToTemplate.js";
+import { parse } from "../../compiler/parse/index.js";
+import { getFilter } from "./filters.js";
+import { findScopeFrom, searchInScope } from "./shared.js";
 
 /**
  * @todo
@@ -89,7 +89,7 @@ export function mount({
 
 /**
  * @param {*} value
- * @param {import("../../compiler/parse/types").Identifier | import("../../compiler/parse/types").MemberExpression} expression
+ * @param {import("../../compiler/parse/types.js").Identifier | import("../../compiler/parse/types.js").MemberExpression} expression
  * @param {TreeWalker} walker
  * @param {Ctx} ctx
  */
@@ -112,9 +112,10 @@ function setInScope(value, expression, walker, ctx) {
 }
 
 /**
- * @param {import("../../compiler/parse/types").Any} node
+ * @param {import("../../compiler/parse/types.js").Any} node
  * @param {TreeWalker} walker
  * @param {Ctx} ctx
+ * @returns {any}
  */
 function handle(node, walker, ctx) {
     switch (node.type) {
@@ -298,6 +299,9 @@ function handle(node, walker, ctx) {
                 case "~":
                 case "+":
                     return left + right;
+
+                case "-":
+                    return left - right;
 
                 case "==":
                     return left == right;
