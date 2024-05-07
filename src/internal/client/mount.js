@@ -97,7 +97,7 @@ function setInScope(value, expression, walker, ctx) {
     let object;
     let key;
     if (expression.type === "MemberExpression") {
-        object = [handle(expression.object, walker, ctx)];
+        object = handle(expression.object, walker, ctx);
         if (expression.computed === true) {
             key = handle(expression.property, walker, ctx);
         } else {
