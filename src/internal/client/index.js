@@ -12,6 +12,6 @@ export { registerFilter, getFilter } from "./filters.js";
 
 export { mount, setListeners } from "./mount.js";
 export { onMount, onDestroy, tick } from "svelte";
-export { source, proxy } from "svelte/internal/client";
+export { source, proxy, user_effect as effect } from "svelte/internal/client";
 
 export { template } from "./reactivity.js";
