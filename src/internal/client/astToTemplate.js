@@ -63,9 +63,8 @@ function handle(node, template) {
                             }
 
                             if (classAttr.value !== true) {
-                                let text = classAttr.value.find(
-                                    (t) => t.type === "Text",
-                                );
+                                let text = classAttr.value[0];
+
                                 if (text?.type !== "Text") {
                                     text = {
                                         type: "Text",
@@ -73,6 +72,9 @@ function handle(node, template) {
                                         start: -1,
                                         data: styleSheetId,
                                     };
+                                    if (classAttr.value.length > 1) {
+                                        text.data += " ";
+                                    }
                                     classAttr.value.unshift(text);
                                 } else {
                                     text.data = `${styleSheetId} ${text.data}`;
