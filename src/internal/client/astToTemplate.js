@@ -167,6 +167,7 @@ function handle(node, template) {
             break;
         }
 
+        case "HtmlTag":
         case "ExpressionTag":
             template.src += "<!>";
             break;

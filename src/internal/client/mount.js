@@ -334,6 +334,17 @@ function handle(node, walker, ctx) {
             return node.data;
         }
 
+        case "HtmlTag": {
+            const anchor = /** @type {Comment} */ (walker.currentNode);
+            $.html(
+                anchor,
+                () => handle(node.expression, walker, ctx),
+                false,
+                false,
+            );
+            break;
+        }
+
         case "ExpressionTag": {
             const anchor = /** @type {Comment} */ (walker.currentNode);
             const text = $.text("");
