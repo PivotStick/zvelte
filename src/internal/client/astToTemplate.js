@@ -4,6 +4,7 @@ import { appendStyles } from "./shared";
 import { walk } from "estree-walker";
 import { hash } from "../../compiler/parse/utils/hash";
 import * as cssTree from "css-tree";
+import { is_void } from "../../compiler/shared/utils/names.js";
 
 /**
  * @param {import("../../compiler/parse/types").Any} ast
@@ -124,9 +125,13 @@ function handle(node, template) {
                 handle(attr, template);
             });
 
-            template.src += ">";
-            handle(node.fragment, template);
-            template.src += `</${node.name}>`;
+            if (is_void(node.name)) {
+                template.src += "/>";
+            } else {
+                template.src += ">";
+                handle(node.fragment, template);
+                template.src += `</${node.name}>`;
+            }
             break;
 
         case "Attribute":
