@@ -40,7 +40,7 @@ export interface OnDirective extends BaseNode {
     /** The 'x' in `on:x` */
     name: string;
     /** The 'y' in `on:x={y}` */
-    expression: null | Expression;
+    expression: Expression;
     modifiers: string[]; // TODO specify
 }
 
@@ -258,19 +258,6 @@ export type Any =
     | SlotElement
     | Attribute
     | Property
-    | ObjectExpression
-    | ArrayExpression
-    | CallExpression
-    | FilterExpression
-    | MemberExpression
-    | RangeExpression
-    | NumericLiteral
-    | BooleanLiteral
-    | NullLiteral
-    | StringLiteral
-    | BinaryExpression
-    | Identifier
-    | UnaryExpression
-    | ConditionalExpression
+    | Expression
     | Text
     | VariableTag;

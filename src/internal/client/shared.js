@@ -24,7 +24,7 @@ export function findScopeFrom(identifier, scope, fallback) {
         throw new Error(`Scope must be a stack of objects`);
 
     for (let i = scope.length - 1; i >= 0; i--) {
-        if (identifier in scope[i]) {
+        if (typeof scope[i] === "object" && identifier in scope[i]) {
             return scope[i];
         }
     }

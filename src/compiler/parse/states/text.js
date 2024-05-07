@@ -1,5 +1,3 @@
-const escapeEmpty = true;
-
 /**
  * @param {import("../index.js").Parser} parser
  */
@@ -15,14 +13,12 @@ export const text = (parser) => {
         data += parser.template[parser.index++];
     }
 
-    if (escapeEmpty && data.trim() !== "") {
-        const node = {
-            type: "Text",
-            start,
-            end: parser.index,
-            data,
-        };
+    const node = {
+        type: "Text",
+        start,
+        end: parser.index,
+        data,
+    };
 
-        parser.append(node);
-    }
+    parser.append(node);
 };
