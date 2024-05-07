@@ -195,15 +195,18 @@ function handle(node, walker, ctx) {
             break;
         }
 
+        case "CallExpression": {
+            const fn = handle(node.name, walker, ctx);
+            const args = node.arguments.map((arg) => handle(arg, walker, ctx));
+
+            return fn(...args);
+        }
+
         case "FilterExpression": {
-            const args = [];
-
-            node.arguments.forEach((arg) => {
-                args.push(handle(arg, walker, ctx));
-            });
-
             const fn =
                 handle(node.name, walker, ctx) ?? getFilter(node.name.name);
+
+            const args = node.arguments.map((arg) => handle(arg, walker, ctx));
 
             return fn(...args);
         }
