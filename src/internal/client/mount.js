@@ -7,6 +7,12 @@ import { getFilter } from "./filters";
 import { findScopeFrom, searchInScope } from "./shared";
 
 /**
+ * @todo
+ *
+ * - handle "Variable", make sure they set the var in the current scope if not found in the whole scope
+ */
+
+/**
  * @typedef {{
  *   scope: Record<string, any>[];
  *   listeners: Record<string, (...args: any[]) => void>;
@@ -137,11 +143,39 @@ function handle(node, walker, ctx) {
             ) {
                 const element = /** @type {HTMLElement} */ (walker.currentNode);
                 const values = node.value;
-                $.render_effect(() => {
-                    let value = "";
-                    values.forEach((n) => (value += handle(n, walker, ctx)));
-                    $.set_attribute(element, node.name, value);
-                });
+                const UNINITIALIZED = Symbol();
+                const computeValue = () => {
+                    /** @type {any} */
+                    let value = UNINITIALIZED;
+
+                    values.forEach((n) => {
+                        const r = handle(n, walker, ctx);
+
+                        if (value === UNINITIALIZED) {
+                            value = r;
+                        } else {
+                            value = `${value}${r}`;
+                        }
+                    });
+
+                    return value;
+                };
+
+                if (
+                    (element instanceof HTMLButtonElement &&
+                        node.name === "disabled") ||
+                    (element instanceof HTMLInputElement &&
+                        (node.name === "value" || node.name === "checked"))
+                ) {
+                    $.render_effect(() => {
+                        // @ts-ignore
+                        element[node.name] = computeValue();
+                    });
+                } else {
+                    $.render_effect(() => {
+                        $.set_attribute(element, node.name, computeValue());
+                    });
+                }
             }
             break;
         }
