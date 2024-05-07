@@ -17,6 +17,7 @@ import { findScopeFrom, searchInScope } from "./shared.js";
  *   scope: Record<string, any>[];
  *   listeners: Record<string, (...args: any[]) => void>;
  *   els: Record<string, HTMLElement>;
+ *   bindingGroups?: Record<string, any[]>;
  * }} Ctx
  */
 
@@ -206,6 +207,37 @@ function handle(node, walker, ctx) {
                             setInScope($$value, node.expression, walker, _ctx),
                         () => handle(node.expression, walker, _ctx),
                     );
+                case "group":
+                    if (element instanceof HTMLInputElement) {
+                        const id = JSON.stringify(node.expression);
+                        const bindingGroup = ((ctx.bindingGroups ??= {})[id] ??=
+                            []);
+                        const groupIndex = [];
+                        const loop = searchInScope("loop", ctx.scope);
+                        if (loop?.index0 !== undefined) {
+                            groupIndex.push(loop.index0);
+                        }
+                        element.value =
+                            // @ts-ignore
+                            null == (element.__value = element.value)
+                                ? ""
+                                : element.value;
+                        $.bind_group(
+                            bindingGroup,
+                            // @ts-ignore
+                            groupIndex,
+                            element,
+                            () => handle(node.expression, walker, ctx),
+                            ($$value) => {
+                                setInScope(
+                                    $$value,
+                                    node.expression,
+                                    walker,
+                                    ctx,
+                                );
+                            },
+                        );
+                    }
                 default:
                     break;
             }
