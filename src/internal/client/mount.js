@@ -13,21 +13,12 @@ import { findScopeFrom, searchInScope } from "./shared.js";
  */
 
 /**
- * @typedef {{
- *   scope: Record<string, any>[];
- *   listeners: Record<string, (...args: any[]) => void>;
- *   els: Record<string, HTMLElement>;
- *   bindingGroups?: Record<string, any[]>;
- * }} Ctx
- */
-
-/**
- * @type {Ctx=}
+ * @type {import("./types.js").Ctx=}
  */
 let currentCtx;
 
 /**
- * @param {Ctx["listeners"]} listeners
+ * @param {import("./types.js").Ctx["listeners"]} listeners
  */
 export function setListeners(listeners) {
     if (currentCtx) {
@@ -42,7 +33,7 @@ export function setListeners(listeners) {
  *   scope?: Record<string, any>;
  *   props?: T;
  *   source?: string;
- *   init?: (args: { props: T; els: Ctx["els"]; scope: Record<string, any>; }) => any;
+ *   init?: (args: { props: T; els: import("./types.js").Ctx["els"]; scope: Record<string, any>; }) => any;
  * }} args
  */
 export function mount({
@@ -96,7 +87,7 @@ export function mount({
  * @param {*} value
  * @param {import("../../compiler/parse/types.js").Identifier | import("../../compiler/parse/types.js").MemberExpression} expression
  * @param {TreeWalker} walker
- * @param {Ctx} ctx
+ * @param {import("./types.js").Ctx} ctx
  */
 function setInScope(value, expression, walker, ctx) {
     let object;
@@ -119,7 +110,7 @@ function setInScope(value, expression, walker, ctx) {
 /**
  * @param {import("../../compiler/parse/types.js").Any} node
  * @param {TreeWalker} walker
- * @param {Ctx} ctx
+ * @param {import("./types.js").Ctx} ctx
  * @returns {any}
  */
 function handle(node, walker, ctx) {
@@ -475,7 +466,7 @@ function handle(node, walker, ctx) {
 
         case "ExpressionTag": {
             const anchor = /** @type {Comment} */ (walker.currentNode);
-            const text = $.text("");
+            const text = $.text(anchor);
             anchor.replaceWith(text);
             walker.currentNode = text;
 
@@ -490,6 +481,7 @@ function handle(node, walker, ctx) {
 
         case "IfBlock": {
             const anchor = /** @type {Comment} */ (walker.currentNode);
+            const alternate = node.alternate;
 
             $.if(
                 anchor,
@@ -503,18 +495,20 @@ function handle(node, walker, ctx) {
                         pushNewScope(ctx, {}),
                     );
 
+                    // @ts-ignore
                     $.append($$anchor, fragment);
                 },
-                node.alternate
+                alternate
                     ? ($$anchor) => {
-                          const fragment = getRoot(node.alternate);
+                          const fragment = getRoot(alternate);
 
                           handle(
-                              node.alternate,
+                              alternate,
                               document.createTreeWalker(fragment),
                               pushNewScope(ctx, {}),
                           );
 
+                          // @ts-ignore
                           $.append($$anchor, fragment);
                       }
                     : undefined,
@@ -526,6 +520,7 @@ function handle(node, walker, ctx) {
 
         case "ForBlock": {
             const anchor = /** @type {Comment} */ (walker.currentNode);
+            const fallback = node.fallback;
 
             let array;
             $.each(
@@ -573,18 +568,20 @@ function handle(node, walker, ctx) {
                         }),
                     );
 
+                    // @ts-ignore
                     $.append($$anchor, fragment);
                 },
-                node.fallback
+                fallback
                     ? ($$anchor) => {
-                          const fragment = getRoot(node.fallback);
+                          const fragment = getRoot(fallback);
 
                           handle(
-                              node.fallback,
+                              fallback,
                               document.createTreeWalker(fragment),
                               pushNewScope(ctx, {}),
                           );
 
+                          // @ts-ignore
                           $.append($$anchor, fragment);
                       }
                     : undefined,
@@ -599,7 +596,7 @@ function handle(node, walker, ctx) {
 }
 
 /**
- * @param {import("../../compiler/parse/types").Any} node
+ * @param {import("../../compiler/parse/types.js").Any} node
  * @returns {DocumentFragment}
  */
 function getRoot(node) {
@@ -608,7 +605,7 @@ function getRoot(node) {
 }
 
 /**
- * @param {Ctx} ctx
+ * @param {import("./types.js").Ctx} ctx
  * @param {any} [newScope={}]
  */
 function pushNewScope(ctx, newScope = {}) {
