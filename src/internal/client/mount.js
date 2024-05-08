@@ -1,4 +1,3 @@
-// @ts-ignore
 import * as $ from "svelte/internal/client";
 import { mount as svelte, unmount } from "svelte";
 import { addTemplatesToAST } from "./astToTemplate.js";
@@ -54,6 +53,7 @@ export function mount({
         if (init) $.push($$props, true);
         const fragment = getRoot(ast);
 
+        const previousCtx = currentCtx;
         currentCtx = {
             scope: [rootScope, $$props],
             listeners: {},
@@ -70,7 +70,7 @@ export function mount({
 
         $.append($$anchor, fragment);
         if (init) $.pop();
-        currentCtx = undefined;
+        currentCtx = previousCtx;
     };
 
     // @ts-ignore
