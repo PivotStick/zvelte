@@ -87,7 +87,20 @@ function handle(node, template) {
                 cssTree.walk(node.css.ast, {
                     leave(node) {
                         if (node.type === "Selector") {
-                            node.children.push({
+                            let index = 0;
+                            for (let i = 0; i < node.children.length; i++) {
+                                index = i;
+                                const selector = node.children[i];
+                                if (
+                                    selector.type === "PseudoElementSelector" ||
+                                    selector.type === "PseudoClassSelector"
+                                ) {
+                                    index--;
+                                    break;
+                                }
+                            }
+
+                            node.children.splice(index + 1, 0, {
                                 type: "ClassSelector",
                                 name: styleSheetId,
                                 loc: null,

@@ -289,6 +289,7 @@ function handle(node, walker, ctx) {
                     node.name,
                     element,
                     (_event) => {
+                        console.log(ctx.listeners);
                         handle(
                             ex,
                             walker,
