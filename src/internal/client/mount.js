@@ -56,6 +56,7 @@ export function mount({
     const ast = parse(source);
     addTemplatesToAST(ast);
 
+    // @ts-ignore
     const component = ($$anchor, $$props) => {
         if (init) $.push($$props, true);
         const fragment = getRoot(ast);
@@ -183,82 +184,129 @@ function handle(node, walker, ctx) {
         }
 
         case "BindDirective": {
-            const element = /** @type {HTMLElement} */ (walker.currentNode);
-            const get = () => handle(node.expression, walker, ctx);
-            const set = ($$value) =>
-                setInScope($$value, node.expression, walker, ctx);
+            const ex = node.expression ?? {
+                type: "Identifier",
+                name: node.name,
+                start: -1,
+                end: -1,
+            };
+
+            const get = () => handle(ex, walker, ctx);
+            const set = (/** @type {any} */ $$value) =>
+                setInScope($$value, ex, walker, ctx);
 
             switch (node.name) {
-                case "value":
+                case "value": {
+                    const element = /** @type {HTMLInputElement} */ (
+                        walker.currentNode
+                    );
                     $.bind_value(element, get, set);
                     break;
+                }
 
-                case "checked":
+                case "checked": {
+                    const element = /** @type {HTMLInputElement} */ (
+                        walker.currentNode
+                    );
                     $.bind_checked(element, get, set);
                     break;
-                case "this":
+                }
+
+                case "this": {
+                    const element = /** @type {HTMLElement} */ (
+                        walker.currentNode
+                    );
                     const _ctx = {
                         ...ctx,
                         scope: [ctx.els],
                     };
                     $.bind_this(
                         element,
-                        ($$value) =>
-                            setInScope($$value, node.expression, walker, _ctx),
-                        () => handle(node.expression, walker, _ctx),
+                        ($$value) => setInScope($$value, ex, walker, _ctx),
+                        () => handle(ex, walker, _ctx),
                     );
-                case "group":
-                    if (element instanceof HTMLInputElement) {
-                        const id = JSON.stringify(node.expression);
-                        const bindingGroup = ((ctx.bindingGroups ??= {})[id] ??=
-                            []);
-                        const groupIndex = [];
-                        const loop = searchInScope("loop", ctx.scope);
-                        if (loop?.index0 !== undefined) {
-                            groupIndex.push(loop.index0);
-                        }
-                        element.value =
-                            // @ts-ignore
-                            null == (element.__value = element.value)
-                                ? ""
-                                : element.value;
-                        $.bind_group(
-                            bindingGroup,
-                            // @ts-ignore
-                            groupIndex,
-                            element,
-                            () => handle(node.expression, walker, ctx),
-                            ($$value) => {
-                                setInScope(
-                                    $$value,
-                                    node.expression,
-                                    walker,
-                                    ctx,
-                                );
-                            },
-                        );
+                }
+
+                case "group": {
+                    const element = /** @type {HTMLInputElement} */ (
+                        walker.currentNode
+                    );
+                    const id = JSON.stringify(node.expression);
+                    const bindingGroup = ((ctx.bindingGroups ??= {})[id] ??=
+                        []);
+                    const groupIndex = [];
+                    const loop = searchInScope("loop", ctx.scope);
+                    if (loop?.index0 !== undefined) {
+                        groupIndex.push(loop.index0);
                     }
+                    element.value =
+                        // @ts-ignore
+                        null == (element.__value = element.value)
+                            ? ""
+                            : element.value;
+                    $.bind_group(
+                        bindingGroup,
+                        // @ts-ignore
+                        groupIndex,
+                        element,
+                        get,
+                        set,
+                    );
+                }
+
                 default:
                     break;
             }
             break;
         }
 
+        case "TransitionDirective": {
+            const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const args = node.expression;
+
+            const INTRO = 1;
+            const OUTRO = 2;
+            const BOTH = 3;
+
+            let getParams = null;
+            let flag =
+                node.intro && node.outro ? BOTH : node.intro ? INTRO : OUTRO;
+
+            if (args) {
+                getParams = () => handle(args, walker, ctx);
+            }
+
+            $.transition(
+                flag,
+                element,
+                () => searchInScope(node.name, ctx.scope),
+                getParams,
+            );
+
+            break;
+        }
+
         case "OnDirective": {
             const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const ex = node.expression;
 
-            $.event(
-                node.name,
-                element,
-                (_event) => {
-                    handle(
-                        node.expression,
-                        walker,
-                        pushNewScope(ctx, { ...ctx.listeners, _event }),
-                    );
-                },
-                false,
-            );
+            if (ex) {
+                $.event(
+                    node.name,
+                    element,
+                    (_event) => {
+                        handle(
+                            ex,
+                            walker,
+                            pushNewScope(ctx, { ...ctx.listeners, _event }),
+                        );
+                    },
+                    false,
+                );
+            } else {
+                // @todo
+                // handle automatic component emitting this event
+            }
             break;
         }
 

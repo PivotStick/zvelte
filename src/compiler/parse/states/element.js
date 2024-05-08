@@ -43,9 +43,9 @@ export const element = (parser) => {
     /**
      * @type {import("../types.d.ts").ElementLike}
      */
-    // @ts-expect-error
     let element = {
         start,
+        // @ts-expect-error
         end: null,
         type,
         name,
@@ -58,6 +58,8 @@ export const element = (parser) => {
     if (isClosingTag) {
         parser.eat(">", true);
         let parent = parser.current();
+
+        if (!parent) throw parser.error(`expected parent node`);
 
         while (parent.type === type ? parent.name !== name : true) {
             if (parent.type !== type) {
@@ -74,11 +76,11 @@ export const element = (parser) => {
     }
 
     /**
-     * @type {import("../types.js").Element["attributes"][number]=}
+     * @type {import("../types.js").Element["attributes"][number] | null}
      */
-    let attribute;
+    let attribute = null;
     let uniqueNames = new Set();
-    while ((attribute = readAttribute(parser, uniqueNames))) {
+    while ((attribute = readAttribute(parser, uniqueNames, element))) {
         if (element.type === "SlotElement") {
             if (attribute.type !== "Attribute")
                 throw parser.error("`<slot>` can only receive attributes");
@@ -99,7 +101,7 @@ export const element = (parser) => {
 
         if (keyAttrIndex === -1) {
             throw parser.error(
-                `A component must have a '${parser.component.key}' attribute`,
+                `A component must have a '${parser.component?.key}' attribute`,
                 start,
             );
         }
@@ -113,12 +115,78 @@ export const element = (parser) => {
             keyAttr.value[0].type !== "Text"
         ) {
             throw parser.error(
-                `"${parser.component.key}" is expected to have a Text value only on a component`,
+                `"${parser.component?.key}" is expected to have a Text value only on a component`,
                 keyAttr.start,
             );
         }
 
         element.key = keyAttr.value[0];
+    }
+
+    if (element.type === "Element") {
+        element.attributes.forEach((attr) => {
+            if (attr.type === "BindDirective") {
+                const typeAttr =
+                    /** @type {import("../types.d.ts").Attribute=} */ (
+                        element.attributes.find(
+                            (attr) =>
+                                attr.type === "Attribute" &&
+                                attr.name === "type",
+                        )
+                    );
+
+                if (
+                    typeAttr &&
+                    typeAttr.value !== true &&
+                    typeAttr.value.some((v) => v.type !== "Text")
+                ) {
+                    throw parser.error(
+                        "'type' attribute must be a static text value if input uses two-way binding",
+                    );
+                }
+
+                switch (attr.name) {
+                    case "value":
+                        if (
+                            !["input", "textarea", "select"].includes(
+                                element.name,
+                            )
+                        ) {
+                            throw parser.error(
+                                "`bind:value` can only be used with <input>, <textarea>, <select>",
+                            );
+                        }
+                        break;
+                    case "group": {
+                        if (element.name !== "input") {
+                            throw parser.error(
+                                "`bind:group` can only be used with <input>",
+                            );
+                        }
+                        break;
+                    }
+                    case "checked": {
+                        if (element.name !== "input") {
+                            throw parser.error(
+                                "`bind:checked` can only be used with <input>",
+                            );
+                        }
+
+                        if (
+                            !typeAttr ||
+                            typeAttr?.value === true ||
+                            (typeAttr?.value[0].type === "Text" &&
+                                typeAttr.value[0].data !== "checkbox")
+                        ) {
+                            throw parser.error(
+                                '`bind:checked` can only be used with <input type="checkbox">',
+                            );
+                        }
+                        break;
+                    }
+                }
+            }
+        });
     }
 
     if (element.name === "style") {
@@ -185,9 +253,10 @@ const readTagName = (parser) => {
 /**
  * @param {Parser} parser
  * @param {Set<string>} uniqueNames
- * @returns {import("../types.js").Element["attributes"][number]}
+ * @param {import("../types.d.ts").ElementLike} element
+ * @returns {import("../types.js").Element["attributes"][number] | null}
  */
-const readAttribute = (parser, uniqueNames) => {
+const readAttribute = (parser, uniqueNames, element) => {
     const start = parser.index;
 
     /**
@@ -218,14 +287,20 @@ const readAttribute = (parser, uniqueNames) => {
     }
 
     if (name.includes(":")) {
-        if (value === true || value.length !== 1 || value[0].type === "Text") {
+        if (
+            value !== true &&
+            (value.length !== 1 || value[0].type === "Text")
+        ) {
             throw parser.error(
                 "Directive value must be an expression enclosed in curly braces",
                 start,
             );
         }
 
-        const expression = value[0];
+        const expression =
+            value === true
+                ? null
+                : /** @type {import("../types.d.ts").Expression} */ (value[0]);
 
         if (name.startsWith("on:")) {
             return {
@@ -234,10 +309,10 @@ const readAttribute = (parser, uniqueNames) => {
                 end,
                 expression,
                 name: name.slice("on:".length),
-                modifiers: [],
             };
         } else if (name.startsWith("bind:")) {
             if (
+                expression &&
                 expression.type !== "Identifier" &&
                 expression.type !== "MemberExpression"
             ) {
@@ -253,6 +328,22 @@ const readAttribute = (parser, uniqueNames) => {
                 end,
                 expression,
                 name: name.slice("bind:".length),
+            };
+        } else if (
+            name.startsWith("transition:") ||
+            name.startsWith("in:") ||
+            name.startsWith("out:")
+        ) {
+            const [dir, transition] = name.split(":");
+
+            return {
+                type: "TransitionDirective",
+                start,
+                end,
+                expression,
+                name: transition,
+                intro: dir === "transition" || dir === "in",
+                outro: dir === "transition" || dir === "out",
             };
         }
     }

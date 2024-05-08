@@ -15,7 +15,7 @@ export type TemplateNode =
     | VariableTag
     | Block;
 
-export type Directive = BindDirective | OnDirective;
+export type Directive = BindDirective | OnDirective | TransitionDirective;
 export type ElementLike = Element | Component | SlotElement;
 export type Tag = ExpressionTag | HtmlTag | VariableTag;
 export type Block = ForBlock | IfBlock;
@@ -35,13 +35,22 @@ export type Expression =
     | RangeExpression
     | CallExpression;
 
+export interface TransitionDirective extends BaseNode {
+    type: "TransitionDirective";
+    /** The 'x' in `on:x` */
+    name: string;
+    /** The 'y' in `on:x={y}` */
+    expression: null | Expression;
+    intro: boolean;
+    outro: boolean;
+}
+
 export interface OnDirective extends BaseNode {
     type: "OnDirective";
     /** The 'x' in `on:x` */
     name: string;
     /** The 'y' in `on:x={y}` */
-    expression: Expression;
-    modifiers: string[]; // TODO specify
+    expression: null | Expression;
 }
 
 /** A `bind:` directive */
@@ -50,7 +59,7 @@ export interface BindDirective extends BaseNode {
     /** The 'x' in `bind:x` */
     name: string;
     /** The y in `bind:x={y}` */
-    expression: Identifier | MemberExpression;
+    expression: null | Identifier | MemberExpression;
 }
 
 export interface Component extends BaseNode {
@@ -245,20 +254,14 @@ export interface RangeExpression extends BaseNode {
 }
 
 export type Any =
-    | OnDirective
-    | BindDirective
-    | Component
+    | Directive
+    | Block
+    | Tag
+    | Expression
+    | ElementLike
     | Comment
     | Fragment
-    | IfBlock
-    | ForBlock
-    | ExpressionTag
-    | HtmlTag
     | Root
-    | Element
-    | SlotElement
     | Attribute
     | Property
-    | Expression
-    | Text
-    | VariableTag;
+    | Text;

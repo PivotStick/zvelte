@@ -1,56 +1,59 @@
 {
-  "name": "@pivotass/zvelte",
-  "version": "0.1.26",
-  "author": "Maxime DI NATALE",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PivotStick/zvelte.git"
-  },
-  "main": "src/runtime/index.js",
-  "module": "src/runtime/index.js",
-  "dependencies": {
-    "code-red": "^1.0.4",
-    "css-tree": "^2.3.1",
-    "estree-walker": "^3.0.3",
-    "php-parser": "^3.1.5",
-    "sass": "^1.77.0",
-    "sprintf-js": "^1.1.3",
-    "svelte": "^5.0.0-next.123"
-  },
-  "exports": {
-    "./package.json": "./package.json",
-    "./parser": {
-      "default": "./src/compiler/parse/index.js"
+    "name": "@pivotass/zvelte",
+    "version": "0.1.26",
+    "author": "Maxime DI NATALE",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/PivotStick/zvelte.git"
     },
-    "./compiler": {
-      "default": "./src/compiler/index.js"
+    "main": "src/runtime/index.js",
+    "module": "src/runtime/index.js",
+    "dependencies": {
+        "code-red": "^1.0.4",
+        "css-tree": "^2.3.1",
+        "estree-walker": "^3.0.3",
+        "php-parser": "^3.1.5",
+        "sass": "^1.77.0",
+        "sprintf-js": "^1.1.3",
+        "svelte": "^5.0.0-next.123"
     },
-    "./client": {
-      "default": "./src/internal/client/index.js"
+    "exports": {
+        "./package.json": "./package.json",
+        "./parser": {
+            "default": "./src/compiler/parse/index.js"
+        },
+        "./compiler": {
+            "default": "./src/compiler/index.js"
+        },
+        "./client": {
+            "default": "./src/internal/client/index.js"
+        },
+        "./transition": {
+            "default": "./src/internal/client/transition/index.js"
+        },
+        "./types": {
+            "default": "./src/compiler/parse/types.d.ts"
+        }
     },
-    "./types": {
-      "default": "./src/compiler/parse/types.d.ts"
-    }
-  },
-  "bugs": {
-    "url": "https://github.com/PivotStick/zvelte/issues"
-  },
-  "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
-  "homepage": "https://github.com/PivotStick/zvelte#readme",
-  "keywords": [
-    "svelte",
-    "zvelte",
-    "compiler",
-    "php",
-    "ssr",
-    "csr",
-    "js",
-    "reactivity",
-    "signals"
-  ],
-  "license": "ISC",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "type": "module"
+    "bugs": {
+        "url": "https://github.com/PivotStick/zvelte/issues"
+    },
+    "description": "Svelte like compiler for twig like syntax that outputs PHP for ssr and JS for browser",
+    "homepage": "https://github.com/PivotStick/zvelte#readme",
+    "keywords": [
+        "svelte",
+        "zvelte",
+        "compiler",
+        "php",
+        "ssr",
+        "csr",
+        "js",
+        "reactivity",
+        "signals"
+    ],
+    "license": "ISC",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "type": "module"
 }
