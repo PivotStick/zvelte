@@ -28,6 +28,9 @@
         "./client": {
             "default": "./src/internal/client/index.js"
         },
+        "./easing": {
+            "default": "./src/internal/client/easing/index.js"
+        },
         "./transition": {
             "default": "./src/internal/client/transition/index.js"
         },

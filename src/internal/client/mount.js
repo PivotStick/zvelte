@@ -39,13 +39,15 @@ export function setListeners(listeners) {
  * @template T
  * @param {{
  *   target: HTMLElement;
+ *   scope?: Record<string, any>;
  *   props?: T;
  *   source?: string;
- *   init?: (args: { props: T; els: Ctx["els"] }) => any;
+ *   init?: (args: { props: T; els: Ctx["els"]; scope: Record<string, any>; }) => any;
  * }} args
  */
 export function mount({
     target,
+    scope: rootScope = {},
     source = "",
     // @ts-expect-error
     props = {},
@@ -62,7 +64,7 @@ export function mount({
         const fragment = getRoot(ast);
 
         currentCtx = {
-            scope: [$$props],
+            scope: [rootScope, $$props],
             listeners: {},
             els: {},
         };
@@ -70,6 +72,7 @@ export function mount({
         init?.({
             props: $$props,
             els: currentCtx.els,
+            scope: rootScope,
         });
 
         handle(ast, document.createTreeWalker(fragment), currentCtx);
