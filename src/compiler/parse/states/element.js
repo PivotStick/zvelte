@@ -59,8 +59,6 @@ export const element = (parser) => {
         parser.eat(">", true);
         let parent = parser.current();
 
-        if (!parent) throw parser.error(`expected parent node`);
-
         while (parent.type === type ? parent.name !== name : true) {
             if (parent.type !== type) {
                 throw parser.error(`"${name}" has no opening tag`);
@@ -80,7 +78,7 @@ export const element = (parser) => {
      */
     let attribute = null;
     let uniqueNames = new Set();
-    while ((attribute = readAttribute(parser, uniqueNames, element))) {
+    while ((attribute = readAttribute(parser, uniqueNames))) {
         if (element.type === "SlotElement") {
             if (attribute.type !== "Attribute")
                 throw parser.error("`<slot>` can only receive attributes");
@@ -253,10 +251,9 @@ const readTagName = (parser) => {
 /**
  * @param {Parser} parser
  * @param {Set<string>} uniqueNames
- * @param {import("../types.d.ts").ElementLike} element
  * @returns {import("../types.js").Element["attributes"][number] | null}
  */
-const readAttribute = (parser, uniqueNames, element) => {
+const readAttribute = (parser, uniqueNames) => {
     const start = parser.index;
 
     /**
@@ -344,6 +341,14 @@ const readAttribute = (parser, uniqueNames, element) => {
                 name: transition,
                 intro: dir === "transition" || dir === "in",
                 outro: dir === "transition" || dir === "out",
+            };
+        } else if (name.startsWith("class:")) {
+            return {
+                type: "ClassDirective",
+                name: name.slice("class:".length),
+                expression,
+                start,
+                end,
             };
         }
     }

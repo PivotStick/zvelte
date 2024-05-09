@@ -52,7 +52,9 @@ export class Parser {
     }
 
     current() {
-        return this.stack.at(-1);
+        return /** @type {import("./types.d.ts").TemplateNode} */ (
+            this.stack.at(-1)
+        );
     }
 
     pop() {

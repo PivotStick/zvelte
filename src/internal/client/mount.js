@@ -304,6 +304,22 @@ function handle(node, walker, ctx) {
             break;
         }
 
+        case "ClassDirective": {
+            const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const name = node.name;
+            const ex = node.expression ?? {
+                type: "Identifier",
+                name: node.name,
+                start: -1,
+                end: -1,
+            };
+
+            $.render_effect(() => {
+                $.toggle_class(element, name, handle(ex, walker, ctx));
+            });
+            break;
+        }
+
         case "CallExpression": {
             const fn = handle(node.name, walker, ctx);
             const args = node.arguments.map((arg) => handle(arg, walker, ctx));

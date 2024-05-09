@@ -15,7 +15,11 @@ export type TemplateNode =
     | VariableTag
     | Block;
 
-export type Directive = BindDirective | OnDirective | TransitionDirective;
+export type Directive =
+    | BindDirective
+    | OnDirective
+    | TransitionDirective
+    | ClassDirective;
 export type ElementLike = Element | Component | SlotElement;
 export type Tag = ExpressionTag | HtmlTag | VariableTag;
 export type Block = ForBlock | IfBlock;
@@ -34,6 +38,12 @@ export type Expression =
     | FilterExpression
     | RangeExpression
     | CallExpression;
+
+export interface ClassDirective extends BaseNode {
+    type: "ClassDirective";
+    name: string;
+    expression: null | Expression;
+}
 
 export interface TransitionDirective extends BaseNode {
     type: "TransitionDirective";
