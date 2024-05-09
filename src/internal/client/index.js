@@ -1,6 +1,6 @@
 export { registerFilter, getFilter } from "./filters.js";
 
-export { mount, setListeners } from "./mount.js";
+export { mount } from "./mount.js";
 export { onMount, onDestroy, tick } from "svelte";
 export {
     source,

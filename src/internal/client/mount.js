@@ -17,15 +17,6 @@ import { findScopeFrom, searchInScope } from "./shared.js";
 let currentCtx;
 
 /**
- * @param {import("./types.js").Ctx["listeners"]} listeners
- */
-export function setListeners(listeners) {
-    if (currentCtx) {
-        Object.assign(currentCtx.listeners, listeners);
-    }
-}
-
-/**
  * @template T
  * @param {{
  *   target: HTMLElement;
@@ -56,7 +47,6 @@ export function mount({
         const previousCtx = currentCtx;
         currentCtx = {
             scope: [rootScope, $$props],
-            listeners: {},
             els: {},
         };
 
@@ -289,11 +279,7 @@ function handle(node, walker, ctx) {
                     node.name,
                     element,
                     (_event) => {
-                        handle(
-                            ex,
-                            walker,
-                            pushNewScope(ctx, { ...ctx.listeners, _event }),
-                        );
+                        handle(ex, walker, pushNewScope(ctx, { _event }));
                     },
                     false,
                 );
