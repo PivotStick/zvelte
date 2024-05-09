@@ -23,7 +23,7 @@ let currentCtx;
  *   scope?: Record<string, any>;
  *   props?: T;
  *   source?: string;
- *   init?: (args: { props: T; els: import("./types.js").Ctx["els"]; scope: Record<string, any>; }) => any;
+ *   init?: import("./types.js").ComponentInit<T>;
  * }} args
  */
 export function mount({

@@ -1,3 +1,8 @@
+/**
+ * @template T
+ * @typedef {import("./types.js").ComponentInit<T>} ComponentInit
+ */
+
 export { registerFilter, getFilter } from "./filters.js";
 
 export { mount } from "./mount.js";
