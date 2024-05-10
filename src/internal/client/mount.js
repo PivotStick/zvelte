@@ -17,13 +17,14 @@ import { findScopeFrom, searchInScope } from "./shared.js";
 let currentCtx;
 
 /**
- * @template T
+ * @template Props
+ * @template Methods
  * @param {{
  *   target: HTMLElement;
  *   scope?: Record<string, any>;
- *   props?: T;
+ *   props?: Props;
  *   source?: string;
- *   init?: import("./types.js").ComponentInit<T>;
+ *   init?: (args: import("./types.js").ComponentInitArgs<Props>) => Methods;
  * }} args
  */
 export function mount({
@@ -39,6 +40,11 @@ export function mount({
     const ast = parse(source);
     addTemplatesToAST(ast);
 
+    /**
+     * @type {Methods=}
+     */
+    let methods;
+
     // @ts-ignore
     const component = ($$anchor, $$props) => {
         if (init) $.push($$props, true);
@@ -50,7 +56,7 @@ export function mount({
             els: {},
         };
 
-        init?.({
+        methods = init?.({
             props: $$props,
             els: currentCtx.els,
             scope: rootScope,
@@ -67,6 +73,7 @@ export function mount({
     const instance = svelte(component, { target, props });
 
     return {
+        methods,
         destroy() {
             unmount(instance);
         },

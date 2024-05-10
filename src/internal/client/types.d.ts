@@ -4,8 +4,8 @@ export type Ctx = {
     bindingGroups?: Record<string, any[]>;
 };
 
-export type ComponentInit<T> = (args: {
+export type ComponentInitArgs<T> = {
     props: T;
     els: Ctx["els"];
     scope: Record<string, any>;
-}) => any;
+};
