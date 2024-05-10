@@ -84,8 +84,16 @@ function handle(node, template) {
                     },
                 });
 
-                cssTree.walk(node.css.ast, {
-                    leave(node) {
+                walk(node.css.ast, {
+                    enter(node) {
+                        if (
+                            node.type === "Atrule" &&
+                            node.name === "keyframes"
+                        ) {
+                            this.skip();
+                        }
+                    },
+                    leave(node, options) {
                         if (node.type === "Selector") {
                             let index = 0;
                             for (let i = 0; i < node.children.length; i++) {
