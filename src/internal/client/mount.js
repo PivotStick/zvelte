@@ -607,6 +607,9 @@ function handle(node, walker, ctx) {
             break;
         }
 
+        case "Comment":
+            break;
+
         default:
             throw new Error(`"${node.type}" not handled`);
     }
