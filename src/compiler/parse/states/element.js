@@ -40,6 +40,27 @@ export const element = (parser) => {
           ? "SlotElement"
           : "Element";
 
+    parser.allowWhitespace();
+
+    if (isClosingTag) {
+        parser.eat(">", true);
+        let parent = parser.current();
+
+        // @ts-expect-error
+        while (parent.name !== name) {
+            if (parent.type !== type) {
+                throw parser.error(`"</${name}>" has no opening tag`);
+            }
+            parent.end = start;
+            parser.pop();
+            parent = parser.current();
+        }
+
+        parent.end = start;
+        parser.pop();
+        return;
+    }
+
     /**
      * @type {import("../types.d.ts").ElementLike}
      */
@@ -52,26 +73,6 @@ export const element = (parser) => {
         attributes: [],
         fragment: createFragment(),
     };
-
-    parser.allowWhitespace();
-
-    if (isClosingTag) {
-        parser.eat(">", true);
-        let parent = parser.current();
-
-        while (parent.type === type ? parent.name !== name : true) {
-            if (parent.type !== type) {
-                throw parser.error(`"${name}" has no opening tag`);
-            }
-            parent.end = start;
-            parser.pop();
-            parent = parser.current();
-        }
-
-        parent.end = start;
-        parser.pop();
-        return;
-    }
 
     /**
      * @type {import("../types.js").Element["attributes"][number] | null}
