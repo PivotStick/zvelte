@@ -163,6 +163,7 @@ function handle(node, template) {
 
             break;
 
+        case "Comment":
         case "ClassDirective":
         case "TransitionDirective":
         case "BindDirective":
