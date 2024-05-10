@@ -43,6 +43,7 @@ export interface ClassDirective extends BaseNode {
     type: "ClassDirective";
     name: string;
     expression: null | Expression;
+    modifiers: string[];
 }
 
 export interface TransitionDirective extends BaseNode {
@@ -53,6 +54,7 @@ export interface TransitionDirective extends BaseNode {
     expression: null | Expression;
     intro: boolean;
     outro: boolean;
+    modifiers: string[];
 }
 
 export interface OnDirective extends BaseNode {
@@ -61,6 +63,7 @@ export interface OnDirective extends BaseNode {
     name: string;
     /** The 'y' in `on:x={y}` */
     expression: null | Expression;
+    modifiers: string[];
 }
 
 /** A `bind:` directive */
@@ -70,6 +73,7 @@ export interface BindDirective extends BaseNode {
     name: string;
     /** The y in `bind:x={y}` */
     expression: null | Identifier | MemberExpression;
+    modifiers: string[];
 }
 
 export interface Component extends BaseNode {

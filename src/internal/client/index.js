@@ -1,6 +1,6 @@
 /**
  * @template T
- * @typedef {import("./types.js").ComponentInit<T>} ComponentInit
+ * @typedef {import("./types.js").ComponentInitArgs<T>} ComponentInitArgs
  */
 
 export { registerFilter, getFilter } from "./filters.js";

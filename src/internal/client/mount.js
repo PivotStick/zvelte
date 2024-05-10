@@ -261,6 +261,7 @@ function handle(node, walker, ctx) {
             const INTRO = 1;
             const OUTRO = 2;
             const BOTH = 3;
+            const GLOBAL = 4;
 
             let getParams = null;
             let flag =
@@ -268,6 +269,10 @@ function handle(node, walker, ctx) {
 
             if (args) {
                 getParams = () => handle(args, walker, ctx);
+            }
+
+            if (node.modifiers.includes("global")) {
+                flag += GLOBAL;
             }
 
             $.transition(

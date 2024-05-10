@@ -284,6 +284,8 @@ const readAttribute = (parser, uniqueNames) => {
     }
 
     if (name.includes(":")) {
+        const directive = attrNameToDirective(name);
+
         if (
             value !== true &&
             (value.length !== 1 || value[0].type === "Text")
@@ -299,57 +301,66 @@ const readAttribute = (parser, uniqueNames) => {
                 ? null
                 : /** @type {import("../types.d.ts").Expression} */ (value[0]);
 
-        if (name.startsWith("on:")) {
-            return {
-                type: "OnDirective",
-                start,
-                end,
-                expression,
-                name: name.slice("on:".length),
-            };
-        } else if (name.startsWith("bind:")) {
-            if (
-                expression &&
-                expression.type !== "Identifier" &&
-                expression.type !== "MemberExpression"
-            ) {
-                throw parser.error(
-                    "Can only bind to an Identifier or MemberExpression",
+        switch (directive.type) {
+            case "on":
+                return {
+                    type: "OnDirective",
                     start,
-                );
+                    end,
+                    expression,
+                    modifiers: directive.modifiers,
+                    name: directive.name,
+                };
+
+            case "bind": {
+                if (
+                    expression &&
+                    expression.type !== "Identifier" &&
+                    expression.type !== "MemberExpression"
+                ) {
+                    throw parser.error(
+                        "Can only bind to an Identifier or MemberExpression",
+                        start,
+                    );
+                }
+
+                return {
+                    type: "BindDirective",
+                    start,
+                    end,
+                    expression,
+                    name: directive.name,
+                    modifiers: directive.modifiers,
+                };
             }
-
-            return {
-                type: "BindDirective",
-                start,
-                end,
-                expression,
-                name: name.slice("bind:".length),
-            };
-        } else if (
-            name.startsWith("transition:") ||
-            name.startsWith("in:") ||
-            name.startsWith("out:")
-        ) {
-            const [dir, transition] = name.split(":");
-
-            return {
-                type: "TransitionDirective",
-                start,
-                end,
-                expression,
-                name: transition,
-                intro: dir === "transition" || dir === "in",
-                outro: dir === "transition" || dir === "out",
-            };
-        } else if (name.startsWith("class:")) {
-            return {
-                type: "ClassDirective",
-                name: name.slice("class:".length),
-                expression,
-                start,
-                end,
-            };
+            case "transition":
+            case "in":
+            case "out": {
+                return {
+                    type: "TransitionDirective",
+                    start,
+                    end,
+                    expression,
+                    name: directive.name,
+                    modifiers: directive.modifiers,
+                    intro:
+                        directive.type === "transition" ||
+                        directive.type === "in",
+                    outro:
+                        directive.type === "transition" ||
+                        directive.type === "out",
+                };
+            }
+            case "class": {
+                return {
+                    type: "ClassDirective",
+                    name: directive.name,
+                    modifiers: directive.modifiers,
+                    expression,
+                    start,
+                    end,
+                };
+            }
         }
     }
 
@@ -361,6 +372,17 @@ const readAttribute = (parser, uniqueNames) => {
         type: "Attribute",
         name,
         value,
+    };
+};
+
+const attrNameToDirective = (attrName = "") => {
+    const [left, ...modifiers] = attrName.split("|");
+    const [type, name] = left.split(":");
+
+    return {
+        type,
+        name,
+        modifiers,
     };
 };
 
