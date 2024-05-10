@@ -41,7 +41,7 @@ export function mount({
     addTemplatesToAST(ast);
 
     /**
-     * @type {Methods=}
+     * @type {Methods}
      */
     let methods;
 
@@ -56,11 +56,13 @@ export function mount({
             els: {},
         };
 
-        methods = init?.({
-            props: $$props,
-            els: currentCtx.els,
-            scope: rootScope,
-        });
+        if (init) {
+            methods = init({
+                props: $$props,
+                els: currentCtx.els,
+                scope: rootScope,
+            });
+        }
 
         handle(ast, document.createTreeWalker(fragment), currentCtx);
 
@@ -73,6 +75,7 @@ export function mount({
     const instance = svelte(component, { target, props });
 
     return {
+        // @ts-ignore
         methods,
         destroy() {
             unmount(instance);
