@@ -528,7 +528,7 @@ export function parseNumericLiteral(parser) {
     const start = parser.index;
     let raw;
 
-    if ((raw = parser.read(/^-?\d+/))) {
+    if ((raw = parser.read(/^[+-]?([0-9]*\.)?[0-9]+/))) {
         const end = parser.index;
 
         return /** @type {import("../types.js").NumericLiteral} */ ({
