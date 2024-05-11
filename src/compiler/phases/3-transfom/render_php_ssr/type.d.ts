@@ -27,6 +27,7 @@ export type Method = {
     isFinal: boolean;
     visibility: "public";
     isStatic: boolean;
+    type?: TypeReference;
 };
 
 export type Block = {
@@ -49,9 +50,16 @@ export type Namespace = {
 export type Parameter = {
     kind: "parameter";
     name: Identifier;
+    type?: TypeReference;
     byref: boolean;
     variadic: boolean;
     nullable: boolean;
+};
+
+export type TypeReference = {
+    kind: "typereference";
+    name: string;
+    raw: string;
 };
 
 export type ExpressionStatement<T extends Expression = Expression> = {

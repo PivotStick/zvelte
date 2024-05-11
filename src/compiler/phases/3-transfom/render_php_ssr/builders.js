@@ -44,10 +44,12 @@ export function identifier(name) {
 }
 
 /**
- * @returns {import("./type.js").Method}
  * @param {string} name
+ * @param {string=} returnType
+ *
+ * @returns {import("./type.js").Method}
  */
-export function method(name) {
+export function method(name, returnType) {
     return {
         kind: "method",
         nullable: false,
@@ -59,6 +61,20 @@ export function method(name) {
         isAbstract: false,
         isStatic: false,
         arguments: [],
+        type: returnType ? typeReference(returnType) : undefined,
+    };
+}
+
+/**
+ * @param {string} name
+ *
+ * @returns {import("./type.js").TypeReference}
+ */
+export function typeReference(name) {
+    return {
+        kind: "typereference",
+        name,
+        raw: name,
     };
 }
 
@@ -89,14 +105,16 @@ export function namespace(name, children = []) {
 
 /**
  * @param {string} name
+ * @param {string=} type
  *
  * @returns {import("./type.js").Parameter}
  */
-export function parameter(name) {
+export function parameter(name, type) {
     return {
         kind: "parameter",
         byref: false,
         name: identifier(name),
+        type: type ? typeReference(type) : undefined,
         nullable: false,
         variadic: false,
     };

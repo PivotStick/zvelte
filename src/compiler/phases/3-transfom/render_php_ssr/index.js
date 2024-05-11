@@ -1,16 +1,11 @@
 import { isVoid } from "../../../shared/utils/names.js";
-import { hash } from "../../../utils/hash.js";
+import { hashKey } from "../../../utils/hashKey.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
 
 const output = b.variable("html");
-const className = "Renderer";
 const namespace = "\\Zvelte\\Components";
 const propsName = "props";
-
-function hashKey(key = "") {
-    return "_" + hash(key);
-}
 
 /**
  * @param {import("#ast").Root} ast
@@ -18,18 +13,18 @@ function hashKey(key = "") {
  * @param {*} meta
  */
 export function renderPhpSSR(ast, options, meta) {
-    const renderMethod = b.method("render");
+    const renderMethod = b.method("render", "string");
 
-    renderMethod.arguments.push(b.parameter(propsName), b.parameter("slots"));
+    renderMethod.arguments.push(
+        b.parameter(propsName, "object"),
+        b.parameter("slots", "object"),
+        b.parameter("render", "callable"),
+    );
 
     renderBlock(renderMethod.body, ast.fragment);
 
-    const renderer = b.declareClass(className, [renderMethod]);
-    const result = print(
-        b.program([
-            b.namespace(`${namespace}\\${hashKey(options.key)}`, [renderer]),
-        ]),
-    );
+    const renderer = b.declareClass(hashKey(options.key), [renderMethod]);
+    const result = print(b.program([b.namespace(`${namespace}`, [renderer])]));
 
     return result;
 }
@@ -330,10 +325,7 @@ function handle(node, ctx, deep, scope) {
         }
 
         case "Component": {
-            const callee = b.staticLookup(
-                b.name(`${namespace}\\${hashKey(node.key.data)}\\${className}`),
-                "render",
-            );
+            const callee = b.variable("render");
 
             /**
              * @type {Parameters<typeof b["object"]>[0]}
@@ -380,7 +372,10 @@ function handle(node, ctx, deep, scope) {
                 }
             });
 
-            const render = b.call(callee, [b.object(props)]);
+            const render = b.call(callee, [
+                b.string(hashKey(node.key.data)),
+                b.object(props),
+            ]);
 
             ctx.append(render);
             break;

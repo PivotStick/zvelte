@@ -179,7 +179,13 @@ const handlers = {
             if (i < node.arguments.length - 1) chunks.push(c(", "));
         }
 
-        chunks.push(c(") "));
+        chunks.push(c(")"));
+
+        if (node.type) {
+            chunks.push(c(": "));
+            push_array(chunks, handle(node.type, state));
+        }
+
         push_array(chunks, handle(node.body, state));
 
         return chunks;
