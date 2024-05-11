@@ -1,6 +1,5 @@
-import { parse } from "./parse/index.js";
-import { renderDom } from "./compile/render_dom/index.js";
-import { renderPhpSSR } from "./compile/render_php_ssr/index.js";
+import { parse } from "./phases/1-parse/index.js";
+import { renderDom, renderPhpSSR } from "./phases/3-transfom/index.js";
 
 const renderers = {
     dom: renderDom,
@@ -10,13 +9,15 @@ const renderers = {
 /**
  * @param {string} source
  * @param {{
+ *  key: string;
  *  generate?: keyof renderers;
+ *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
- * }} [options]
+ * }} options
  * @param {{ js?: string }} [meta]
  */
-export function compile(source, options = {}, meta = {}) {
-    const ast = parse(source);
+export function compile(source, options, meta = {}) {
+    const ast = parse(source, options.parser);
 
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;
@@ -27,3 +28,5 @@ export function compile(source, options = {}, meta = {}) {
 
     return render(ast, options, meta);
 }
+
+export { hash } from "./utils/hash.js";

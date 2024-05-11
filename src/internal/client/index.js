@@ -3,9 +3,9 @@
  * @typedef {import("./types.js").ComponentInitArgs<T>} ComponentInitArgs
  */
 
-export { registerFilter, getFilter } from "./filters.js";
+export { registerFilter, getFilter } from "./runtime/filters.js";
 
-export { mount } from "./mount.js";
+export { mount, createComponent } from "./dom/mount.js";
 export { onMount, onDestroy, tick } from "svelte";
 export {
     source,
@@ -13,5 +13,3 @@ export {
     user_effect as effect,
     derived,
 } from "svelte/internal/client";
-
-export { template } from "./reactivity.js";

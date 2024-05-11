@@ -1,7 +1,22 @@
 {
     "compilerOptions": {
+        "module": "esnext",
+        "lib": ["esnext", "dom", "dom.iterable"],
+        "target": "esnext",
+        "noEmit": true,
+        "moduleResolution": "NodeNext",
+        "resolveJsonModule": true,
+        "noEmitOnError": true,
+        "noErrorTruncation": true,
+        "allowSyntheticDefaultImports": true,
+        "verbatimModuleSyntax": true,
+        "types": ["node"],
         "strict": true,
+        "allowJs": true,
         "checkJs": true,
-        "moduleResolution": "NodeNext"
-    }
+        "paths": {
+            "#ast": ["./src/compiler/phases/1-parse/types.d.ts"]
+        }
+    },
+    "include": ["./src"]
 }

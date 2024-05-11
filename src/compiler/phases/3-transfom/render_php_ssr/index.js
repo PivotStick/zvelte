@@ -1,0 +1,549 @@
+import { isVoid } from "../../../shared/utils/names.js";
+import { hash } from "../../../utils/hash.js";
+import * as b from "./builders.js";
+import { print } from "./print/index.js";
+
+const output = b.variable("html");
+const className = "Renderer";
+const namespace = "\\Zvelte\\Components";
+const propsName = "props";
+
+function hashKey(key = "") {
+    return "_" + hash(key);
+}
+
+/**
+ * @param {import("#ast").Root} ast
+ * @param {{ key: string }} options
+ * @param {*} meta
+ */
+export function renderPhpSSR(ast, options, meta) {
+    const renderMethod = b.method("render");
+
+    renderMethod.arguments.push(b.parameter(propsName), b.parameter("slots"));
+
+    renderBlock(renderMethod.body, ast.fragment);
+
+    const renderer = b.declareClass(className, [renderMethod]);
+    const result = print(
+        b.program([
+            b.namespace(`${namespace}\\${hashKey(options.key)}`, [renderer]),
+        ]),
+    );
+
+    return result;
+}
+
+/**
+ * @param {import("./type.js").Block} block
+ * @param {import("#ast").Fragment} node
+ */
+function renderBlock(block, node) {
+    const outputValue = b.array([]);
+    const outputAssign = b.assign(output, "=", outputValue);
+
+    block.children.push(outputAssign);
+
+    handle(node, createCtx(block), false, []);
+
+    let returned;
+
+    const implode = (/** @type {import("./type.js").Expression} */ expr) =>
+        b.call(b.name("implode"), [b.literal(""), expr]);
+
+    if (block.children.length === 1) {
+        block.children.pop();
+
+        if (outputValue.items.length === 1) {
+            returned = outputValue.items[0].value;
+        } else {
+            returned = implode(outputAssign.expression.right);
+        }
+    } else {
+        returned = implode(outputAssign.expression.left);
+    }
+
+    block.children.push(b.returnExpression(returned));
+}
+
+/**
+ * @param {import("./type.js").Block} block
+ *
+ * @returns {Ctx}
+ */
+function createCtx(block) {
+    return {
+        block,
+        append(value) {
+            const previous = block.children.at(-1);
+
+            if (
+                value.kind === "string" &&
+                previous?.kind === "expressionstatement" &&
+                previous.expression.kind === "assign" &&
+                previous.expression.left.kind === "offsetlookup" &&
+                previous.expression.left.what.name === output.name &&
+                previous.expression.operator === "=" &&
+                previous.expression.right.kind === "string"
+            ) {
+                previous.expression.right.value += value.value;
+                previous.expression.right.raw = `'${previous.expression.right.value}'`;
+            } else if (
+                previous?.kind === "expressionstatement" &&
+                previous.expression.kind === "assign" &&
+                previous.expression.left.kind === "variable" &&
+                previous.expression.left.name === output.name &&
+                previous.expression.operator === "=" &&
+                previous.expression.right.kind === "array"
+            ) {
+                const last = previous.expression.right.items.at(-1);
+
+                if (last?.value.kind === "string" && value.kind === "string") {
+                    last.value.value += value.value;
+                    last.value.raw = `'${last.value.value}'`;
+                } else {
+                    previous.expression.right.items.push(b.entry(value));
+                }
+            } else {
+                block.children.push(
+                    b.assign(b.offsetLookup(output.name), "=", value),
+                );
+            }
+        },
+        appendText(value) {
+            this.append(b.string(value));
+        },
+    };
+}
+
+/**
+ * @typedef {{
+ *  append(value: import("./type.js").Assign["right"]): void;
+ *  appendText(value: string): void;
+ *  block: import("./type.js").Block;
+ * }} Ctx
+ *
+ * @param {Exclude<import("#ast").Any, import("#ast").Expression>} node
+ * @param {Ctx} ctx
+ * @param {boolean} deep
+ * @param {string[][]} scope
+ */
+function handle(node, ctx, deep, scope) {
+    switch (node.type) {
+        case "Fragment":
+            node.nodes.forEach((fragment) =>
+                handle(fragment, ctx, deep, scope),
+            );
+            break;
+
+        case "Element": {
+            ctx.appendText(`<${node.name}`);
+            node.attributes.forEach((attr) => {
+                switch (attr.type) {
+                    case "Attribute":
+                        if (attr.values === true) {
+                            ctx.appendText(` ${attr.name}`);
+                        } else if (
+                            attr.values.length === 1 &&
+                            attr.values[0].type === "Text"
+                        ) {
+                            ctx.appendText(
+                                ` ${attr.name}="${attr.values[0].data}"`,
+                            );
+                        } else {
+                            ctx.appendText(` ${attr.name}="`);
+                            ctx.append(
+                                computeAttrValue(attr, ctx, deep, scope),
+                            );
+                            ctx.appendText('"');
+                        }
+                        break;
+
+                    case "BindDirective": {
+                        const ex = attr.expression ?? {
+                            type: "Identifier",
+                            name: attr.name,
+                            start: -1,
+                            end: -1,
+                        };
+
+                        const value = b.variable("attrValue");
+
+                        ctx.block.children.push(
+                            b.assign(
+                                value,
+                                "=",
+                                expression(ex, ctx, deep, scope),
+                            ),
+                        );
+
+                        const test = b.bin(value, "==", b.nullKeyword());
+
+                        ctx.append(
+                            b.ternary(
+                                test,
+                                b.sprintf([`${attr.name}="`, value, '"']),
+                                b.string(""),
+                            ),
+                        );
+                        break;
+                    }
+
+                    case "OnDirective":
+                    case "TransitionDirective":
+                        // do nothing
+                        break;
+
+                    default:
+                        throw new Error(
+                            `Unhandled "${attr.type}" on element php render`,
+                        );
+                }
+            });
+
+            if (isVoid(node.name)) {
+                ctx.appendText("/>");
+            } else {
+                ctx.appendText(">");
+                handle(node.fragment, ctx, deep, scope);
+                ctx.appendText(`</${node.name}>`);
+            }
+            break;
+        }
+
+        case "Text": {
+            ctx.appendText(node.data);
+            break;
+        }
+
+        case "ExpressionTag": {
+            const ex = expression(node.expression, ctx, deep, scope);
+            ctx.append(ex);
+            break;
+        }
+
+        case "IfBlock": {
+            const ifBlock = b.ifStatement(
+                expression(node.test, ctx, deep, scope),
+            );
+
+            ctx.appendText("<!--[-->");
+
+            const bodyCtx = createCtx(ifBlock.body);
+            handle(node.consequent, bodyCtx, deep, [...scope, []]);
+            bodyCtx.appendText("<!--]-->");
+
+            ifBlock.alternate = b.block();
+            const elseCtx = createCtx(ifBlock.alternate);
+
+            if (node.alternate) {
+                handle(node.alternate, elseCtx, deep, [...scope, []]);
+            }
+
+            elseCtx.appendText("<!--]!-->");
+
+            ctx.block.children.push(ifBlock);
+            break;
+        }
+
+        case "ForBlock": {
+            const arrayVar = b.variable("forArray");
+            const indexVar = b.variable("index");
+            const lengthVar = b.variable("arrayLength");
+            const loopParentVar = b.variable("loopParent");
+            const loopVar = b.variable("loop");
+
+            ctx.block.children.push(
+                b.assign(
+                    arrayVar,
+                    "=",
+                    expression(node.expression, ctx, deep, scope),
+                ),
+            );
+
+            ctx.block.children.push(
+                b.assign(lengthVar, "=", b.call(b.name("count"), [arrayVar])),
+            );
+
+            ctx.block.children.push(b.assign(loopParentVar, "=", loopVar));
+
+            ctx.appendText("<!--[-->");
+
+            const ifBlock = node.fallback
+                ? b.ifStatement(b.unary("!", b.empty(arrayVar)))
+                : null;
+
+            if (ifBlock && node.fallback) {
+                ifBlock.alternate = b.block();
+                const alternateCtx = createCtx(ifBlock.alternate);
+                handle(node.fallback, alternateCtx, deep, [...scope, []]);
+                alternateCtx.appendText("<!--]!-->");
+            }
+
+            let targetCtx = ifBlock ? createCtx(ifBlock.body) : ctx;
+
+            const forEach = b.forEach(
+                arrayVar,
+                b.variable(node.context.name),
+                indexVar,
+            );
+
+            const forEachCtx = createCtx(forEach.body);
+
+            const loopObject = b.objectFromLiteral({
+                index: b.bin(indexVar, "+", b.number(1)),
+                index0: indexVar,
+                revindex: b.bin(lengthVar, "-", indexVar),
+                revindex0: b.bin(
+                    lengthVar,
+                    "-",
+                    b.bin(indexVar, "-", b.number(1)),
+                ),
+                first: b.bin(indexVar, "===", b.number(0)),
+                last: b.bin(
+                    indexVar,
+                    "===",
+                    b.bin(lengthVar, "-", b.number(1)),
+                ),
+                length: lengthVar,
+                parent: loopParentVar,
+            });
+
+            forEachCtx.block.children.push(b.assign(loopVar, "=", loopObject));
+
+            forEachCtx.appendText("<!--[-->");
+
+            handle(node.body, forEachCtx, deep, [
+                ...scope,
+                [node.context.name, loopVar.name],
+            ]);
+
+            forEachCtx.appendText("<!--]-->");
+
+            targetCtx.block.children.push(forEach);
+            targetCtx.appendText("<!--]-->");
+
+            if (ifBlock) {
+                ctx.block.children.push(ifBlock);
+            }
+            break;
+        }
+
+        case "Component": {
+            const callee = b.staticLookup(
+                b.name(`${namespace}\\${hashKey(node.key.data)}\\${className}`),
+                "render",
+            );
+
+            /**
+             * @type {Parameters<typeof b["object"]>[0]}
+             */
+            const props = new Map();
+
+            node.attributes.forEach((attr) => {
+                switch (attr.type) {
+                    case "Attribute":
+                        const key = b.string(attr.name);
+                        let value;
+
+                        if (attr.values === true) {
+                            value = b.boolean(true);
+                        } else if (
+                            attr.values.length === 1 &&
+                            attr.values[0].type === "Text"
+                        ) {
+                            value = b.string(attr.values[0].data);
+                        } else {
+                            value = computeAttrValue(attr, ctx, deep, scope);
+                        }
+
+                        props.set(key, value);
+                        break;
+
+                    case "BindDirective": {
+                        const key = b.string(attr.name);
+                        const ex = attr.expression ?? {
+                            type: "Identifier",
+                            name: attr.name,
+                            start: -1,
+                            end: -1,
+                        };
+
+                        props.set(key, expression(ex, ctx, deep, scope));
+                        break;
+                    }
+
+                    default:
+                        throw new Error(
+                            `Unhandled "${attr.type}" on component php render`,
+                        );
+                }
+            });
+
+            const render = b.call(callee, [b.object(props)]);
+
+            ctx.append(render);
+            break;
+        }
+
+        default:
+            throw new Error(`"${node.type}" not handled in php renderer`);
+    }
+}
+
+/**
+ * @param {import("#ast").Expression} node
+ * @param {Ctx} ctx
+ * @param {boolean} deep
+ * @param {string[][]} scope
+ *
+ * @returns {import("./type.js").Expression}
+ */
+function expression(node, ctx, deep, scope) {
+    switch (node.type) {
+        case "MemberExpression": {
+            const what = expression(node.object, ctx, deep, scope);
+
+            let offset;
+            if (node.computed === true) {
+                const ex = expression(node.property, ctx, deep, scope);
+                offset = b.encapsedPart(ex);
+            } else {
+                offset = expression(node.property, ctx, true, scope);
+                if (offset.kind !== "identifier") {
+                    throw new Error("expected identifier");
+                }
+            }
+
+            return b.propertyLookup(what, offset);
+        }
+
+        case "BinaryExpression": {
+            const left = expression(node.left, ctx, deep, scope);
+            const right = expression(node.right, ctx, deep, scope);
+
+            /** @type {string} */
+            let operator = node.operator;
+
+            switch (node.operator) {
+                case "~":
+                    operator = ".";
+                    break;
+
+                case "or":
+                    operator = "||";
+                    break;
+
+                case "and":
+                    operator = "&&";
+                    break;
+            }
+
+            return b.bin(left, operator, right);
+        }
+
+        case "Identifier": {
+            const identifier = b.identifier(node.name);
+
+            if (
+                deep === false &&
+                scope.flatMap((vars) => vars).includes(node.name)
+            ) {
+                return b.variable(node.name);
+            } else if (deep === false) {
+                return b.propertyLookup(b.variable(propsName), identifier);
+            }
+
+            return identifier;
+        }
+
+        case "StringLiteral": {
+            return b.string(node.value);
+        }
+
+        case "NullLiteral": {
+            return b.nullKeyword();
+        }
+
+        case "NumericLiteral": {
+            return b.number(node.value);
+        }
+
+        case "BooleanLiteral": {
+            return b.boolean(node.value);
+        }
+
+        case "ObjectExpression": {
+            /**
+             * @type {Parameters<typeof b["object"]>[0]}
+             */
+            const map = new Map();
+
+            node.properties.forEach((prop) => {
+                const key = b.string(
+                    prop.key.type === "StringLiteral"
+                        ? prop.key.value
+                        : prop.key.name,
+                );
+                map.set(key, expression(prop.value, ctx, deep, scope));
+            });
+
+            return b.object(map);
+        }
+
+        case "ArrayExpression": {
+            /**
+             * @type {import("./type.js").Entry[]}
+             */
+            const entries = [];
+
+            node.elements.forEach((element) => {
+                entries.push(b.entry(expression(element, ctx, deep, scope)));
+            });
+
+            return b.array(entries);
+        }
+
+        case "CallExpression": {
+            /** @type {import("./type.js").Expression[]} */
+            const args = [];
+            const what = expression(node.name, ctx, deep, scope);
+
+            node.arguments.forEach((arg) => {
+                args.push(expression(arg, ctx, deep, scope));
+            });
+
+            return b.call(what, args);
+        }
+
+        default:
+            throw new Error(
+                `"${node.type}" expression not handled in php renderer`,
+            );
+    }
+}
+
+/**
+ * @param {import("#ast").Attribute} attr
+ * @param {Ctx} ctx
+ * @param {boolean} deep
+ * @param {string[][]} scope
+ */
+function computeAttrValue(attr, ctx, deep, scope) {
+    if (attr.values === true) return b.boolean(true);
+
+    if (attr.values.length === 1 && attr.values[0].type !== "Text") {
+        const ex = attr.values[0];
+        return expression(ex, ctx, deep, scope);
+    }
+
+    const template = attr.values.map((val) => {
+        if (val.type === "Text") {
+            return val.data;
+        } else {
+            return expression(val, ctx, deep, scope);
+        }
+    });
+
+    return b.sprintf(template);
+}
