@@ -20,9 +20,15 @@ export function renderPhpSSR(ast, options, meta) {
         b.parameter("render", "callable"),
     );
 
-    renderBlock(renderMethod.body, ast.fragment, [], {
-        namespace: options.namespace,
-    });
+    const ctx = createCtx(renderMethod.body);
+
+    renderBlock(
+        renderMethod.body,
+        ast.fragment,
+        [],
+        { namespace: options.namespace },
+        true,
+    );
 
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
@@ -44,13 +50,18 @@ export function renderPhpSSR(ast, options, meta) {
  * @param {string[][]} scope
  * @param {{ namespace: string; }} meta
  */
-function renderBlock(block, node, scope, meta) {
+function renderBlock(block, node, scope, meta, wrapInComments = false) {
     const outputValue = b.array([]);
     const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
 
     block.children.push(outputAssign);
+    const ctx = createCtx(block);
 
-    handle(node, createCtx(block), false, scope, meta);
+    if (wrapInComments) ctx.appendText("<!--[-->");
+
+    handle(node, ctx, false, scope, meta);
+
+    if (wrapInComments) ctx.appendText("<!--]-->");
 
     let returned;
 
@@ -554,9 +565,9 @@ function handle(node, ctx, deep, scope, meta) {
                 b.arrayFromObject(slots),
             ]);
 
-            ctx.appendText(`<${node.name}><!--[-->`);
+            ctx.appendText(`<${node.name}>`);
             ctx.append(render);
-            ctx.appendText(`<!--]--></${node.name}>`);
+            ctx.appendText(`</${node.name}>`);
             break;
         }
 
