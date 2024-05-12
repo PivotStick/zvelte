@@ -1,4 +1,4 @@
-import { mount as svelte, unmount } from "svelte";
+import * as svelte from "svelte";
 import { addTemplatesToAST } from "./astToTemplate.js";
 import { parse } from "../../../compiler/phases/1-parse/index.js";
 import { getFilter } from "../runtime/filters.js";
@@ -59,7 +59,7 @@ export function createComponent({ init, ast, scope = {}, key }) {
             });
         }
 
-        handle(ast, document.createTreeWalker(fragment), currentCtx);
+        handle(ast, fragment, currentCtx);
 
         $.append($$anchor, fragment);
         if (init) $.pop();
@@ -67,17 +67,20 @@ export function createComponent({ init, ast, scope = {}, key }) {
     };
 
     // @ts-ignore
-    const mount = ({ target, props }) => {
+    const mount = ({ target, props, hydrate = false }) => {
         props = $.proxy(props);
 
         // @ts-ignore
-        const instance = svelte(component, { target, props });
+        const instance = (hydrate ? svelte.hydrate : svelte.mount)(component, {
+            target,
+            props,
+        });
 
         return {
             // @ts-ignore
             methods,
             destroy() {
-                unmount(instance);
+                svelte.unmount(instance);
             },
         };
     };
@@ -98,6 +101,7 @@ export function createComponent({ init, ast, scope = {}, key }) {
  *   props?: Props;
  *   source?: string;
  *   init?: (args: import("../types.js").ComponentInitArgs<Props>) => Methods;
+ *   hydrate?: boolean;
  * }} args
  */
 export function mount({
@@ -107,6 +111,7 @@ export function mount({
     // @ts-expect-error
     props = {},
     init,
+    hydrate,
 }) {
     const mount = createComponent({
         init,
@@ -114,22 +119,22 @@ export function mount({
         scope,
     });
 
-    return mount({ target, props });
+    return mount({ target, props, hydrate });
 }
 
 /**
  * @param {*} value
  * @param {import("#ast").Identifier | import("#ast").MemberExpression} expression
- * @param {TreeWalker} walker
+ * @param {Node} currentNode
  * @param {import("../types.js").Ctx} ctx
  */
-function setInScope(value, expression, walker, ctx) {
+function setInScope(value, expression, currentNode, ctx) {
     let object;
     let key;
     if (expression.type === "MemberExpression") {
-        object = handle(expression.object, walker, ctx);
+        object = handle(expression.object, currentNode, ctx);
         if (expression.computed === true) {
-            key = handle(expression.property, walker, ctx);
+            key = handle(expression.property, currentNode, ctx);
         } else {
             key = expression.property.name;
         }
@@ -143,27 +148,33 @@ function setInScope(value, expression, walker, ctx) {
 
 /**
  * @param {import("#ast").Any} node
- * @param {TreeWalker} walker
+ * @param {any} currentNode
  * @param {import("../types.js").Ctx} ctx
  * @returns {any}
  */
-function handle(node, walker, ctx) {
+function handle(node, currentNode, ctx) {
     switch (node.type) {
         case "Root":
-            handle(node.fragment, walker, ctx);
+            handle(node.fragment, currentNode, ctx);
             break;
 
         case "Fragment": {
-            node.nodes.forEach((child) => {
-                walker.nextNode();
-                handle(child, walker, ctx);
+            node.nodes.forEach((child, i) => {
+                const isText = child.type === "Text";
+
+                currentNode =
+                    i === 0
+                        ? $.first_child(currentNode, isText)
+                        : $.sibling(currentNode, isText);
+
+                handle(child, currentNode, ctx);
             });
             break;
         }
 
         case "Element": {
-            node.attributes.forEach((attr) => handle(attr, walker, ctx));
-            handle(node.fragment, walker, ctx);
+            node.attributes.forEach((attr) => handle(attr, currentNode, ctx));
+            handle(node.fragment, currentNode, ctx);
             break;
         }
 
@@ -172,7 +183,7 @@ function handle(node, walker, ctx) {
                 node.values !== true &&
                 (node.values.length > 1 || node.values[0].type !== "Text")
             ) {
-                const element = /** @type {HTMLElement} */ (walker.currentNode);
+                const element = /** @type {HTMLElement} */ (currentNode);
 
                 if (
                     (element instanceof HTMLButtonElement &&
@@ -184,7 +195,7 @@ function handle(node, walker, ctx) {
                         // @ts-ignore
                         element[node.name] = computeAttributeValue(
                             node,
-                            walker,
+                            currentNode,
                             ctx,
                         );
                     });
@@ -193,7 +204,7 @@ function handle(node, walker, ctx) {
                         $.set_attribute(
                             element,
                             node.name,
-                            computeAttributeValue(node, walker, ctx),
+                            computeAttributeValue(node, currentNode, ctx),
                         );
                     });
                 }
@@ -209,14 +220,14 @@ function handle(node, walker, ctx) {
                 end: -1,
             };
 
-            const get = () => handle(ex, walker, ctx);
+            const get = () => handle(ex, currentNode, ctx);
             const set = (/** @type {any} */ $$value) =>
-                setInScope($$value, ex, walker, ctx);
+                setInScope($$value, ex, currentNode, ctx);
 
             switch (node.name) {
                 case "value": {
                     const element = /** @type {HTMLInputElement} */ (
-                        walker.currentNode
+                        currentNode
                     );
                     $.bind_value(element, get, set);
                     break;
@@ -224,30 +235,28 @@ function handle(node, walker, ctx) {
 
                 case "checked": {
                     const element = /** @type {HTMLInputElement} */ (
-                        walker.currentNode
+                        currentNode
                     );
                     $.bind_checked(element, get, set);
                     break;
                 }
 
                 case "this": {
-                    const element = /** @type {HTMLElement} */ (
-                        walker.currentNode
-                    );
+                    const element = /** @type {HTMLElement} */ (currentNode);
                     const _ctx = {
                         ...ctx,
                         scope: [ctx.els],
                     };
                     $.bind_this(
                         element,
-                        ($$value) => setInScope($$value, ex, walker, _ctx),
-                        () => handle(ex, walker, _ctx),
+                        ($$value) => setInScope($$value, ex, currentNode, _ctx),
+                        () => handle(ex, currentNode, _ctx),
                     );
                 }
 
                 case "group": {
                     const element = /** @type {HTMLInputElement} */ (
-                        walker.currentNode
+                        currentNode
                     );
                     const id = JSON.stringify(node.expression);
                     const bindingGroup = ((ctx.bindingGroups ??= {})[id] ??=
@@ -279,7 +288,7 @@ function handle(node, walker, ctx) {
         }
 
         case "TransitionDirective": {
-            const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const element = /** @type {HTMLElement} */ (currentNode);
             const args = node.expression;
 
             const INTRO = 1;
@@ -292,7 +301,7 @@ function handle(node, walker, ctx) {
                 node.intro && node.outro ? BOTH : node.intro ? INTRO : OUTRO;
 
             if (args) {
-                getParams = () => handle(args, walker, ctx);
+                getParams = () => handle(args, currentNode, ctx);
             }
 
             if (node.modifiers.includes("global")) {
@@ -310,7 +319,7 @@ function handle(node, walker, ctx) {
         }
 
         case "OnDirective": {
-            const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const element = /** @type {HTMLElement} */ (currentNode);
             const ex = node.expression;
 
             if (ex) {
@@ -318,7 +327,7 @@ function handle(node, walker, ctx) {
                     node.name,
                     element,
                     (_event) => {
-                        handle(ex, walker, pushNewScope(ctx, { _event }));
+                        handle(ex, currentNode, pushNewScope(ctx, { _event }));
                     },
                     false,
                 );
@@ -333,7 +342,7 @@ function handle(node, walker, ctx) {
         }
 
         case "ClassDirective": {
-            const element = /** @type {HTMLElement} */ (walker.currentNode);
+            const element = /** @type {HTMLElement} */ (currentNode);
             const name = node.name;
             const ex = node.expression ?? {
                 type: "Identifier",
@@ -343,33 +352,38 @@ function handle(node, walker, ctx) {
             };
 
             $.render_effect(() => {
-                $.toggle_class(element, name, handle(ex, walker, ctx));
+                $.toggle_class(element, name, handle(ex, currentNode, ctx));
             });
             break;
         }
 
         case "CallExpression": {
-            const fn = handle(node.name, walker, ctx);
-            const args = node.arguments.map((arg) => handle(arg, walker, ctx));
+            const fn = handle(node.name, currentNode, ctx);
+            const args = node.arguments.map((arg) =>
+                handle(arg, currentNode, ctx),
+            );
 
             return fn(...args);
         }
 
         case "FilterExpression": {
             const fn =
-                handle(node.name, walker, ctx) ?? getFilter(node.name.name);
+                handle(node.name, currentNode, ctx) ??
+                getFilter(node.name.name);
 
-            const args = node.arguments.map((arg) => handle(arg, walker, ctx));
+            const args = node.arguments.map((arg) =>
+                handle(arg, currentNode, ctx),
+            );
 
             return fn(...args);
         }
 
         case "ConditionalExpression": {
-            const test = handle(node.test, walker, ctx);
+            const test = handle(node.test, currentNode, ctx);
 
             return test
-                ? handle(node.consequent, walker, ctx)
-                : handle(node.alternate, walker, ctx);
+                ? handle(node.consequent, currentNode, ctx)
+                : handle(node.alternate, currentNode, ctx);
         }
 
         case "ObjectExpression": {
@@ -380,7 +394,7 @@ function handle(node, walker, ctx) {
                     property.key.type === "StringLiteral"
                         ? property.key.value
                         : property.key.name
-                ] = handle(property.value, walker, ctx);
+                ] = handle(property.value, currentNode, ctx);
             });
             return object;
         }
@@ -389,20 +403,20 @@ function handle(node, walker, ctx) {
             /** @type {any[]} */
             const array = [];
             node.elements.forEach((element) => {
-                array.push(handle(element, walker, ctx));
+                array.push(handle(element, currentNode, ctx));
             });
             return array;
         }
 
         case "BinaryExpression": {
-            const left = handle(node.left, walker, ctx);
+            const left = handle(node.left, currentNode, ctx);
 
             switch (node.operator) {
                 case "??":
-                    return left ?? handle(node.right, walker, ctx);
+                    return left ?? handle(node.right, currentNode, ctx);
             }
 
-            const right = handle(node.right, walker, ctx);
+            const right = handle(node.right, currentNode, ctx);
 
             switch (node.operator) {
                 case "in":
@@ -455,7 +469,7 @@ function handle(node, walker, ctx) {
         }
 
         case "UnaryExpression": {
-            const argument = handle(node.argument, walker, ctx);
+            const argument = handle(node.argument, currentNode, ctx);
 
             switch (node.operator) {
                 case "not":
@@ -463,6 +477,9 @@ function handle(node, walker, ctx) {
 
                 case "-":
                     return -argument;
+
+                case "+":
+                    return +argument;
 
                 default:
                     throw new Error(
@@ -473,13 +490,16 @@ function handle(node, walker, ctx) {
         }
 
         case "MemberExpression": {
-            const object = handle(node.object, walker, ctx);
+            const object = handle(node.object, currentNode, ctx);
 
             if (node.computed === true) {
-                return object[handle(node.property, walker, ctx)];
+                return object[handle(node.property, currentNode, ctx)];
             }
 
-            return handle(node.property, walker, { ...ctx, scope: [object] });
+            return handle(node.property, currentNode, {
+                ...ctx,
+                scope: [object],
+            });
         }
 
         case "NumericLiteral":
@@ -498,10 +518,10 @@ function handle(node, walker, ctx) {
         }
 
         case "HtmlTag": {
-            const anchor = /** @type {Comment} */ (walker.currentNode);
+            const anchor = /** @type {Comment} */ (currentNode);
             $.html(
                 anchor,
-                () => handle(node.expression, walker, ctx),
+                () => handle(node.expression, currentNode, ctx),
                 false,
                 false,
             );
@@ -509,35 +529,31 @@ function handle(node, walker, ctx) {
         }
 
         case "ExpressionTag": {
-            const anchor = /** @type {Comment} */ (walker.currentNode);
+            const anchor = /** @type {Comment} */ (currentNode);
             const text = $.text(anchor);
             anchor.replaceWith(text);
-            walker.currentNode = text;
+            currentNode.currentNode = text;
 
             $.render_effect(() =>
                 $.set_text(
                     text,
-                    $.stringify(handle(node.expression, walker, ctx)),
+                    $.stringify(handle(node.expression, currentNode, ctx)),
                 ),
             );
             break;
         }
 
         case "IfBlock": {
-            const anchor = /** @type {Comment} */ (walker.currentNode);
+            const anchor = /** @type {Comment} */ (currentNode);
             const alternate = node.alternate;
 
             $.if(
                 anchor,
-                () => handle(node.test, walker, ctx),
+                () => handle(node.test, currentNode, ctx),
                 ($$anchor) => {
                     const fragment = getRoot(node.consequent);
 
-                    handle(
-                        node.consequent,
-                        document.createTreeWalker(fragment),
-                        pushNewScope(ctx, {}),
-                    );
+                    handle(node.consequent, fragment, pushNewScope(ctx, {}));
 
                     // @ts-ignore
                     $.append($$anchor, fragment);
@@ -546,11 +562,7 @@ function handle(node, walker, ctx) {
                     ? ($$anchor) => {
                           const fragment = getRoot(alternate);
 
-                          handle(
-                              alternate,
-                              document.createTreeWalker(fragment),
-                              pushNewScope(ctx, {}),
-                          );
+                          handle(alternate, fragment, pushNewScope(ctx, {}));
 
                           // @ts-ignore
                           $.append($$anchor, fragment);
@@ -563,14 +575,14 @@ function handle(node, walker, ctx) {
         }
 
         case "ForBlock": {
-            const anchor = /** @type {Comment} */ (walker.currentNode);
+            const anchor = /** @type {Comment} */ (currentNode);
             const fallback = node.fallback;
 
             let array;
             $.each(
                 anchor,
                 65,
-                () => (array = handle(node.expression, walker, ctx)),
+                () => (array = handle(node.expression, currentNode, ctx)),
                 $.index,
                 ($$anchor, item, $$index) => {
                     const fragment = getRoot(node.body);
@@ -578,7 +590,7 @@ function handle(node, walker, ctx) {
 
                     handle(
                         node.body,
-                        document.createTreeWalker(fragment),
+                        fragment,
                         pushNewScope(ctx, {
                             get [node.context.name]() {
                                 return $.unwrap(item);
@@ -619,11 +631,7 @@ function handle(node, walker, ctx) {
                     ? ($$anchor) => {
                           const fragment = getRoot(fallback);
 
-                          handle(
-                              fallback,
-                              document.createTreeWalker(fragment),
-                              pushNewScope(ctx, {}),
-                          );
+                          handle(fallback, fragment, pushNewScope(ctx, {}));
 
                           // @ts-ignore
                           $.append($$anchor, fragment);
@@ -638,8 +646,9 @@ function handle(node, walker, ctx) {
             break;
 
         case "Component": {
-            const container = /** @type {HTMLElement} */ (walker.currentNode);
-            const anchor = /** @type {Comment} */ (walker.nextNode());
+            const container = /** @type {HTMLElement} */ (currentNode);
+            currentNode = $.first_child(currentNode, false);
+            const anchor = /** @type {Comment} */ (currentNode);
             const component = getComponentByKey(node.key.data);
 
             if (!component)
@@ -661,7 +670,7 @@ function handle(node, walker, ctx) {
                             $.render_effect(() => {
                                 props[attr.name] = computeAttributeValue(
                                     attr,
-                                    walker,
+                                    currentNode,
                                     ctx,
                                 );
                             });
@@ -678,13 +687,17 @@ function handle(node, walker, ctx) {
                         };
 
                         $.render_effect(() => {
-                            props[attr.name] = handle(expression, walker, ctx);
+                            props[attr.name] = handle(
+                                expression,
+                                currentNode,
+                                ctx,
+                            );
                         });
                         $.render_effect(() => {
                             setInScope(
                                 props[attr.name],
                                 expression,
-                                walker,
+                                currentNode,
                                 ctx,
                             );
                         });
@@ -698,7 +711,7 @@ function handle(node, walker, ctx) {
                             (props.$$events ??= {})[node.name] = (_event) => {
                                 handle(
                                     expression,
-                                    walker,
+                                    currentNode,
                                     pushNewScope(ctx, { _event }),
                                 );
                             };
@@ -751,17 +764,17 @@ function pushNewScope(ctx, newScope = {}) {
 
 /**
  * @param {import("#ast").Attribute} attr
- * @param {TreeWalker} walker
+ * @param {any} currentNode
  * @param {import("../types.js").Ctx} ctx
  */
-function computeAttributeValue(attr, walker, ctx) {
+function computeAttributeValue(attr, currentNode, ctx) {
     /** @type {any} */
     let value = UNINITIALIZED;
 
     if (attr.values === true) value = true;
     else
         attr.values.forEach((n) => {
-            const r = handle(n, walker, ctx);
+            const r = handle(n, currentNode, ctx);
 
             if (value === UNINITIALIZED) {
                 value = r;
