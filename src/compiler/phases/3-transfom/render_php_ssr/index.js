@@ -162,9 +162,19 @@ function handle(node, ctx, deep, scope, meta) {
 
         case "Element": {
             ctx.appendText(`<${node.name}`);
+
             node.attributes.forEach((attr) => {
                 switch (attr.type) {
                     case "Attribute":
+                        if (
+                            attr.name === "class" &&
+                            node.attributes.find(
+                                (a) => a.type === "ClassDirective",
+                            )
+                        ) {
+                            break;
+                        }
+
                         if (attr.values === true) {
                             ctx.appendText(` ${attr.name}`);
                         } else if (
@@ -182,6 +192,92 @@ function handle(node, ctx, deep, scope, meta) {
                             ctx.appendText('"');
                         }
                         break;
+
+                    case "ClassDirective": {
+                        // If this class directive is not the first skip
+                        // It's because the it's the first found class directive that handles everything
+                        if (
+                            node.attributes.find(
+                                (a) => a.type === "ClassDirective",
+                            ) !== attr
+                        )
+                            break;
+
+                        ctx.appendText(` class="`);
+
+                        const attrs =
+                            /** @type {import("#ast").Attribute[]} */ (
+                                node.attributes.filter(
+                                    (a) =>
+                                        a.type === "Attribute" &&
+                                        a.name === "class",
+                                )
+                            );
+
+                        attrs.forEach((a) => {
+                            if (a.values === true) return;
+
+                            const last = a.values[a.values.length - 1];
+                            if (last.type === "Text") {
+                                last.data += " ";
+                            } else {
+                                a.values.push({
+                                    type: "Text",
+                                    data: " ",
+                                    end: -1,
+                                    start: -1,
+                                });
+                            }
+
+                            ctx.append(computeAttrValue(a, ctx, deep, scope));
+                        });
+
+                        const classDirectives =
+                            /** @type {import("#ast").ClassDirective[]} */ (
+                                node.attributes.filter(
+                                    (a) => a.type === "ClassDirective",
+                                )
+                            );
+
+                        const array = b.array();
+
+                        classDirectives.forEach((a) => {
+                            const test = expression(
+                                a.expression ?? {
+                                    type: "Identifier",
+                                    name: a.name,
+                                    start: -1,
+                                    end: -1,
+                                },
+                                ctx,
+                                deep,
+                                scope,
+                            );
+
+                            array.items.push(
+                                b.entry(
+                                    b.ternary(
+                                        test,
+                                        b.string(a.name),
+                                        b.string(""),
+                                    ),
+                                ),
+                            );
+                        });
+
+                        ctx.append(
+                            b.call(b.name("implode"), [
+                                b.string(" "),
+                                b.call(b.name("array_filter"), [
+                                    array,
+                                    b.string("boolval"),
+                                ]),
+                            ]),
+                        );
+
+                        ctx.appendText(`"`);
+                        break;
+                    }
 
                     case "BindDirective": {
                         const ex = attr.expression ?? {
@@ -220,6 +316,7 @@ function handle(node, ctx, deep, scope, meta) {
 
                     default:
                         throw new Error(
+                            // @ts-expect-error
                             `Unhandled "${attr.type}" on element php render`,
                         );
                 }
@@ -375,20 +472,12 @@ function handle(node, ctx, deep, scope, meta) {
             node.attributes.forEach((attr) => {
                 switch (attr.type) {
                     case "Attribute":
-                        let value;
-
-                        if (attr.values === true) {
-                            value = b.boolean(true);
-                        } else if (
-                            attr.values.length === 1 &&
-                            attr.values[0].type === "Text"
-                        ) {
-                            value = b.string(attr.values[0].data);
-                        } else {
-                            value = computeAttrValue(attr, ctx, deep, scope);
-                        }
-
-                        props[attr.name] = value;
+                        props[attr.name] = computeAttrValue(
+                            attr,
+                            ctx,
+                            deep,
+                            scope,
+                        );
                         break;
 
                     case "BindDirective": {
@@ -699,9 +788,13 @@ function expression(node, ctx, deep, scope) {
 function computeAttrValue(attr, ctx, deep, scope) {
     if (attr.values === true) return b.boolean(true);
 
-    if (attr.values.length === 1 && attr.values[0].type !== "Text") {
-        const ex = attr.values[0];
-        return expression(ex, ctx, deep, scope);
+    if (attr.values.length === 1) {
+        if (attr.values[0].type !== "Text") {
+            const ex = attr.values[0];
+            return expression(ex, ctx, deep, scope);
+        } else {
+            return b.string(attr.values[0].data);
+        }
     }
 
     const template = attr.values.map((val) => {
