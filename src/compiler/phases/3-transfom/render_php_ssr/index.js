@@ -548,7 +548,9 @@ function handle(node, ctx, deep, scope, meta) {
                 b.arrayFromObject(slots),
             ]);
 
+            ctx.appendText(`<${node.name}><!--[-->`);
             ctx.append(render);
+            ctx.appendText(`<!--]--></${node.name}>`);
             break;
         }
 
