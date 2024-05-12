@@ -150,6 +150,10 @@ function createCtx(block) {
  */
 function handle(node, ctx, deep, scope, meta) {
     switch (node.type) {
+        case "Comment":
+            // ignore for ssr
+            break;
+
         case "Fragment":
             node.nodes.forEach((fragment) =>
                 handle(fragment, ctx, deep, scope, meta),
