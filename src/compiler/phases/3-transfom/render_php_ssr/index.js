@@ -757,6 +757,19 @@ function expression(node, ctx, deep, scope) {
             }
         }
 
+        case "IsExpression": {
+            if (node.right.type === "Identifier") {
+                if (node.right.name === "empty") {
+                    const empty = b.empty(
+                        expression(node.left, ctx, deep, scope),
+                    );
+                    return node.not ? b.unary("!", empty) : empty;
+                }
+            }
+
+            throw new Error(`unhandled kind of "IsExpression"`);
+        }
+
         case "ConditionalExpression": {
             const test = expression(node.test, ctx, deep, scope);
             const consequent = expression(node.consequent, ctx, deep, scope);

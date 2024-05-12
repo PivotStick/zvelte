@@ -79,17 +79,17 @@ export function parseLogicExpression(parser) {
  */
 export function parseComparison(parser) {
     const start = parser.index;
-    let left = parseAdditive(parser);
+    let left = parseIsExpression(parser);
 
     parser.allowWhitespace();
     /**
-     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "in" | "??" | "is"}
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "in" | "??"}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(<=|>=|==|!=|in|\?\?|>|<|is)/))
+        (operator = parser.read(/^(<=|>=|==|!=|in|\?\?|>|<)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
@@ -103,6 +103,38 @@ export function parseComparison(parser) {
             right,
             start,
             end,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseIsExpression(parser) {
+    const start = parser.index;
+    let left = parseAdditive(parser);
+
+    parser.allowWhitespace();
+
+    let match;
+
+    while ((match = parser.read(/^is/))) {
+        parser.allowWhitespace();
+        const not = parser.eat("not");
+        parser.allowWhitespace();
+        const right = parsePrimary(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
+
+        left = {
+            type: "IsExpression",
+            start,
+            end,
+            left,
+            right,
+            not,
         };
     }
 
