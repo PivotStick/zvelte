@@ -527,6 +527,21 @@ const handlers = {
         return [c("empty("), ...handle(node.expression, state), c(")")];
     },
 
+    isset(node, state) {
+        const chunks = [c("isset(")];
+
+        node.variables.forEach((variable, i) => {
+            chunks.push(...handle(variable, state));
+            if (i < node.variables.length - 1) {
+                chunks.push(c(", "));
+            }
+        });
+
+        chunks.push(c(")"));
+
+        return chunks;
+    },
+
     staticlookup(node, state) {
         return [
             ...handle(node.what, state),

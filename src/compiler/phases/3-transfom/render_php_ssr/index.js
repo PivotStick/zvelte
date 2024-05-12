@@ -759,12 +759,19 @@ function expression(node, ctx, deep, scope) {
 
         case "IsExpression": {
             const left = expression(node.left, ctx, deep, scope);
-            if (
-                node.right.type === "Identifier" &&
-                node.right.name === "empty"
-            ) {
-                const empty = b.empty(left);
-                return node.not ? b.unary("!", empty) : empty;
+
+            if (node.right.type === "Identifier") {
+                switch (node.right.name) {
+                    case "empty": {
+                        const empty = b.empty(left);
+                        return node.not ? b.unary("!", empty) : empty;
+                    }
+
+                    case "defined": {
+                        const isset = b.isset(left);
+                        return node.not ? b.unary("!", isset) : isset;
+                    }
+                }
             }
 
             if (node.right.type === "NullLiteral") {

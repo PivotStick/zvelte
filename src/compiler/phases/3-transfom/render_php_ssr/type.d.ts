@@ -178,11 +178,17 @@ export type Primary =
     | Literal
     | Unary
     | Empty
+    | Isset
     | Identifier;
 
 export type Empty = {
     kind: "empty";
     expression: Expression;
+};
+
+export type Isset = {
+    kind: "isset";
+    variables: Array<Expression>;
 };
 
 export type Unary = {

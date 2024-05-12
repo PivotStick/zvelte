@@ -505,6 +505,17 @@ export function empty(expression) {
 }
 
 /**
+ * @param {import("./type.js").Isset["variables"]} variables
+ * @returns {import("./type.js").Isset}
+ */
+export function isset(...variables) {
+    return {
+        kind: "isset",
+        variables,
+    };
+}
+
+/**
  * @param {import("./type.js").Unary["type"]} type
  * @param {import("./type.js").Unary["what"]} what
  * @returns {import("./type.js").Unary}
