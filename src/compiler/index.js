@@ -9,7 +9,9 @@ const renderers = {
 /**
  * @param {string} source
  * @param {{
- *  key: string;
+ *  dir: string;
+ *  filename: string;
+ *  namespace: string;
  *  generate?: keyof renderers;
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
