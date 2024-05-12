@@ -214,6 +214,7 @@ export type Entry = {
     kind: "entry";
     key?: Expression;
     value: Expression;
+    unpack?: boolean;
 };
 
 export type Literal =

@@ -419,11 +419,12 @@ export function objectFromLiteral(o) {
  *
  * @returns {import("./type.js").Entry}
  */
-export function entry(value, key) {
+export function entry(value, key, unpack = false) {
     return {
         kind: "entry",
         value,
         key,
+        unpack,
     };
 }
 

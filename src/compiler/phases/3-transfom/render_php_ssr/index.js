@@ -58,7 +58,15 @@ function renderBlock(block, node, scope, meta) {
     const implode = (/** @type {import("./type.js").Expression} */ expr) =>
         b.call(b.name("implode"), [b.literal(""), expr]);
 
-    if (block.children.length === 1) {
+    const last = block.children.at(-1);
+    if (
+        last?.kind === "expressionstatement" &&
+        last.expression.kind === "assign" &&
+        last.expression.left.kind === "variable" &&
+        last.expression.left.name === outputName &&
+        last.expression.operator === "=" &&
+        last.expression.right === outputValue
+    ) {
         block.children.pop();
 
         if (outputValue.items.length <= 1) {
@@ -394,14 +402,28 @@ function handle(node, ctx, deep, scope, meta) {
             if (node.fragment.nodes.length) {
                 const uniqueVars = [...new Set(scope.flatMap((vars) => vars))];
 
+                const slotProps = "slotProps";
+
                 slots.default = b.closure(
                     true,
-                    [],
+                    [b.parameter(slotProps, "object")],
+
                     [
                         b.variable(propsName),
                         ...uniqueVars.map((name) => b.variable(name)),
                     ],
                     "string",
+                );
+
+                slots.default.body.children.push(
+                    b.assign(
+                        b.variable(propsName),
+                        "=",
+                        b.array([
+                            b.entry(b.variable(propsName), undefined, true),
+                            b.entry(b.variable(slotProps), undefined, true),
+                        ]),
+                    ),
                 );
 
                 renderBlock(slots.default.body, node.fragment, scope, meta);
@@ -454,7 +476,7 @@ function handle(node, ctx, deep, scope, meta) {
                         b.variable("slots"),
                         b.identifier("default"),
                     ),
-                    [b.variable(outputName, true), b.object(props)],
+                    [b.object(props)],
                 ),
             );
             ctx.appendText(`<!--]-->`);
