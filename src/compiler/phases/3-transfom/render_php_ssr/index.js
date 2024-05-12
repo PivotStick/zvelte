@@ -591,6 +591,41 @@ function expression(node, ctx, deep, scope) {
             return b.call(what, args);
         }
 
+        case "UnaryExpression": {
+            const what = expression(node.argument, ctx, deep, scope);
+
+            switch (node.operator) {
+                case "not":
+                    return b.unary("!", what);
+
+                case "+":
+                case "-":
+                    return b.unary(node.operator, what);
+
+                default:
+                    throw new Error(
+                        // @ts-expect-error
+                        `"${node.operator}" unary operator not handled in php renderer`,
+                    );
+            }
+        }
+
+        case "ConditionalExpression": {
+            const test = expression(node.test, ctx, deep, scope);
+            const consequent = expression(node.consequent, ctx, deep, scope);
+            const alternate = expression(node.alternate, ctx, deep, scope);
+
+            return b.ternary(test, consequent, alternate);
+        }
+
+        case "RangeExpression": {
+            return b.call(b.name("range"), [
+                expression(node.from, ctx, deep, scope),
+                expression(node.to, ctx, deep, scope),
+                b.number(node.step),
+            ]);
+        }
+
         default:
             throw new Error(
                 `"${node.type}" expression not handled in php renderer`,

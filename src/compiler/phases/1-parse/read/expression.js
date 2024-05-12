@@ -471,7 +471,7 @@ export function parseUnaryExpression(parser) {
     const start = parser.index;
     let operator;
 
-    if ((operator = parser.read(/^(not|-)/))) {
+    if ((operator = parser.read(/^(not|-|\+)/))) {
         if (operator === "not") {
             parser.requireWhitespace();
         }

@@ -186,7 +186,7 @@ export type Empty = {
 
 export type Unary = {
     kind: "unary";
-    type: "!";
+    type: "!" | "-" | "+";
     what: Expression;
 };
 

@@ -249,7 +249,7 @@ export interface Identifier extends BaseNode {
 
 export interface UnaryExpression extends BaseNode {
     type: "UnaryExpression";
-    operator: "not" | "-";
+    operator: "not" | "-" | "+";
     argument: Expression;
 }
 
