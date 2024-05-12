@@ -94,7 +94,19 @@ export type Expression =
     | PropertyLookup
     | Assign
     | Bin
+    | Closure
     | RetIf;
+
+export type Closure = {
+    kind: "closure";
+    uses: Array<Variable>;
+    arguments: Array<Parameter>;
+    byref: boolean;
+    nullable: boolean;
+    isStatic: boolean;
+    body: Block;
+    type?: TypeReference;
+};
 
 export type RetIf = {
     kind: "retif";
@@ -181,7 +193,8 @@ export type Unary = {
 export type Variable = {
     kind: "variable";
     name: string;
-    curly: booleane;
+    curly: boolean;
+    byref?: boolean;
 };
 
 export type ArrayLiteral = {

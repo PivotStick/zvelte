@@ -3,30 +3,37 @@ import { hashKey } from "../../../utils/hashKey.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
 
-const output = b.variable("html");
+const outputName = "html";
 const propsName = "props";
 
 /**
  * @param {import("#ast").Root} ast
- * @param {{ namespace: string; filename: string; }} options
+ * @param {{ namespace: string; dir: string; filename: string; }} options
  * @param {*} meta
  */
 export function renderPhpSSR(ast, options, meta) {
     const renderMethod = b.method("render", "string");
 
+    renderMethod.isStatic = true;
     renderMethod.arguments.push(
         b.parameter(propsName, "object"),
         b.parameter("slots", "object"),
         b.parameter("render", "callable"),
     );
 
-    renderBlock(renderMethod.body, ast.fragment);
+    renderBlock(renderMethod.body, ast.fragment, [], {
+        namespace: options.namespace,
+    });
 
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
     ]);
     const result = print(
-        b.program([b.namespace(options.namespace, [renderer])]),
+        b.program([
+            b.namespace(options.namespace + options.dir.replace(/\//g, "\\"), [
+                renderer,
+            ]),
+        ]),
     );
 
     return result;
@@ -35,14 +42,16 @@ export function renderPhpSSR(ast, options, meta) {
 /**
  * @param {import("./type.js").Block} block
  * @param {import("#ast").Fragment} node
+ * @param {string[][]} scope
+ * @param {{ namespace: string; }} meta
  */
-function renderBlock(block, node) {
+function renderBlock(block, node, scope, meta) {
     const outputValue = b.array([]);
-    const outputAssign = b.assign(output, "=", outputValue);
+    const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
 
     block.children.push(outputAssign);
 
-    handle(node, createCtx(block), false, []);
+    handle(node, createCtx(block), false, scope, meta);
 
     let returned;
 
@@ -80,7 +89,7 @@ function createCtx(block) {
                 previous?.kind === "expressionstatement" &&
                 previous.expression.kind === "assign" &&
                 previous.expression.left.kind === "offsetlookup" &&
-                previous.expression.left.what.name === output.name &&
+                previous.expression.left.what.name === outputName &&
                 previous.expression.operator === "=" &&
                 previous.expression.right.kind === "string"
             ) {
@@ -90,7 +99,7 @@ function createCtx(block) {
                 previous?.kind === "expressionstatement" &&
                 previous.expression.kind === "assign" &&
                 previous.expression.left.kind === "variable" &&
-                previous.expression.left.name === output.name &&
+                previous.expression.left.name === outputName &&
                 previous.expression.operator === "=" &&
                 previous.expression.right.kind === "array"
             ) {
@@ -104,7 +113,7 @@ function createCtx(block) {
                 }
             } else {
                 block.children.push(
-                    b.assign(b.offsetLookup(output.name), "=", value),
+                    b.assign(b.offsetLookup(outputName), "=", value),
                 );
             }
         },
@@ -125,12 +134,13 @@ function createCtx(block) {
  * @param {Ctx} ctx
  * @param {boolean} deep
  * @param {string[][]} scope
+ * @param {{ namespace: string }} meta
  */
-function handle(node, ctx, deep, scope) {
+function handle(node, ctx, deep, scope, meta) {
     switch (node.type) {
         case "Fragment":
             node.nodes.forEach((fragment) =>
-                handle(fragment, ctx, deep, scope),
+                handle(fragment, ctx, deep, scope, meta),
             );
             break;
 
@@ -203,7 +213,7 @@ function handle(node, ctx, deep, scope) {
                 ctx.appendText("/>");
             } else {
                 ctx.appendText(">");
-                handle(node.fragment, ctx, deep, scope);
+                handle(node.fragment, ctx, deep, scope, meta);
                 ctx.appendText(`</${node.name}>`);
             }
             break;
@@ -228,14 +238,14 @@ function handle(node, ctx, deep, scope) {
             ctx.appendText("<!--[-->");
 
             const bodyCtx = createCtx(ifBlock.body);
-            handle(node.consequent, bodyCtx, deep, [...scope, []]);
+            handle(node.consequent, bodyCtx, deep, [...scope, []], meta);
             bodyCtx.appendText("<!--]-->");
 
             ifBlock.alternate = b.block();
             const elseCtx = createCtx(ifBlock.alternate);
 
             if (node.alternate) {
-                handle(node.alternate, elseCtx, deep, [...scope, []]);
+                handle(node.alternate, elseCtx, deep, [...scope, []], meta);
             }
 
             elseCtx.appendText("<!--]!-->");
@@ -274,7 +284,7 @@ function handle(node, ctx, deep, scope) {
             if (ifBlock && node.fallback) {
                 ifBlock.alternate = b.block();
                 const alternateCtx = createCtx(ifBlock.alternate);
-                handle(node.fallback, alternateCtx, deep, [...scope, []]);
+                handle(node.fallback, alternateCtx, deep, [...scope, []], meta);
                 alternateCtx.appendText("<!--]!-->");
             }
 
@@ -311,10 +321,13 @@ function handle(node, ctx, deep, scope) {
 
             forEachCtx.appendText("<!--[-->");
 
-            handle(node.body, forEachCtx, deep, [
-                ...scope,
-                [node.context.name, loopVar.name],
-            ]);
+            handle(
+                node.body,
+                forEachCtx,
+                deep,
+                [...scope, [node.context.name, loopVar.name]],
+                meta,
+            );
 
             forEachCtx.appendText("<!--]-->");
 
@@ -331,8 +344,80 @@ function handle(node, ctx, deep, scope) {
             const callee = b.variable("render");
 
             /**
-             * @type {Parameters<typeof b["object"]>[0]}
+             * @type {Record<string, import("./type.js").Expression>}
              */
+            const props = {};
+
+            node.attributes.forEach((attr) => {
+                switch (attr.type) {
+                    case "Attribute":
+                        let value;
+
+                        if (attr.values === true) {
+                            value = b.boolean(true);
+                        } else if (
+                            attr.values.length === 1 &&
+                            attr.values[0].type === "Text"
+                        ) {
+                            value = b.string(attr.values[0].data);
+                        } else {
+                            value = computeAttrValue(attr, ctx, deep, scope);
+                        }
+
+                        props[attr.name] = value;
+                        break;
+
+                    case "BindDirective": {
+                        const ex = attr.expression ?? {
+                            type: "Identifier",
+                            name: attr.name,
+                            start: -1,
+                            end: -1,
+                        };
+
+                        props[attr.name] = expression(ex, ctx, deep, scope);
+                        break;
+                    }
+
+                    default:
+                        throw new Error(
+                            `Unhandled "${attr.type}" on component php render`,
+                        );
+                }
+            });
+
+            /**
+             * @type {Record<string, import("./type.js").Expression>}
+             */
+            const slots = {};
+
+            if (node.fragment.nodes.length) {
+                const uniqueVars = [...new Set(scope.flatMap((vars) => vars))];
+
+                slots.default = b.closure(
+                    true,
+                    [],
+                    [
+                        b.variable(propsName),
+                        ...uniqueVars.map((name) => b.variable(name)),
+                    ],
+                    "string",
+                );
+
+                renderBlock(slots.default.body, node.fragment, scope, meta);
+            }
+
+            const render = b.call(callee, [
+                b.string(meta.namespace + node.key.data.replace(/\//g, "\\")),
+                b.objectFromLiteral(props),
+                b.objectFromLiteral(slots),
+            ]);
+
+            ctx.append(render);
+            break;
+        }
+
+        case "SlotElement": {
             const props = new Map();
 
             node.attributes.forEach((attr) => {
@@ -355,32 +440,24 @@ function handle(node, ctx, deep, scope) {
                         props.set(key, value);
                         break;
 
-                    case "BindDirective": {
-                        const key = b.string(attr.name);
-                        const ex = attr.expression ?? {
-                            type: "Identifier",
-                            name: attr.name,
-                            start: -1,
-                            end: -1,
-                        };
-
-                        props.set(key, expression(ex, ctx, deep, scope));
-                        break;
-                    }
-
                     default:
                         throw new Error(
-                            `Unhandled "${attr.type}" on component php render`,
+                            `Unhandled "${attr.type}" on slot element php render`,
                         );
                 }
             });
 
-            const render = b.call(callee, [
-                b.string(hashKey(node.key.data)),
-                b.object(props),
-            ]);
-
-            ctx.append(render);
+            ctx.appendText(`<!--[-->`);
+            ctx.append(
+                b.call(
+                    b.propertyLookup(
+                        b.variable("slots"),
+                        b.identifier("default"),
+                    ),
+                    [b.variable(outputName, true), b.object(props)],
+                ),
+            );
+            ctx.appendText(`<!--]-->`);
             break;
         }
 

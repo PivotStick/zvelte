@@ -102,7 +102,12 @@ const handlers = {
     },
 
     variable(node, state) {
-        return [c(`$${node.name}`)];
+        const chunks = [];
+        if (node.byref) {
+            chunks.push(c("&"));
+        }
+        chunks.push(c(`$${node.name}`));
+        return chunks;
     },
 
     string(node, state) {
@@ -194,13 +199,17 @@ const handlers = {
     parameter(node, state) {
         const chunks = [];
 
-        if (node.nullable) {
-            chunks.push(c("?"));
-        }
-
         if (node.type) {
+            if (node.nullable) {
+                chunks.push(c("?"));
+            }
+
             push_array(chunks, handle(node.type, state));
             chunks.push(c(" "));
+        }
+
+        if (node.byref) {
+            chunks.push(c("&"));
         }
 
         chunks.push(c("$"));
@@ -520,6 +529,36 @@ const handlers = {
 
     unary(node, state) {
         return [c(node.type), ...handle(node.what, state)];
+    },
+
+    closure(node, state) {
+        const chunks = [];
+        if (node.isStatic) {
+            chunks.push(c("static "));
+        }
+        chunks.push(c("function("));
+        node.arguments.forEach((arg, i, arr) => {
+            chunks.push(...handle(arg, state));
+            if (i < arr.length - 1) chunks.push(c(", "));
+        });
+        chunks.push(c(")"));
+
+        if (node.uses?.length) {
+            chunks.push(c(" use ("));
+            node.uses.forEach((variable, i, arr) => {
+                chunks.push(...handle(variable, state));
+                if (i < arr.length - 1) chunks.push(c(", "));
+            });
+            chunks.push(c(")"));
+        }
+
+        if (node.type) {
+            chunks.push(c(": "));
+            chunks.push(...handle(node.type, state));
+        }
+
+        chunks.push(...handle(node.body, state));
+        return chunks;
     },
 };
 

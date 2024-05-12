@@ -109,10 +109,10 @@ export function namespace(name, children = []) {
  *
  * @returns {import("./type.js").Parameter}
  */
-export function parameter(name, type) {
+export function parameter(name, type, byref = false) {
     return {
         kind: "parameter",
-        byref: false,
+        byref,
         name: identifier(name),
         type: type ? typeReference(type) : undefined,
         nullable: false,
@@ -125,11 +125,12 @@ export function parameter(name, type) {
  *
  * @returns {import("./type.js").Variable}
  */
-export function variable(name) {
+export function variable(name, byref = false) {
     return {
         kind: "variable",
         name,
         curly: false,
+        byref,
     };
 }
 
@@ -485,5 +486,31 @@ export function unary(type, what) {
         kind: "unary",
         type,
         what,
+    };
+}
+
+/**
+ * @param {import("./type.js").Closure["arguments"]} args
+ * @param {import("./type.js").Closure["isStatic"]} isStatic
+ * @param {import("./type.js").Closure["uses"]} uses
+ * @param {string=} type
+ *
+ * @returns {import("./type.js").Closure}
+ */
+export function closure(
+    isStatic = false,
+    args = [],
+    uses = [],
+    type = undefined,
+) {
+    return {
+        kind: "closure",
+        body: block(),
+        nullable: false,
+        isStatic: isStatic,
+        arguments: args,
+        byref: false,
+        uses,
+        type: type ? typeReference(type) : undefined,
     };
 }
