@@ -197,7 +197,9 @@ export class Parser {
         const browser = typeof window !== "undefined";
         let red = browser ? "" : "\x1b[31m";
         let reset = browser ? "" : "\x1b[0m";
+        let bold = browser ? "" : "\x1b[1m";
         let dim = browser ? "" : "\x1b[2m";
+        let underline = browser ? "" : "\x1b[4m";
 
         lines.splice(
             ln + 1,
@@ -205,7 +207,15 @@ export class Parser {
             `${red}${"-".repeat(Math.max(0, col - 1))}^ ${message} at ${ln + 1}:${col + 1}${reset}${dim}`,
         );
 
-        return new SyntaxError("\n" + reset + lines.join("\n") + `...${reset}`);
+        lines[ln] =
+            `${lines[ln].replace(/[^\s]/, `${underline}${bold}$&`)}${reset}`;
+
+        return new SyntaxError(
+            "\n" +
+                reset +
+                lines.slice(Math.max(0, ln - 4)).join("\n") +
+                `...${reset}`,
+        );
     }
 
     eof() {

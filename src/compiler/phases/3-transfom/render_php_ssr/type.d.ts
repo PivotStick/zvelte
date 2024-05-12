@@ -117,7 +117,7 @@ export type RetIf = {
 
 export type Assign = {
     kind: "assign";
-    left: Variable | OffsetLookup;
+    left: Expression;
     right: Expression;
     operator: "=" | "+=" | "-=";
 };

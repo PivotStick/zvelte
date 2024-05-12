@@ -96,6 +96,7 @@ function createCtx(block) {
                 previous?.kind === "expressionstatement" &&
                 previous.expression.kind === "assign" &&
                 previous.expression.left.kind === "offsetlookup" &&
+                previous.expression.left.what.kind === "variable" &&
                 previous.expression.left.what.name === outputName &&
                 previous.expression.operator === "=" &&
                 previous.expression.right.kind === "string"
@@ -238,6 +239,14 @@ function handle(node, ctx, deep, scope, meta) {
         case "ExpressionTag": {
             const ex = expression(node.expression, ctx, deep, scope);
             ctx.append(ex);
+            break;
+        }
+
+        case "Variable": {
+            const left = expression(node.name, ctx, deep, scope);
+            const right = expression(node.value, ctx, deep, scope);
+
+            ctx.block.children.push(b.assign(left, "=", right));
             break;
         }
 

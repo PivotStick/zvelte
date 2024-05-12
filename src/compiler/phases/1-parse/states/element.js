@@ -277,6 +277,13 @@ const readAttribute = (parser, uniqueNames) => {
         );
     }
 
+    if (/\{\{/.test(name)) {
+        throw parser.error(
+            `"{{ ... }} expression cannot be used directly inside element's attributes, only in attribute's values"`,
+            start,
+        );
+    }
+
     if (!name) return null;
     let end = parser.index;
 
