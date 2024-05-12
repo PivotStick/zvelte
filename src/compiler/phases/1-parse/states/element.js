@@ -270,6 +270,13 @@ const readAttribute = (parser, uniqueNames) => {
     };
 
     const name = parser.readUntil(regexTokenEndingCharacter);
+    if (/\{%\s*(if|for)?/.test(name)) {
+        throw parser.error(
+            `"{% if %} and {% for %} blocks cannot be used inside element's attributes"`,
+            start,
+        );
+    }
+
     if (!name) return null;
     let end = parser.index;
 
