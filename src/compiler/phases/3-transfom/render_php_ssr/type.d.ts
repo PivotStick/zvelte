@@ -148,8 +148,8 @@ export type Name = {
 
 export type OffsetLookup = {
     kind: "offsetlookup";
-    what: Variable;
-    offset: false | Primary;
+    what: Expression;
+    offset: false | Expression;
 };
 
 export type StaticLookup = {

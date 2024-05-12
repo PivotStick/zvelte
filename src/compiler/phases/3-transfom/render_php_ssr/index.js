@@ -17,7 +17,7 @@ export function renderPhpSSR(ast, options, meta) {
     renderMethod.isStatic = true;
     renderMethod.arguments.push(
         b.parameter(propsName, "object"),
-        b.parameter("slots", "object"),
+        b.parameter("slots", "array"),
         b.parameter("render", "callable"),
     );
 
@@ -121,7 +121,11 @@ function createCtx(block) {
                 }
             } else {
                 block.children.push(
-                    b.assign(b.offsetLookup(outputName), "=", value),
+                    b.assign(
+                        b.offsetLookup(b.variable(outputName)),
+                        "=",
+                        value,
+                    ),
                 );
             }
         },
@@ -434,7 +438,7 @@ function handle(node, ctx, deep, scope, meta) {
                     "\\" + meta.namespace + node.key.data.replace(/\//g, "\\"),
                 ),
                 b.objectFromLiteral(props),
-                b.objectFromLiteral(slots),
+                b.arrayFromObject(slots),
             ]);
 
             ctx.append(render);
@@ -474,10 +478,7 @@ function handle(node, ctx, deep, scope, meta) {
             ctx.appendText(`<!--[-->`);
             ctx.append(
                 b.call(
-                    b.propertyLookup(
-                        b.variable("slots"),
-                        b.identifier("default"),
-                    ),
+                    b.offsetLookup(b.variable("slots"), b.string("default")),
                     [b.object(props)],
                 ),
             );

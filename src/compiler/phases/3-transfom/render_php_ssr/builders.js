@@ -148,6 +148,22 @@ export function array(items = []) {
 }
 
 /**
+ * @param {Record<string, import("./type.js").Expression>} o
+ *
+ * @returns {import("./type.js").ArrayLiteral}
+ */
+export function arrayFromObject(o) {
+    /** @type {import("./type.js").Entry[]} */
+    const entries = [];
+
+    Object.entries(o).forEach(([key, value]) => {
+        entries.push(entry(value, string(key)));
+    });
+
+    return array(entries);
+}
+
+/**
  * @param {import("./type.js").Assign["left"]} left
  * @param {import("./type.js").Assign["operator"]} operator
  * @param {import("./type.js").Assign["right"]} right
@@ -294,15 +310,15 @@ export function boolean(value) {
 }
 
 /**
- * @param {string} name
+ * @param {import("./type.js").OffsetLookup["what"]} what
  * @param {import("./type.js").OffsetLookup["offset"]} offset
  *
  * @returns {import("./type.js").OffsetLookup}
  */
-export function offsetLookup(name, offset = false) {
+export function offsetLookup(what, offset = false) {
     return {
         kind: "offsetlookup",
-        what: variable(name),
+        what,
         offset,
     };
 }
