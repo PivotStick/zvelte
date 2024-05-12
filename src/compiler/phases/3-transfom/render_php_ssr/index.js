@@ -399,6 +399,12 @@ function handle(node, ctx, deep, scope, meta) {
                         break;
                     }
 
+                    case "TransitionDirective":
+                    case "OnDirective": {
+                        // ignore for ssr
+                        break;
+                    }
+
                     default:
                         throw new Error(
                             `Unhandled "${attr.type}" on component php render`,
