@@ -3,6 +3,8 @@
  * @typedef {import("./types.js").ComponentInitArgs<T>} ComponentInitArgs
  */
 
+export { getComponentByKey } from "./runtime/components.js";
+
 export { registerFilter, getFilter } from "./runtime/filters.js";
 
 export { mount, createComponent } from "./dom/mount.js";
