@@ -758,13 +758,17 @@ function expression(node, ctx, deep, scope) {
         }
 
         case "IsExpression": {
-            if (node.right.type === "Identifier") {
-                if (node.right.name === "empty") {
-                    const empty = b.empty(
-                        expression(node.left, ctx, deep, scope),
-                    );
-                    return node.not ? b.unary("!", empty) : empty;
-                }
+            const left = expression(node.left, ctx, deep, scope);
+            if (
+                node.right.type === "Identifier" &&
+                node.right.name === "empty"
+            ) {
+                const empty = b.empty(left);
+                return node.not ? b.unary("!", empty) : empty;
+            }
+
+            if (node.right.type === "NullLiteral") {
+                return b.bin(left, node.not ? "!==" : "===", b.nullKeyword());
             }
 
             throw new Error(`unhandled kind of "IsExpression"`);
