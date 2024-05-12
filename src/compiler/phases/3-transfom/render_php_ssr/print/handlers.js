@@ -337,7 +337,15 @@ const handlers = {
     },
 
     call(node, state) {
-        const chunks = [...handle(node.what, state), c("(")];
+        const chunks = [];
+
+        if (node.wrap === true) {
+            chunks.push(c("("), ...handle(node.what, state), c(")"));
+        } else {
+            chunks.push(...handle(node.what, state));
+        }
+
+        chunks.push(c("("));
 
         node.arguments.forEach(
             (/** @type {import("php-parser").Node} */ arg, i, arr) => {

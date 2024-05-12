@@ -171,14 +171,24 @@ export function arrayFromObject(o) {
  * @returns {import("./type.js").ExpressionStatement<import("./type.js").Assign>}
  */
 export function assign(left, operator, right) {
+    return statement({
+        kind: "assign",
+        left,
+        operator,
+        right,
+    });
+}
+
+/**
+ * @template {import("./type.js").Expression} T
+ *
+ * @param {T} expression
+ * @returns {import("./type.js").ExpressionStatement<T>}
+ */
+export function statement(expression) {
     return {
         kind: "expressionstatement",
-        expression: {
-            kind: "assign",
-            left,
-            operator,
-            right,
-        },
+        expression,
     };
 }
 
@@ -198,11 +208,12 @@ export function returnExpression(expression) {
  * @param {import("./type.js").Call["arguments"]} args
  * @returns {import("./type.js").Call}
  */
-export function call(what, args = []) {
+export function call(what, args = [], wrap = false) {
     return {
         kind: "call",
         what,
         arguments: args,
+        wrap,
     };
 }
 

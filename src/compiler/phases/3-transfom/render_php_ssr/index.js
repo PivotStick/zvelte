@@ -631,7 +631,20 @@ function expression(node, ctx, deep, scope) {
                 args.push(expression(arg, ctx, deep, scope));
             });
 
-            return b.call(what, args);
+            return b.call(what, args, true);
+        }
+
+        case "FilterExpression": {
+            ctx.block.children.push(
+                b.statement(
+                    b.call(b.name("print_r"), [
+                        b.string(
+                            "[WARNING] - FilterExpression are not handled yet but not ignored for testing pruposes",
+                        ),
+                    ]),
+                ),
+            );
+            return b.nullKeyword();
         }
 
         case "UnaryExpression": {
@@ -671,6 +684,7 @@ function expression(node, ctx, deep, scope) {
 
         default:
             throw new Error(
+                // @ts-expect-error
                 `"${node.type}" expression not handled in php renderer`,
             );
     }

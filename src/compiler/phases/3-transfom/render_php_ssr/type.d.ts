@@ -131,6 +131,7 @@ export type Call = {
     kind: "call";
     what: Expression;
     arguments: Array<Expression>;
+    wrap?: boolean;
 };
 
 export type Bin = {
