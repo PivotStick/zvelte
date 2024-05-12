@@ -171,6 +171,7 @@ function handle(node, template) {
 
             break;
 
+        case "Variable":
         case "Comment":
         case "ClassDirective":
         case "TransitionDirective":

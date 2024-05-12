@@ -92,7 +92,7 @@ export interface Comment extends BaseNode {
 
 export interface Fragment extends BaseNode {
     type: "Fragment";
-    nodes: (ElementLike | Text | Tag | IfBlock | ForBlock)[];
+    nodes: (ElementLike | Text | Tag | IfBlock | ForBlock | Comment)[];
 }
 
 export interface Text extends BaseNode {

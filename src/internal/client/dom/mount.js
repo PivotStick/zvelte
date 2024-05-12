@@ -139,7 +139,11 @@ function setInScope(value, expression, currentNode, ctx) {
             key = expression.property.name;
         }
     } else {
-        object = findScopeFrom(expression.name, ctx.scope) ?? ctx.scope[0];
+        object =
+            findScopeFrom(expression.name, ctx.scope) ?? ctx.scope.length === 2
+                ? ctx.scope[0]
+                : ctx.scope[ctx.scope.length - 1];
+
         key = expression.name;
     }
 
@@ -159,13 +163,17 @@ function handle(node, currentNode, ctx) {
             break;
 
         case "Fragment": {
-            node.nodes.forEach((child, i) => {
-                const isText = child.type === "Text";
+            const first = node.nodes.findIndex((n) => n.type !== "Variable");
 
-                currentNode =
-                    i === 0
-                        ? $.first_child(currentNode, isText)
-                        : $.sibling(currentNode, isText);
+            node.nodes.forEach((child, i) => {
+                if (child.type !== "Variable") {
+                    const isText = child.type === "Text";
+
+                    currentNode =
+                        i === first
+                            ? $.first_child(currentNode, isText)
+                            : $.sibling(currentNode, isText);
+                }
 
                 handle(child, currentNode, ctx);
             });
@@ -528,11 +536,19 @@ function handle(node, currentNode, ctx) {
             break;
         }
 
+        case "Comment":
+            break;
+
+        case "Variable": {
+            const value = handle(node.value, currentNode, ctx);
+            setInScope(value, node.name, currentNode, ctx);
+            break;
+        }
+
         case "ExpressionTag": {
             const anchor = /** @type {Comment} */ (currentNode);
             const text = $.text(anchor);
-            anchor.replaceWith(text);
-            currentNode.currentNode = text;
+            anchor.before(text);
 
             $.render_effect(() =>
                 $.set_text(
@@ -641,9 +657,6 @@ function handle(node, currentNode, ctx) {
 
             break;
         }
-
-        case "Comment":
-            break;
 
         case "Component": {
             const container = /** @type {HTMLElement} */ (currentNode);
