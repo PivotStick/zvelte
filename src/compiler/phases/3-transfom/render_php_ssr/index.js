@@ -430,7 +430,9 @@ function handle(node, ctx, deep, scope, meta) {
             }
 
             const render = b.call(callee, [
-                b.string(meta.namespace + node.key.data.replace(/\//g, "\\")),
+                b.string(
+                    "\\" + meta.namespace + node.key.data.replace(/\//g, "\\"),
+                ),
                 b.objectFromLiteral(props),
                 b.objectFromLiteral(slots),
             ]);
