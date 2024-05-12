@@ -199,6 +199,12 @@ function handle(node, template) {
             break;
         }
 
+        case "SlotElement": {
+            template.src += "<!>";
+            newRoot(node.fragment);
+            break;
+        }
+
         case "Component": {
             template.src += `<${node.name}><!></${node.name}>`;
             newRoot(node.fragment);

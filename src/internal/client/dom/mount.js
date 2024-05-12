@@ -102,6 +102,7 @@ export function createComponent({ init, ast, scope = {}, key }) {
  *   source?: string;
  *   init?: (args: import("../types.js").ComponentInitArgs<Props>) => Methods;
  *   hydrate?: boolean;
+ *   options?: Parameters<typeof parse>[1];
  * }} args
  */
 export function mount({
@@ -112,10 +113,11 @@ export function mount({
     props = {},
     init,
     hydrate,
+    options,
 }) {
     const mount = createComponent({
         init,
-        ast: parse(source),
+        ast: parse(source, options),
         scope,
     });
 
@@ -749,7 +751,68 @@ function handle(node, currentNode, ctx) {
                 }
             });
 
+            if (node.fragment.nodes.length) {
+                props.children = ($$anchor, $$slotProps) => {
+                    const fragment = getRoot(node.fragment);
+
+                    handle(
+                        node.fragment,
+                        fragment,
+                        pushNewScope(ctx, $$slotProps),
+                    );
+
+                    $.append($$anchor, fragment);
+                };
+            }
+
             component(anchor, props);
+            break;
+        }
+
+        case "SlotElement": {
+            const anchor = /** @type {Comment} */ (currentNode);
+
+            let render = searchInScope("children", ctx.scope);
+
+            if (!render && node.fragment.nodes.length) {
+                render = ($$anchor, $$slotProps) => {
+                    const fragment = getRoot(node.fragment);
+
+                    handle(
+                        node.fragment,
+                        fragment,
+                        pushNewScope(ctx, $$slotProps),
+                    );
+
+                    $.append($$anchor, fragment);
+                };
+            }
+
+            /**
+             * @type {Record<string, any>}
+             */
+            const props = $.proxy({});
+
+            node.attributes.forEach((attr) => {
+                if (attr.values === true) {
+                    props[attr.name] = true;
+                } else if (
+                    attr.values.length === 1 &&
+                    attr.values[0].type === "Text"
+                ) {
+                    props[attr.name] = attr.values[0].data;
+                } else {
+                    $.render_effect(() => {
+                        props[attr.name] = computeAttributeValue(
+                            attr,
+                            currentNode,
+                            ctx,
+                        );
+                    });
+                }
+            });
+
+            render?.(anchor, props);
             break;
         }
 
