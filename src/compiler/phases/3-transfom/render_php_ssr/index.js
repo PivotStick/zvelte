@@ -4,12 +4,11 @@ import * as b from "./builders.js";
 import { print } from "./print/index.js";
 
 const output = b.variable("html");
-const namespace = "\\Zvelte\\Components";
 const propsName = "props";
 
 /**
  * @param {import("#ast").Root} ast
- * @param {{ key: string }} options
+ * @param {{ namespace: string; filename: string; }} options
  * @param {*} meta
  */
 export function renderPhpSSR(ast, options, meta) {
@@ -23,8 +22,12 @@ export function renderPhpSSR(ast, options, meta) {
 
     renderBlock(renderMethod.body, ast.fragment);
 
-    const renderer = b.declareClass(hashKey(options.key), [renderMethod]);
-    const result = print(b.program([b.namespace(`${namespace}`, [renderer])]));
+    const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
+        renderMethod,
+    ]);
+    const result = print(
+        b.program([b.namespace(options.namespace, [renderer])]),
+    );
 
     return result;
 }
@@ -49,8 +52,8 @@ function renderBlock(block, node) {
     if (block.children.length === 1) {
         block.children.pop();
 
-        if (outputValue.items.length === 1) {
-            returned = outputValue.items[0].value;
+        if (outputValue.items.length <= 1) {
+            returned = outputValue.items[0]?.value ?? b.string("");
         } else {
             returned = implode(outputAssign.expression.right);
         }
