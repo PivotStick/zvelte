@@ -394,7 +394,13 @@ function handle(node, ctx, deep, scope, meta) {
                 b.assign(lengthVar, "=", b.call(b.name("count"), [arrayVar])),
             );
 
-            ctx.block.children.push(b.assign(loopParentVar, "=", loopVar));
+            ctx.block.children.push(
+                b.assign(
+                    loopParentVar,
+                    "=",
+                    b.ternary(b.isset(loopVar), loopVar, b.nullKeyword()),
+                ),
+            );
 
             ctx.appendText("<!--[-->");
 
