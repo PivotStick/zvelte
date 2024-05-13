@@ -6,9 +6,7 @@ const outputName = "html";
 const propsName = "props";
 
 /**
- * @param {import("#ast").Root} ast
- * @param {{ namespace: string; dir: string; filename: string; }} options
- * @param {*} meta
+ * @type {import("../types.js").Transformer}
  */
 export function renderPhpSSR(ast, options, meta) {
     const renderMethod = b.method("render", "string");
@@ -19,8 +17,6 @@ export function renderPhpSSR(ast, options, meta) {
         b.parameter("slots", "array"),
         b.parameter("render", "callable"),
     );
-
-    const ctx = createCtx(renderMethod.body);
 
     renderBlock(
         renderMethod.body,

@@ -22,6 +22,8 @@ const renderers = {
  */
 export function compile(source, options = {}, meta = {}) {
     const ast = parse(source, options.parser);
+    trim(ast);
+    compactWhitespaces(ast);
 
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;
