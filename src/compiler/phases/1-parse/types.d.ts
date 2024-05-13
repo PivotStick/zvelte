@@ -37,6 +37,7 @@ export type Expression =
     | MemberExpression
     | FilterExpression
     | IsExpression
+    | InExpression
     | RangeExpression
     | CallExpression;
 
@@ -237,13 +238,19 @@ export interface BinaryExpression extends BaseNode {
         | "<="
         | ">="
         | "<"
-        | ">"
-        | "in";
+        | ">";
     right: Expression;
 }
 
 export interface IsExpression extends BaseNode {
     type: "IsExpression";
+    left: Expression;
+    not: boolean;
+    right: Expression;
+}
+
+export interface InExpression extends BaseNode {
+    type: "InExpression";
     left: Expression;
     not: boolean;
     right: Expression;

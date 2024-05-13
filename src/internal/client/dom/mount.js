@@ -429,15 +429,6 @@ function handle(node, currentNode, ctx) {
             const right = handle(node.right, currentNode, ctx);
 
             switch (node.operator) {
-                case "in":
-                    if (Array.isArray(right)) {
-                        return right.includes(left);
-                    } else if (typeof right === "object" && right !== null) {
-                        return left in right;
-                    }
-
-                    return false;
-
                 case "~":
                 case "+":
                     return left + right;
@@ -476,6 +467,20 @@ function handle(node, currentNode, ctx) {
                         `Unhandled BinaryExpression operator "${node.operator}"`,
                     );
             }
+        }
+
+        case "InExpression": {
+            const left = handle(node.left, currentNode, ctx);
+            const right = handle(node.right, currentNode, ctx);
+            let value = false;
+
+            if (Array.isArray(right)) {
+                value = right.includes(left);
+            } else if (typeof right === "object" && right !== null) {
+                value = left in right;
+            }
+
+            return node.not ? !value : value;
         }
 
         case "UnaryExpression": {

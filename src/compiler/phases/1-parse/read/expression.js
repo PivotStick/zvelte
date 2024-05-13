@@ -83,13 +83,13 @@ export function parseComparison(parser) {
 
     parser.allowWhitespace();
     /**
-     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "in" | "??"}
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "??"}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(<=|>=|==|!=|in|\?\?|>|<)/))
+        (operator = parser.read(/^(<=|>=|==|!=|\?\?|>|<)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
@@ -114,7 +114,7 @@ export function parseComparison(parser) {
  */
 export function parseIsExpression(parser) {
     const start = parser.index;
-    let left = parseAdditive(parser);
+    let left = parseInExpression(parser);
 
     parser.allowWhitespace();
 
@@ -134,6 +134,34 @@ export function parseIsExpression(parser) {
             end,
             left,
             right,
+            not,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseInExpression(parser) {
+    const start = parser.index;
+    let left = parseAdditive(parser);
+
+    let match;
+    while ((match = parser.read(/^(not )?in/))) {
+        const not = match.startsWith("not");
+        parser.requireWhitespace();
+        const right = parseAdditive(parser);
+        const end = parser.index;
+        parser.allowWhitespace();
+
+        left = {
+            type: "InExpression",
+            left,
+            right,
+            start,
+            end,
             not,
         };
     }
