@@ -795,7 +795,19 @@ function expression(node, ctx, deep, scope) {
                 return b.bin(left, node.not ? "!==" : "===", b.nullKeyword());
             }
 
-            throw new Error(`unhandled kind of "IsExpression"`);
+            throw new Error(`Unhandled kind of "IsExpression"`);
+        }
+
+        case "InExpression": {
+            const left = expression(node.left, ctx, deep, scope);
+            const right = expression(node.right, ctx, deep, scope);
+
+            const inArray = b.call(b.name("in_array"), [
+                left,
+                b.cast(right, "array"),
+            ]);
+
+            return node.not ? b.unary("!", inArray) : inArray;
         }
 
         case "ConditionalExpression": {

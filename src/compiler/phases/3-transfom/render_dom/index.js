@@ -4,5 +4,5 @@
  * @param {*} meta
  */
 export function renderDom(ast, options, meta) {
-    return { code: "js" };
+    return { code: `export default "js compiler is not yet implemented";` };
 }

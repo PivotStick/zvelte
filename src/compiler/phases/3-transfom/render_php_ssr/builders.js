@@ -415,12 +415,10 @@ export function ternary(test, consequent, alternate) {
 export function object(map) {
     const entries = Array.from(map.entries());
 
-    return {
-        kind: "cast",
-        type: "object",
-        raw: "(object)",
-        expr: array(entries.map(([key, value]) => entry(value, key))),
-    };
+    return cast(
+        array(entries.map(([key, value]) => entry(value, key))),
+        "object",
+    );
 }
 
 /**
@@ -520,11 +518,12 @@ export function isset(...variables) {
  * @param {import("./type.js").Unary["what"]} what
  * @returns {import("./type.js").Unary}
  */
-export function unary(type, what) {
+export function unary(type, what, wrap = false) {
     return {
         kind: "unary",
         type,
         what,
+        wrap,
     };
 }
 
@@ -551,5 +550,19 @@ export function closure(
         byref: false,
         uses,
         type: type ? typeReference(type) : undefined,
+    };
+}
+
+/**
+ * @param {import("./type.js").Cast["expr"]} expr
+ * @param {import("./type.js").Cast["type"]} type
+ * @returns {import("./type.js").Cast}
+ */
+export function cast(expr, type) {
+    return {
+        kind: "cast",
+        expr,
+        type,
+        raw: `(${type})`,
     };
 }

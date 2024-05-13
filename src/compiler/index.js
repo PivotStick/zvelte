@@ -1,5 +1,7 @@
 import { parse } from "./phases/1-parse/index.js";
+import { compactWhitespaces } from "./phases/3-transfom/compactWhitespaces.js";
 import { renderDom, renderPhpSSR } from "./phases/3-transfom/index.js";
+import { trim } from "./phases/3-transfom/trim.js";
 
 const renderers = {
     dom: renderDom,
@@ -9,16 +11,16 @@ const renderers = {
 /**
  * @param {string} source
  * @param {{
- *  dir: string;
- *  filename: string;
- *  namespace: string;
+ *  dir?: string;
+ *  filename?: string;
+ *  namespace?: string;
  *  generate?: keyof renderers;
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
- * }} options
+ * }=} options
  * @param {{ js?: string }} [meta]
  */
-export function compile(source, options, meta = {}) {
+export function compile(source, options = {}, meta = {}) {
     const ast = parse(source, options.parser);
 
     options.generate = options.generate ?? "dom";
@@ -28,7 +30,15 @@ export function compile(source, options, meta = {}) {
 
     if (!render) throw new Error(`"${options.generate}" renderer not found`);
 
-    return render(ast, options, meta);
+    return render(
+        ast,
+        {
+            dir: options.dir ?? "",
+            namespace: options.namespace ?? "Zvelte\\components",
+            filename: options.filename ?? "Component",
+        },
+        meta,
+    );
 }
 
 export { hash } from "./utils/hash.js";

@@ -551,7 +551,15 @@ const handlers = {
     },
 
     unary(node, state) {
-        return [c(node.type), ...handle(node.what, state)];
+        const chunks = [c(node.type)];
+
+        if (node.wrap === true) {
+            chunks.push(c("("), ...handle(node.what, state), c(")"));
+        } else {
+            chunks.push(...handle(node.what, state));
+        }
+
+        return chunks;
     },
 
     closure(node, state) {

@@ -195,6 +195,7 @@ export type Unary = {
     kind: "unary";
     type: "!" | "-" | "+";
     what: Expression;
+    wrap: boolean;
 };
 
 export type Variable = {
