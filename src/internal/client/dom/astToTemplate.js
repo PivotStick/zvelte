@@ -71,7 +71,7 @@ function handle(node, template) {
                                         start: -1,
                                         data: styleSheetId,
                                     };
-                                    if (classAttr.values.length > 1) {
+                                    if (classAttr.values.length > 0) {
                                         text.data += " ";
                                     }
                                     classAttr.values.unshift(text);
