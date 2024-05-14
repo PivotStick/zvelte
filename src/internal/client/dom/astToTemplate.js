@@ -171,7 +171,6 @@ function handle(node, template) {
 
             break;
 
-        case "Variable":
         case "Comment":
         case "ClassDirective":
         case "TransitionDirective":
@@ -199,6 +198,7 @@ function handle(node, template) {
             break;
         }
 
+        case "ZvelteComponent":
         case "SlotElement": {
             template.src += "<!>";
             newRoot(node.fragment);
@@ -211,6 +211,7 @@ function handle(node, template) {
             break;
         }
 
+        case "Variable":
         case "HtmlTag":
         case "ExpressionTag":
             template.src += "<!>";

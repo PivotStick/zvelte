@@ -13,7 +13,10 @@ export class Parser {
         this.template = template;
 
         this.index = 0;
-        this.component = options.component;
+        this.component = options.component ?? {
+            name: /^zvelte$/,
+            key: "key",
+        };
 
         if (this.component?.name.test("slot")) {
             throw new Error(

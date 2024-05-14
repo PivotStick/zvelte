@@ -20,7 +20,7 @@ export type Directive =
     | OnDirective
     | TransitionDirective
     | ClassDirective;
-export type ElementLike = Element | Component | SlotElement;
+export type ElementLike = Element | Component | SlotElement | ZvelteComponent;
 export type Tag = ExpressionTag | HtmlTag | VariableTag;
 export type Block = ForBlock | IfBlock;
 export type Expression =
@@ -84,6 +84,14 @@ export interface Component extends BaseNode {
     fragment: Fragment;
     name: string;
     key: Text;
+}
+
+export interface ZvelteComponent extends BaseNode {
+    type: "ZvelteComponent";
+    attributes: Array<Attribute | BindDirective | OnDirective>;
+    fragment: Fragment;
+    name: string;
+    expression: Expression;
 }
 
 export interface Comment extends BaseNode {

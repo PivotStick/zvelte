@@ -11,70 +11,56 @@ import * as $ from "svelte/internal/client";
 const UNINITIALIZED = Symbol();
 
 /**
- * @todo
- *
- * - handle "Variable", make sure they set the var in the current scope if not found in the whole scope
- */
-
-/**
- * @type {import("../types.js").Ctx=}
- */
-let currentCtx;
-
-/**
  * @template Methods
  * @param {{
  *  ast: ReturnType<typeof parse>;
+ *  initScope?: () => Record<string, any>;
  *  key?: any;
  *  init?: (args: import("../types.js").ComponentInitArgs<any>) => Methods
  * }} args
  */
-export function createComponent({ init, ast, key }) {
+export function createComponent({ init, ast, key, initScope }) {
     addTemplatesToAST(ast);
 
     /**
      * @type {Methods}
      */
     let methods;
-    /**
-     * @type {Record<string, any>}
-     */
-    let _scope;
 
     const component = (
         /** @type {any} */ $$anchor,
         /** @type {Record<string, any>} */ $$props,
     ) => {
         if (init) $.push($$props, true);
-        const fragment = getRoot(ast);
-        const previousCtx = currentCtx;
 
-        currentCtx = {
-            scope: [_scope, $$props],
+        const fragment = getRoot(ast);
+        const scope = initScope?.() ?? {};
+
+        const ctx = {
+            scope: [scope, $$props],
             els: {},
         };
 
         if (init) {
             methods = init({
                 props: $$props,
-                els: currentCtx.els,
-                scope: _scope,
+                els: ctx.els,
+                scope,
             });
         }
 
-        handle(ast, fragment, currentCtx);
+        handle(ast, fragment, ctx);
 
         $.append($$anchor, fragment);
+
         if (init) $.pop();
-        currentCtx = previousCtx;
     };
 
     /**
-     * @param {{ target: HTMLElement; scope?: typeof _scope; props: any; hydrate?: boolean; }} args
+     * @param {{ target: HTMLElement; props: any; hydrate?: boolean; }} args
      */
-    const mount = ({ target, scope, props, hydrate = false }) => {
+    const mount = ({ target, props, hydrate = false }) => {
         props = $.proxy(props);
-        _scope = scope ?? {};
 
         // @ts-ignore
         const instance = (hydrate ? svelte.hydrate : svelte.mount)(component, {
@@ -92,10 +78,7 @@ export function createComponent({ init, ast, key }) {
     };
 
     if (key) {
-        registerComponent(key, (...args) => {
-            _scope = {};
-            component(...args);
-        });
+        registerComponent(key, component);
     }
 
     return mount;
@@ -126,10 +109,11 @@ export function mount({
 }) {
     const mount = createComponent({
         init,
+        initScope: () => scope,
         ast: parse(source, options),
     });
 
-    return mount({ target, props, scope, hydrate });
+    return mount({ target, props, hydrate });
 }
 
 /**
@@ -173,17 +157,13 @@ function handle(node, currentNode, ctx) {
             break;
 
         case "Fragment": {
-            const first = node.nodes.findIndex((n) => n.type !== "Variable");
-
             node.nodes.forEach((child, i) => {
-                if (child.type !== "Variable") {
-                    const isText = child.type === "Text";
+                const isText = child.type === "Text";
 
-                    currentNode =
-                        i === first
-                            ? $.first_child(currentNode, isText)
-                            : $.sibling(currentNode, isText);
-                }
+                currentNode =
+                    i === 0
+                        ? $.first_child(currentNode, isText)
+                        : $.sibling(currentNode, isText);
 
                 handle(child, currentNode, ctx);
             });
@@ -815,7 +795,10 @@ function handle(node, currentNode, ctx) {
             });
 
             if (node.fragment.nodes.length) {
-                props.children = ($$anchor, $$slotProps) => {
+                props.children = (
+                    /** @type {Element | Comment | Text} */ $$anchor,
+                    /** @type {any} */ $$slotProps,
+                ) => {
                     const fragment = getRoot(node.fragment);
 
                     handle(
@@ -832,12 +815,63 @@ function handle(node, currentNode, ctx) {
             break;
         }
 
+        case "ZvelteComponent": {
+            const anchor = /** @type {Comment} */ (currentNode);
+
+            const props = $.proxy({});
+
+            for (const attr of node.attributes) {
+                switch (attr.type) {
+                    case "Attribute": {
+                        $.render_effect(() => {
+                            props[attr.name] = computeAttributeValue(
+                                attr,
+                                currentNode,
+                                ctx,
+                            );
+                        });
+                        break;
+                    }
+
+                    default:
+                        throw new Error(
+                            `"${attr.type}" attribute not handled yet on "${node.type}"`,
+                        );
+                }
+            }
+
+            if (node.fragment.nodes.length) {
+                props.children = (
+                    /** @type {Element | Comment | Text} */ $$anchor,
+                    /** @type {any} */ $$slotProps,
+                ) => {
+                    const fragment = getRoot(node.fragment);
+
+                    handle(
+                        node.fragment,
+                        fragment,
+                        pushNewScope(ctx, $$slotProps),
+                    );
+
+                    $.append($$anchor, fragment);
+                };
+            }
+
+            $.component(
+                anchor,
+                () => handle(node.expression, currentNode, ctx),
+                ($$component) => $$component(anchor, props),
+            );
+            break;
+        }
+
         case "SlotElement": {
             const anchor = /** @type {Comment} */ (currentNode);
 
             let render = searchInScope("children", ctx.scope);
 
             if (!render && node.fragment.nodes.length) {
+                // @ts-ignore
                 render = ($$anchor, $$slotProps) => {
                     const fragment = getRoot(node.fragment);
 
@@ -857,22 +891,13 @@ function handle(node, currentNode, ctx) {
             const props = $.proxy({});
 
             node.attributes.forEach((attr) => {
-                if (attr.values === true) {
-                    props[attr.name] = true;
-                } else if (
-                    attr.values.length === 1 &&
-                    attr.values[0].type === "Text"
-                ) {
-                    props[attr.name] = attr.values[0].data;
-                } else {
-                    $.render_effect(() => {
-                        props[attr.name] = computeAttributeValue(
-                            attr,
-                            currentNode,
-                            ctx,
-                        );
-                    });
-                }
+                $.render_effect(() => {
+                    props[attr.name] = computeAttributeValue(
+                        attr,
+                        currentNode,
+                        ctx,
+                    );
+                });
             });
 
             render?.(anchor, props);

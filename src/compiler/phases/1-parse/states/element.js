@@ -35,11 +35,33 @@ export const element = (parser) => {
     const isClosingTag = parser.eat("/");
     const name = readTagName(parser);
 
-    const type = !!parser.component?.name.test(name)
+    /**
+     * @type {import("#ast").ElementLike["type"]}
+     */
+    let type = parser.component.name.test(name)
         ? "Component"
         : name === "slot"
           ? "SlotElement"
           : "Element";
+
+    if (name.includes(":")) {
+        const [left, right] = name.split(":");
+        if (!parser.component.name.test(left)) {
+            throw parser.error(
+                `"${left}" must match ${parser.component.name}`,
+                start,
+            );
+        }
+
+        if (right === "component") {
+            type = "ZvelteComponent";
+        } else {
+            throw parser.error(
+                `"${right}" unknown ${left} meta tag kind`,
+                start + left.length + 2,
+            );
+        }
+    }
 
     parser.allowWhitespace();
 
@@ -50,7 +72,7 @@ export const element = (parser) => {
         // @ts-expect-error
         while (parent.name !== name) {
             if (parent.type !== type) {
-                throw parser.error(`"</${name}>" has no opening tag`);
+                throw parser.error(`"</${name}>" has no opening tag`, start);
             }
             parent.end = start;
             parser.pop();
@@ -125,7 +147,7 @@ export const element = (parser) => {
     }
 
     if (element.type === "Element") {
-        element.attributes.forEach((attr) => {
+        for (const attr of element.attributes) {
             if (attr.type === "BindDirective") {
                 const typeAttr =
                     /** @type {import("../types.d.ts").Attribute=} */ (
@@ -143,6 +165,7 @@ export const element = (parser) => {
                 ) {
                     throw parser.error(
                         "'type' attribute must be a static text value if input uses two-way binding",
+                        attr.start,
                     );
                 }
 
@@ -155,6 +178,7 @@ export const element = (parser) => {
                         ) {
                             throw parser.error(
                                 "`bind:value` can only be used with <input>, <textarea>, <select>",
+                                attr.start,
                             );
                         }
                         break;
@@ -162,6 +186,7 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:group` can only be used with <input>",
+                                attr.start,
                             );
                         }
                         break;
@@ -170,6 +195,7 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:checked` can only be used with <input>",
+                                attr.start,
                             );
                         }
 
@@ -181,13 +207,58 @@ export const element = (parser) => {
                         ) {
                             throw parser.error(
                                 '`bind:checked` can only be used with <input type="checkbox">',
+                                attr.start,
                             );
                         }
                         break;
                     }
                 }
             }
-        });
+        }
+    } else if (element.type === "ZvelteComponent") {
+        const thisAttr = /** @type {import("#ast").Attribute=} */ (
+            element.attributes.find(
+                (attr) => attr.name === "this" && attr.type === "Attribute",
+            )
+        );
+        if (!thisAttr) {
+            throw parser.error(
+                `\`<${name}>\` must have a 'this' attribute`,
+                start,
+            );
+        }
+
+        if (
+            thisAttr.values === true ||
+            !(
+                thisAttr.values.length === 1 &&
+                thisAttr.values[0].type !== "Text"
+            )
+        ) {
+            throw parser.error(
+                'Invalid component definition — must be an `"{{ expression }}"`',
+                thisAttr.start + thisAttr.name.length + 1,
+            );
+        }
+
+        element.attributes.splice(element.attributes.indexOf(thisAttr), 1);
+        element.expression = thisAttr.values[0];
+    }
+
+    if (element.type !== "Element") {
+        let attr;
+        if (
+            (attr = element.attributes.find(
+                (attr) =>
+                    attr.type === "ClassDirective" ||
+                    attr.type === "TransitionDirective",
+            ))
+        ) {
+            throw parser.error(
+                "This type of directive is not valid on components",
+                attr.start,
+            );
+        }
     }
 
     if (element.name === "style") {
