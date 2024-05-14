@@ -70,11 +70,11 @@ export function createComponent({ init, ast, key }) {
     };
 
     /**
-     * @param {{ target: HTMLElement; scope: typeof _scope; props: any; hydrate?: boolean; }} args
+     * @param {{ target: HTMLElement; scope?: typeof _scope; props: any; hydrate?: boolean; }} args
      */
     const mount = ({ target, scope, props, hydrate = false }) => {
         props = $.proxy(props);
-        _scope = scope;
+        _scope = scope ?? {};
 
         // @ts-ignore
         const instance = (hydrate ? svelte.hydrate : svelte.mount)(component, {
