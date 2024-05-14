@@ -3,6 +3,9 @@
  */
 const components = new Map();
 
+/**
+ * @param {any} key
+ */
 export function getComponentByKey(key) {
     return components.get(key);
 }
