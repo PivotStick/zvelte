@@ -25,18 +25,21 @@ let currentCtx;
  * @template Methods
  * @param {{
  *  ast: ReturnType<typeof parse>;
- *  scope?: Record<string, any>;
  *  key?: any;
  *  init?: (args: import("../types.js").ComponentInitArgs<any>) => Methods
  * }} args
  */
-export function createComponent({ init, ast, scope = {}, key }) {
+export function createComponent({ init, ast, key }) {
     addTemplatesToAST(ast);
 
     /**
      * @type {Methods}
      */
     let methods;
+    /**
+     * @type {Record<string, any>}
+     */
+    let _scope;
 
     const component = (
         /** @type {any} */ $$anchor,
@@ -47,7 +50,7 @@ export function createComponent({ init, ast, scope = {}, key }) {
 
         const previousCtx = currentCtx;
         currentCtx = {
-            scope: [scope, $$props],
+            scope: [_scope, $$props],
             els: {},
         };
 
@@ -55,7 +58,7 @@ export function createComponent({ init, ast, scope = {}, key }) {
             methods = init({
                 props: $$props,
                 els: currentCtx.els,
-                scope,
+                scope: _scope,
             });
         }
 
@@ -66,9 +69,12 @@ export function createComponent({ init, ast, scope = {}, key }) {
         currentCtx = previousCtx;
     };
 
-    // @ts-ignore
-    const mount = ({ target, props, hydrate = false }) => {
+    /**
+     * @param {{ target: HTMLElement; scope: typeof _scope; props: any; hydrate?: boolean; }} args
+     */
+    const mount = ({ target, scope, props, hydrate = false }) => {
         props = $.proxy(props);
+        _scope = scope;
 
         // @ts-ignore
         const instance = (hydrate ? svelte.hydrate : svelte.mount)(component, {
@@ -118,10 +124,9 @@ export function mount({
     const mount = createComponent({
         init,
         ast: parse(source, options),
-        scope,
     });
 
-    return mount({ target, props, hydrate });
+    return mount({ target, props, scope, hydrate });
 }
 
 /**
