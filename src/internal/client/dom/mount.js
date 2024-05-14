@@ -483,6 +483,56 @@ function handle(node, currentNode, ctx) {
             return node.not ? !value : value;
         }
 
+        case "IsExpression": {
+            const left = handle(node.left, currentNode, ctx);
+
+            if (node.right.type === "Identifier") {
+                let test = false;
+                switch (node.right.name) {
+                    case "empty": {
+                        if (Array.isArray(left)) {
+                            test = !left.length;
+                        } else {
+                            test = !left;
+                        }
+                        break;
+                    }
+
+                    case "defined": {
+                        test = left !== undefined;
+                        break;
+                    }
+                }
+
+                if (node.not) test = !test;
+
+                return test;
+            }
+
+            if (node.right.type === "NullLiteral") {
+                let test = left === null;
+                if (node.not) test = !test;
+                return test;
+            }
+
+            throw new Error(`Unhandled kind of "IsExpression"`);
+        }
+
+        case "RangeExpression": {
+            /**
+             * @type {number[]}
+             */
+            const values = [];
+            const count = Math.abs(node.to.value - node.from.value);
+
+            for (let i = 0; i < count; i++) {
+                const add = node.step * i;
+                values.push(node.from.value + add);
+            }
+
+            return values;
+        }
+
         case "UnaryExpression": {
             const argument = handle(node.argument, currentNode, ctx);
 
