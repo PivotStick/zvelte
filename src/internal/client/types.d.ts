@@ -4,8 +4,11 @@ export type Ctx = {
     bindingGroups?: Record<string, any[]>;
 };
 
-export type ComponentInitArgs<T> = {
+export type ComponentInitArgs<
+    T,
+    Els extends Record<string, HTMLElement> = Record<string, HTMLElement>,
+> = {
     props: T;
-    els: Ctx["els"];
+    els: Els;
     scope: Record<string, any>;
 };

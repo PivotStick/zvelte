@@ -1,6 +1,7 @@
 /**
- * @template T
- * @typedef {import("./types.js").ComponentInitArgs<T>} ComponentInitArgs
+ * @template [T = any]
+ * @template {Record<string, HTMLElement>} [Els = Record<string, HTMLElement>]
+ * @typedef {import("./types.js").ComponentInitArgs<T, Els>} Args
  */
 
 export { getComponentByKey } from "./runtime/components.js";
