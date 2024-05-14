@@ -47,8 +47,8 @@ export function createComponent({ init, ast, key }) {
     ) => {
         if (init) $.push($$props, true);
         const fragment = getRoot(ast);
-
         const previousCtx = currentCtx;
+
         currentCtx = {
             scope: [_scope, $$props],
             els: {},
@@ -92,7 +92,10 @@ export function createComponent({ init, ast, key }) {
     };
 
     if (key) {
-        registerComponent(key, component);
+        registerComponent(key, (...args) => {
+            _scope = {};
+            component(...args);
+        });
     }
 
     return mount;
