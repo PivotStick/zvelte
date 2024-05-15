@@ -6,7 +6,7 @@
 
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
-export { mount, createComponent } from "./dom/mount.js";
+export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
 export { onMount, onDestroy, tick } from "svelte";
 export { user_effect as effect } from "svelte/internal/client";
 

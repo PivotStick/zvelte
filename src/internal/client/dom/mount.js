@@ -9,6 +9,19 @@ import { getComponentByKey, registerComponent } from "../runtime/components.js";
 import * as $ from "svelte/internal/client";
 
 /**
+ * @param {() => void} callback
+ */
+export function contextualizeComponent(callback) {
+    // @ts-ignore
+    const component = svelte.mount(callback, {
+        target: document.body,
+    });
+    return () => {
+        svelte.unmount(component);
+    };
+}
+
+/**
  * @template Methods
  * @param {{
  *  ast: ReturnType<typeof parse>;
