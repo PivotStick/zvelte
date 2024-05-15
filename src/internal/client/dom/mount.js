@@ -18,13 +18,13 @@ export function contextualizeComponent(callback, props) {
         () => {
             $.push(props, true);
             callback();
+            $.pop();
         },
         {
             target: document.body,
         },
     );
     return {
-        pop: () => $.pop(),
         flush() {
             svelte.unmount(component);
         },
