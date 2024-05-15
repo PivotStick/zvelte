@@ -694,6 +694,9 @@ function handle(node, currentNode, ctx) {
                             get [node.context.name]() {
                                 return $.unwrap(item);
                             },
+                            set [node.context.name](/** @type {any} */ value) {
+                                $.set(item, value);
+                            },
                             loop: {
                                 get index() {
                                     return index() + 1;
