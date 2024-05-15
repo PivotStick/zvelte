@@ -2,13 +2,11 @@ import * as svelte from "svelte";
 import { addTemplatesToAST } from "./astToTemplate.js";
 import { parse } from "../../../compiler/phases/1-parse/index.js";
 import { getFilter } from "../runtime/filters.js";
-import { findScopeFrom, searchInScope } from "../shared.js";
+import { UNINITIALIZED, findScopeFrom, searchInScope } from "../shared.js";
 import { getComponentByKey, registerComponent } from "../runtime/components.js";
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
-
-const UNINITIALIZED = Symbol();
 
 /**
  * @template Methods
@@ -123,25 +121,39 @@ export function mount({
  * @param {import("../types.js").Ctx} ctx
  */
 function setInScope(value, expression, currentNode, ctx) {
+    const { object, key } = findScopeFromExpression(
+        expression,
+        currentNode,
+        ctx,
+    );
+    object[key] = value;
+}
+
+/**
+ * @param {import("#ast").Identifier | import("#ast").MemberExpression} expression
+ * @param {Node} currentNode
+ * @param {import("../types.js").Ctx} ctx
+ */
+function findScopeFromExpression(expression, currentNode, ctx) {
     let object;
     let key;
+
     if (expression.type === "MemberExpression") {
-        object = handle(expression.object, currentNode, ctx);
+        object = handle(expression.object, currentNode, ctx) ?? UNINITIALIZED;
         if (expression.computed === true) {
             key = handle(expression.property, currentNode, ctx);
         } else {
             key = expression.property.name;
         }
     } else {
-        object =
-            findScopeFrom(expression.name, ctx.scope) ?? ctx.scope.length === 2
-                ? ctx.scope[0]
-                : ctx.scope[ctx.scope.length - 1];
-
+        object = findScopeFrom(expression.name, ctx.scope) ?? UNINITIALIZED;
         key = expression.name;
     }
 
-    object[key] = value;
+    return {
+        object,
+        key,
+    };
 }
 
 /**
@@ -585,8 +597,33 @@ function handle(node, currentNode, ctx) {
             break;
 
         case "Variable": {
-            const value = handle(node.value, currentNode, ctx);
-            setInScope(value, node.name, currentNode, ctx);
+            const expression = node.name;
+
+            let { object, key } = findScopeFromExpression(
+                expression,
+                currentNode,
+                ctx,
+            );
+
+            if (object === UNINITIALIZED) {
+                // Get the last scope that is not the props
+                const scope =
+                    ctx.scope.length === 2
+                        ? ctx.scope[0]
+                        : ctx.scope[ctx.scope.length - 1];
+                const signal = $.source(handle(node.value, currentNode, ctx));
+
+                Object.defineProperty(scope, key, {
+                    get: () => $.get(signal),
+                    set: (value) => $.set(signal, value),
+                });
+
+                object = scope;
+            }
+
+            $.render_effect(() => {
+                object[key] = handle(node.value, currentNode, ctx);
+            });
             break;
         }
 

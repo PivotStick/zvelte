@@ -1,3 +1,5 @@
+export const UNINITIALIZED = Symbol();
+
 /**
  * @template T
  * @param {string} identifier
