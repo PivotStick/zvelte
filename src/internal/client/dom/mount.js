@@ -121,11 +121,8 @@ export function mount({
  * @param {import("../types.js").Ctx} ctx
  */
 function setInScope(value, expression, currentNode, ctx) {
-    const { object, key } = findScopeFromExpression(
-        expression,
-        currentNode,
-        ctx,
-    );
+    let { object, key } = findScopeFromExpression(expression, currentNode, ctx);
+
     object[key] = value;
 }
 
@@ -133,8 +130,9 @@ function setInScope(value, expression, currentNode, ctx) {
  * @param {import("#ast").Identifier | import("#ast").MemberExpression} expression
  * @param {Node} currentNode
  * @param {import("../types.js").Ctx} ctx
+ * @param {((object: any, key: string) => void)=} onfallback
  */
-function findScopeFromExpression(expression, currentNode, ctx) {
+function findScopeFromExpression(expression, currentNode, ctx, onfallback) {
     let object;
     let key;
 
@@ -148,6 +146,16 @@ function findScopeFromExpression(expression, currentNode, ctx) {
     } else {
         object = findScopeFrom(expression.name, ctx.scope) ?? UNINITIALIZED;
         key = expression.name;
+    }
+
+    if (object === UNINITIALIZED) {
+        // Get the last scope that is not the props
+        object =
+            ctx.scope.length === 2
+                ? ctx.scope[0]
+                : ctx.scope[ctx.scope.length - 1];
+
+        onfallback?.(object, key);
     }
 
     return {
@@ -598,28 +606,21 @@ function handle(node, currentNode, ctx) {
 
         case "Variable": {
             const expression = node.name;
-
-            let { object, key } = findScopeFromExpression(
+            const { object, key } = findScopeFromExpression(
                 expression,
                 currentNode,
                 ctx,
+                (object, key) => {
+                    const signal = $.source(
+                        handle(node.value, currentNode, ctx),
+                    );
+
+                    Object.defineProperty(object, key, {
+                        get: () => $.get(signal),
+                        set: (value) => $.set(signal, value),
+                    });
+                },
             );
-
-            if (object === UNINITIALIZED) {
-                // Get the last scope that is not the props
-                const scope =
-                    ctx.scope.length === 2
-                        ? ctx.scope[0]
-                        : ctx.scope[ctx.scope.length - 1];
-                const signal = $.source(handle(node.value, currentNode, ctx));
-
-                Object.defineProperty(scope, key, {
-                    get: () => $.get(signal),
-                    set: (value) => $.set(signal, value),
-                });
-
-                object = scope;
-            }
 
             $.render_effect(() => {
                 object[key] = handle(node.value, currentNode, ctx);
