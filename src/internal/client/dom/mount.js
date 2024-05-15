@@ -10,14 +10,24 @@ import * as $ from "svelte/internal/client";
 
 /**
  * @param {() => void} callback
+ * @param {*} props
  */
-export function contextualizeComponent(callback) {
-    // @ts-ignore
-    const component = svelte.mount(callback, {
-        target: document.body,
-    });
-    return () => {
-        svelte.unmount(component);
+export function contextualizeComponent(callback, props) {
+    const component = svelte.mount(
+        // @ts-ignore
+        () => {
+            $.push(props, true);
+            callback();
+        },
+        {
+            target: document.body,
+        },
+    );
+    return {
+        pop: () => $.pop(),
+        flush() {
+            svelte.unmount(component);
+        },
     };
 }
 
