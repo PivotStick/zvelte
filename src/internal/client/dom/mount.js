@@ -207,7 +207,9 @@ function handle(node, currentNode, ctx) {
                     (element instanceof HTMLButtonElement &&
                         node.name === "disabled") ||
                     (element instanceof HTMLInputElement &&
-                        (node.name === "value" || node.name === "checked"))
+                        (node.name === "value" ||
+                            node.name === "checked" ||
+                            node.name === "disabled"))
                 ) {
                     $.render_effect(() => {
                         // @ts-ignore
