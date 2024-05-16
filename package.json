@@ -15,7 +15,8 @@
     "estree-walker": "^3.0.3",
     "sass": "^1.77.0",
     "sprintf-js": "^1.1.3",
-    "svelte": "^5.0.0-next.123"
+    "svelte": "^5.0.0-next.123",
+    "zimmerframe": "^1.1.2"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -35,7 +36,7 @@
       "default": "./src/internal/client/transition/index.js"
     },
     "./types": {
-      "default": "./src/compiler/parse/types.d.ts"
+      "default": "./src/compiler/phases/1-parse/types.d.ts"
     }
   },
   "bugs": {

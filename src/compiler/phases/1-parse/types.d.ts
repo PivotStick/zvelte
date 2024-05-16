@@ -12,7 +12,6 @@ export type TemplateNode =
     | Attribute
     | Directive
     | Comment
-    | VariableTag
     | Block;
 
 export type Directive =
@@ -20,9 +19,9 @@ export type Directive =
     | OnDirective
     | TransitionDirective
     | ClassDirective;
-export type ElementLike = Element | Component | SlotElement | ZvelteComponent;
-export type Tag = ExpressionTag | HtmlTag | VariableTag;
-export type Block = ForBlock | IfBlock;
+export type ElementLike = Element | Component | ZvelteComponent;
+export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
+export type Block = ForBlock | IfBlock | SnippetBlock;
 export type Expression =
     | ConditionalExpression
     | Identifier
@@ -101,7 +100,15 @@ export interface Comment extends BaseNode {
 
 export interface Fragment extends BaseNode {
     type: "Fragment";
-    nodes: (ElementLike | Text | Tag | IfBlock | ForBlock | Comment)[];
+    nodes: (
+        | ElementLike
+        | Text
+        | Tag
+        | IfBlock
+        | ForBlock
+        | SnippetBlock
+        | Comment
+    )[];
 }
 
 export interface Text extends BaseNode {
@@ -132,6 +139,13 @@ export interface ForBlock extends BaseNode {
     fallback?: Fragment;
 }
 
+export interface SnippetBlock extends BaseNode {
+    type: "SnippetBlock";
+    expression: Identifier;
+    parameters: Array<Identifier>;
+    body: Fragment;
+}
+
 export interface ExpressionTag extends BaseNode {
     type: "ExpressionTag";
     expression: Expression;
@@ -140,6 +154,11 @@ export interface ExpressionTag extends BaseNode {
 export interface HtmlTag extends BaseNode {
     type: "HtmlTag";
     expression: Expression;
+}
+
+export interface RenderTag extends BaseNode {
+    type: "RenderTag";
+    expression: CallExpression;
 }
 
 export interface Root extends BaseNode {
@@ -156,18 +175,11 @@ export interface Element extends BaseNode {
     name: string;
 }
 
-export interface SlotElement extends BaseNode {
-    type: "SlotElement";
-    attributes: Array<Attribute>;
-    fragment: Fragment;
-    name: string;
-}
-
-export interface Attribute extends BaseNode {
+export type Attribute = BaseNode & {
     type: "Attribute";
     name: string;
     values: true | Array<Text | Expression>;
-}
+};
 
 export interface Property extends BaseNode {
     type: "Property";

@@ -198,8 +198,7 @@ function handle(node, template) {
             break;
         }
 
-        case "ZvelteComponent":
-        case "SlotElement": {
+        case "ZvelteComponent": {
             template.src += "<!>";
             newRoot(node.fragment);
             break;
@@ -211,6 +210,13 @@ function handle(node, template) {
             break;
         }
 
+        case "SnippetBlock": {
+            template.src += `<!>`;
+            newRoot(node.body);
+            break;
+        }
+
+        case "RenderTag":
         case "Variable":
         case "HtmlTag":
         case "ExpressionTag":

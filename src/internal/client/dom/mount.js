@@ -7,6 +7,7 @@ import { getComponentByKey, registerComponent } from "../runtime/components.js";
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
+import { walk } from "zimmerframe";
 
 /**
  * @param {() => void} callback
@@ -860,6 +861,17 @@ function handle(node, currentNode, ctx) {
                 }
             });
 
+            node.fragment.nodes.forEach((child) => {
+                if (child.type === "SnippetBlock") {
+                    if (!ctx.scope[0][child.expression.name]) {
+                        handle(child, currentNode, ctx);
+                    }
+
+                    props[child.expression.name] =
+                        ctx.scope[0][child.expression.name];
+                }
+            });
+
             if (node.fragment.nodes.length) {
                 props.children = (
                     /** @type {Element | Comment | Text} */ $$anchor,
@@ -881,9 +893,36 @@ function handle(node, currentNode, ctx) {
             break;
         }
 
+        case "RenderTag": {
+            const anchor = /** @type {Comment} */ (currentNode);
+            $.snippet(
+                () => handle(node.expression.name, currentNode, ctx),
+                anchor,
+            );
+            break;
+        }
+
+        case "SnippetBlock": {
+            const scope = ctx.scope[0];
+
+            // @ts-ignore
+            scope[node.expression.name] = ($$anchor, ...args) => {
+                const fragment = getRoot(node.body);
+                const props = $.proxy({});
+
+                node.parameters.forEach((param, i) => {
+                    props[param.name] = args[i];
+                });
+
+                handle(node.body, fragment, pushNewScope(ctx, props));
+
+                $.append($$anchor, fragment);
+            };
+            break;
+        }
+
         case "ZvelteComponent": {
             const anchor = /** @type {Comment} */ (currentNode);
-
             const props = $.proxy({});
 
             for (const attr of node.attributes) {
@@ -905,6 +944,17 @@ function handle(node, currentNode, ctx) {
                         );
                 }
             }
+
+            node.fragment.nodes.forEach((child) => {
+                if (child.type === "SnippetBlock") {
+                    if (!ctx.scope[0][child.expression.name]) {
+                        handle(child, currentNode, ctx);
+                    }
+
+                    props[child.expression.name] =
+                        ctx.scope[0][child.expression.name];
+                }
+            });
 
             if (node.fragment.nodes.length) {
                 props.children = (
@@ -928,45 +978,6 @@ function handle(node, currentNode, ctx) {
                 () => handle(node.expression, currentNode, ctx),
                 ($$component) => $$component(anchor, props),
             );
-            break;
-        }
-
-        case "SlotElement": {
-            const anchor = /** @type {Comment} */ (currentNode);
-
-            let render = searchInScope("children", ctx.scope);
-
-            if (!render && node.fragment.nodes.length) {
-                // @ts-ignore
-                render = ($$anchor, $$slotProps) => {
-                    const fragment = getRoot(node.fragment);
-
-                    handle(
-                        node.fragment,
-                        fragment,
-                        pushNewScope(ctx, $$slotProps),
-                    );
-
-                    $.append($$anchor, fragment);
-                };
-            }
-
-            /**
-             * @type {Record<string, any>}
-             */
-            const props = $.proxy({});
-
-            node.attributes.forEach((attr) => {
-                $.render_effect(() => {
-                    props[attr.name] = computeAttributeValue(
-                        attr,
-                        currentNode,
-                        ctx,
-                    );
-                });
-            });
-
-            render?.(anchor, props);
             break;
         }
 

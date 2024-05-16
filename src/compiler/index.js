@@ -44,3 +44,4 @@ export function compile(source, options = {}, meta = {}) {
 }
 
 export { hash } from "./utils/hash.js";
+export { walk } from "zimmerframe";

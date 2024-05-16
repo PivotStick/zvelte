@@ -25,9 +25,24 @@ function expressionTag(parser) {
     if (parser.eat("@html")) {
         type = "HtmlTag";
         parser.allowWhitespace();
+    } else if (parser.eat("@render")) {
+        type = "RenderTag";
+        parser.allowWhitespace();
     }
 
     const expression = parseExpression(parser);
+
+    if (
+        type === "RenderTag" &&
+        expression.type !== "CallExpression" &&
+        expression.type !== "FilterExpression"
+    ) {
+        throw parser.error(
+            "`{{ @render ... }` tags can only contain call expressions",
+            expression.start,
+        );
+    }
+
     parser.allowWhitespace();
     parser.eat("}}", true);
 
@@ -141,16 +156,61 @@ function open(parser, start) {
         parser.allowWhitespace();
         parser.eat("%}", true);
 
-        /**
-         * @type {import("../types.js").VariableTag}
-         */
-        parser.append({
-            type: "Variable",
+        parser.append(
+            /** @type {import("../types.js").VariableTag} */ ({
+                type: "Variable",
+                start,
+                end: parser.index,
+                name,
+                value,
+            }),
+        );
+
+        return;
+    }
+
+    if (parser.eat("snippet")) {
+        parser.requireWhitespace();
+        const expression = parseIdentifier(parser);
+        if (!expression) {
+            throw parser.error("Expected an identifier");
+        }
+
+        const parameters = [];
+
+        parser.eat("(", true);
+        parser.allowWhitespace();
+        while (!parser.eat(")")) {
+            const param = parseIdentifier(parser);
+            if (!param) {
+                throw parser.error("Expected an identifier");
+            }
+
+            parameters.push(param);
+            parser.allowWhitespace();
+            if (!parser.match(")")) {
+                parser.eat(",", true);
+                parser.allowWhitespace();
+            }
+        }
+        parser.allowWhitespace();
+
+        parser.eat("%}", true);
+
+        /** @type {import("../types.js").SnippetBlock} */
+        const block = parser.append({
+            type: "SnippetBlock",
             start,
             end: parser.index,
-            name,
-            value,
+            expression,
+            parameters,
+            body: createFragment(),
         });
+
+        block.body.start = parser.index;
+
+        parser.stack.push(block);
+        parser.fragments.push(block.body);
 
         return;
     }
@@ -254,9 +314,19 @@ function close(parser, start) {
             parser.eat("for", true);
             parser.allowWhitespace();
             parser.eat("%}", true);
-            parser.pop();
 
             block.end = parser.index;
+            parser.pop();
+            break;
+        }
+
+        case "SnippetBlock": {
+            parser.eat("snippet", true);
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+
+            block.end = parser.index;
+            parser.pop();
             break;
         }
 
