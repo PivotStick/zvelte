@@ -703,12 +703,20 @@ function handle(node, currentNode, ctx) {
             const anchor = /** @type {Comment} */ (currentNode);
             const fallback = node.fallback;
 
+            const key = node.key;
+
             let array;
             $.each(
                 anchor,
-                65,
+                key === null ? 1 : 5,
                 () => (array = handle(node.expression, currentNode, ctx)),
-                $.index,
+                key === null
+                    ? $.index
+                    : ($$key, $$index) =>
+                          key.name === node.context.name
+                              ? $.unwrap($$key)
+                              : searchInScope(key.name, ctx.scope),
+
                 ($$anchor, item, $$index) => {
                     const fragment = getRoot(node.body);
                     const index = () => $.unwrap($$index);

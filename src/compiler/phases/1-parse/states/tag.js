@@ -103,14 +103,14 @@ function open(parser, start) {
 
     if (parser.eat("for")) {
         parser.requireWhitespace();
-        let key;
+        let index;
         let context = parseIdentifier(parser);
         if (!context) throw parser.error("Expected an Identifier");
         parser.allowWhitespace();
 
         if (parser.eat(",")) {
             parser.allowWhitespace();
-            key = context;
+            index = context.name;
             context = parseIdentifier(parser);
             if (!context) throw parser.error("Expected an Identifier");
             parser.allowWhitespace();
@@ -119,7 +119,15 @@ function open(parser, start) {
         parser.eat("in", true);
         parser.requireWhitespace();
         const expression = parseExpression(parser);
+        let key = null;
         parser.allowWhitespace();
+        if (parser.eat("#")) {
+            parser.eat("(", true);
+            key = parseIdentifier(parser);
+            if (!key) throw parser.error("Expected an identifier");
+            parser.eat(")", true);
+            parser.allowWhitespace();
+        }
         parser.eat("%}", true);
 
         /** @type {import("../types.js").ForBlock} */
@@ -128,6 +136,7 @@ function open(parser, start) {
             end: -1,
             type: "ForBlock",
             expression,
+            index,
             key,
             context,
             body: createFragment(),
