@@ -4,10 +4,17 @@ import { parse } from "../../../compiler/phases/1-parse/index.js";
 import { getFilter } from "../runtime/filters.js";
 import { UNINITIALIZED, findScopeFrom, searchInScope } from "../shared.js";
 import { getComponentByKey, registerComponent } from "../runtime/components.js";
+import {
+    EACH_KEYED,
+    EACH_IS_ANIMATED,
+    EACH_IS_CONTROLLED,
+    EACH_ITEM_REACTIVE,
+    EACH_INDEX_REACTIVE,
+    EACH_IS_STRICT_EQUALS,
+} from "../../../../node_modules/svelte/src/constants.js";
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
-import { walk } from "zimmerframe";
 
 /**
  * @param {() => void} callback
@@ -705,18 +712,19 @@ function handle(node, currentNode, ctx) {
 
             const key = node.key;
 
-            let array;
+            const array = () => handle(node.expression, currentNode, ctx);
+
+            let flags = EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE;
+
+            if (key !== null) {
+                flags |= EACH_KEYED;
+            }
+
             $.each(
                 anchor,
-                key === null ? 1 : 5,
-                () => (array = handle(node.expression, currentNode, ctx)),
-                key === null
-                    ? $.index
-                    : ($$key, $$index) =>
-                          key.name === node.context.name
-                              ? $.unwrap($$key)
-                              : searchInScope(key.name, ctx.scope),
-
+                flags,
+                array,
+                key === null ? $.index : ($$key, $$index) => $.unwrap($$key),
                 ($$anchor, item, $$index) => {
                     const fragment = getRoot(node.body);
                     const index = () => $.unwrap($$index);
@@ -739,19 +747,19 @@ function handle(node, currentNode, ctx) {
                                     return index();
                                 },
                                 get revindex() {
-                                    return array.length - index();
+                                    return array().length - index();
                                 },
                                 get revindex0() {
-                                    return array.length - index() - 1;
+                                    return array().length - index() - 1;
                                 },
                                 get first() {
                                     return index() === 0;
                                 },
                                 get last() {
-                                    return index() === array.length - 1;
+                                    return index() === array().length - 1;
                                 },
                                 get length() {
-                                    return array.length;
+                                    return array().length;
                                 },
                                 get parent() {
                                     return searchInScope("loop", ctx.scope);

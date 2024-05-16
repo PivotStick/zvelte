@@ -6,7 +6,7 @@ export function fn(name) {
     return {
         type: "FunctionDeclaration",
         params: [],
-        id: identifier(name),
+        id: id(name),
         body: {
             type: "BlockStatement",
             body: [],
@@ -18,7 +18,7 @@ export function fn(name) {
  * @param {string} name
  * @returns {import("estree").Identifier}
  */
-export function identifier(name) {
+export function id(name) {
     return {
         type: "Identifier",
         name,
@@ -38,17 +38,32 @@ export function rootTemplate(name, template, fragment = false) {
         args.push(literal(1));
     }
 
+    return declaration("const", name, internal("template", args));
+}
+
+/**
+ * @param {'const' | 'let' | 'var'} kind
+ * @param {string | import('estree').Pattern} pattern
+ * @param {import('estree').Expression} [init]
+ * @returns {import('estree').VariableDeclaration}
+ */
+export function declaration(kind, pattern, init) {
+    if (typeof pattern === "string") pattern = id(pattern);
+
     return {
         type: "VariableDeclaration",
-        kind: "const",
-        declarations: [
-            {
-                type: "VariableDeclarator",
-                id: identifier(name),
-                init: internal("template", args),
-            },
-        ],
+        kind,
+        declarations: [init ? declarator(pattern, init) : declarator(pattern)],
     };
+}
+
+/**
+ * @param {import('estree').Pattern} id
+ * @param {import('estree').Expression} [init]
+ * @returns {import('estree').VariableDeclarator}
+ */
+export function declarator(id, init) {
+    return { type: "VariableDeclarator", id, init };
 }
 
 /**
@@ -125,7 +140,7 @@ export function member(object, property, computed = false, optional = false) {
  * @returns {import("estree").CallExpression}
  */
 export function internal(method, args = []) {
-    return call(member(identifier("$"), identifier(method)), args);
+    return call(member(id("$"), id(method)), args);
 }
 
 /**
@@ -141,9 +156,46 @@ export function literal(value) {
  * @param {import("estree").Expression} expression
  * @returns {import("estree").ExpressionStatement}
  */
-export function expressionStatement(expression) {
+export function stmt(expression) {
     return {
         type: "ExpressionStatement",
         expression,
     };
 }
+
+/**
+ * @param {Array<import('estree').Property | import('estree').SpreadElement>} properties
+ * @returns {import('estree').ObjectExpression}
+ */
+export function object(properties) {
+    return { type: "ObjectExpression", properties };
+}
+
+/**
+ * @param {string | import('estree').Pattern} pattern
+ * @param { import('estree').Expression} [init]
+ * @returns {import('estree').VariableDeclaration}
+ */
+function let_builder(pattern, init) {
+    return declaration("let", pattern, init);
+}
+
+/**
+ * @param {string | import('estree').Pattern} pattern
+ * @param { import('estree').Expression} init
+ * @returns {import('estree').VariableDeclaration}
+ */
+function const_builder(pattern, init) {
+    return declaration("const", pattern, init);
+}
+
+/**
+ * @param {string | import('estree').Pattern} pattern
+ * @param { import('estree').Expression} [init]
+ * @returns {import('estree').VariableDeclaration}
+ */
+function var_builder(pattern, init) {
+    return declaration("var", pattern, init);
+}
+
+export { let_builder as let, const_builder as const, var_builder as var };
