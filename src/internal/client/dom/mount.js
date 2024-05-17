@@ -4,14 +4,10 @@ import { parse } from "../../../compiler/phases/1-parse/index.js";
 import { getFilter } from "../runtime/filters.js";
 import { UNINITIALIZED, findScopeFrom, searchInScope } from "../shared.js";
 import { getComponentByKey, registerComponent } from "../runtime/components.js";
-import {
-    EACH_KEYED,
-    EACH_IS_ANIMATED,
-    EACH_IS_CONTROLLED,
-    EACH_ITEM_REACTIVE,
-    EACH_INDEX_REACTIVE,
-    EACH_IS_STRICT_EQUALS,
-} from "../../../../node_modules/svelte/src/constants.js";
+
+const EACH_ITEM_REACTIVE = 1;
+const EACH_INDEX_REACTIVE = 1 << 1;
+const EACH_KEYED = 1 << 2;
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
