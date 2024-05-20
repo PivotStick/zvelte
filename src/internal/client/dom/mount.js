@@ -952,6 +952,24 @@ function handle(node, currentNode, ctx) {
                         break;
                     }
 
+                    case "BindDirective": {
+                        const ex = attr.expression ?? {
+                            type: "Identifier",
+                            name: attr.name,
+                            start: -1,
+                            end: -1,
+                        };
+
+                        $.render_effect(() => {
+                            props[attr.name] = handle(ex, currentNode, ctx);
+                        });
+
+                        $.render_effect(() => {
+                            setInScope(props[attr.name], ex, currentNode, ctx);
+                        });
+                        break;
+                    }
+
                     default:
                         throw new Error(
                             `"${attr.type}" attribute not handled yet on "${node.type}"`,
