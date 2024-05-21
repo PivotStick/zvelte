@@ -8,14 +8,14 @@ import { isVoid } from "../../../compiler/shared/utils/names.js";
 import * as $ from "svelte/internal/client";
 
 /**
- * @param {import("#ast").Any} ast
+ * @param {import("#ast").ZvelteNode} ast
  */
 export function addTemplatesToAST(ast) {
     newRoot(ast);
 }
 
 /**
- * @param {import("#ast").Any} node
+ * @param {import("#ast").ZvelteNode} node
  * @param {{ src: string; }} template
  */
 function addRoot(node, template) {
@@ -24,7 +24,7 @@ function addRoot(node, template) {
 }
 
 /**
- * @param {import("#ast").Any} node
+ * @param {import("#ast").ZvelteNode} node
  */
 function newRoot(node) {
     const template = { src: "" };
@@ -33,7 +33,7 @@ function newRoot(node) {
 }
 
 /**
- * @param {import("#ast").Any} node
+ * @param {import("#ast").ZvelteNode} node
  * @param {{ src: string }} template
  */
 function handle(node, template) {
@@ -43,8 +43,8 @@ function handle(node, template) {
                 const styleSheetId = "zvelte-" + hash(node.css.code);
                 // @ts-ignore
                 walk(node.fragment, {
-                    leave(/** @type {import("#ast").Any} */ node) {
-                        if (node.type === "Element") {
+                    leave(/** @type {import("#ast").ZvelteNode} */ node) {
+                        if (node.type === "RegularElement") {
                             let classAttr = node.attributes.find(
                                 (attr) =>
                                     attr.type === "Attribute" &&
@@ -141,7 +141,7 @@ function handle(node, template) {
             template.src += node.data;
             break;
 
-        case "Element":
+        case "RegularElement":
             template.src += `<${node.name}`;
 
             node.attributes.forEach((attr) => {

@@ -19,7 +19,7 @@ export type Directive =
     | OnDirective
     | TransitionDirective
     | ClassDirective;
-export type ElementLike = Element | Component | ZvelteComponent;
+export type ElementLike = RegularElement | Component | ZvelteComponent;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
 export type Block = ForBlock | IfBlock | SnippetBlock;
 export type Expression =
@@ -100,6 +100,7 @@ export interface Comment extends BaseNode {
 
 export interface Fragment extends BaseNode {
     type: "Fragment";
+    transparent: boolean;
     nodes: (
         | ElementLike
         | Text
@@ -169,8 +170,8 @@ export interface Root extends BaseNode {
     css: any;
 }
 
-export interface Element extends BaseNode {
-    type: "Element";
+export interface RegularElement extends BaseNode {
+    type: "RegularElement";
     attributes: Array<Attribute | Directive>;
     fragment: Fragment;
     name: string;
@@ -302,7 +303,7 @@ export interface RangeExpression extends BaseNode {
     step: 1 | -1;
 }
 
-export type Any =
+export type ZvelteNode =
     | Directive
     | Block
     | Tag

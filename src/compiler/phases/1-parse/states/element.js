@@ -40,9 +40,7 @@ export const element = (parser) => {
      */
     let type = parser.component.name.test(name)
         ? "Component"
-        : name === "slot"
-          ? "SlotElement"
-          : "Element";
+        : "RegularElement";
 
     if (name.includes(":")) {
         const [left, right] = name.split(":");
@@ -94,19 +92,15 @@ export const element = (parser) => {
         type,
         name,
         attributes: [],
-        fragment: createFragment(),
+        fragment: createFragment(true),
     };
 
     /**
-     * @type {import("../types.js").Element["attributes"][number] | null}
+     * @type {import("../types.js").RegularElement["attributes"][number] | null}
      */
     let attribute = null;
     let uniqueNames = new Set();
     while ((attribute = readAttribute(parser, uniqueNames))) {
-        if (element.type === "SlotElement") {
-            if (attribute.type !== "Attribute")
-                throw parser.error("`<slot>` can only receive attributes");
-        }
         // @ts-expect-error
         element.attributes.push(attribute);
         parser.allowWhitespace();
@@ -146,7 +140,7 @@ export const element = (parser) => {
         element.key = keyAttr.values[0];
     }
 
-    if (element.type === "Element") {
+    if (element.type === "RegularElement") {
         for (const attr of element.attributes) {
             if (attr.type === "BindDirective") {
                 const typeAttr =
@@ -245,7 +239,7 @@ export const element = (parser) => {
         element.expression = thisAttr.values[0];
     }
 
-    if (element.type !== "Element") {
+    if (element.type !== "RegularElement") {
         let attr;
         if (
             (attr = element.attributes.find(
@@ -325,7 +319,7 @@ const readTagName = (parser) => {
 /**
  * @param {Parser} parser
  * @param {Set<string>} uniqueNames
- * @returns {import("../types.js").Element["attributes"][number] | null}
+ * @returns {import("../types.js").RegularElement["attributes"][number] | null}
  */
 const readAttribute = (parser, uniqueNames) => {
     const start = parser.index;

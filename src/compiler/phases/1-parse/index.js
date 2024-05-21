@@ -36,6 +36,8 @@ export class Parser {
             fragment: createFragment(),
         };
 
+        this.root.fragment.start = this.index;
+
         /**
          * @type {import("./types.js").TemplateNode[]}
          */
@@ -51,7 +53,7 @@ export class Parser {
             state = state(this) || fragment;
         }
 
-        this.root.end = this.index;
+        this.root.fragment.end = this.root.end = this.index;
     }
 
     current() {

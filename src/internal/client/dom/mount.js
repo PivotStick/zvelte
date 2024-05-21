@@ -2,15 +2,17 @@ import * as svelte from "svelte";
 import { addTemplatesToAST } from "./astToTemplate.js";
 import { parse } from "../../../compiler/phases/1-parse/index.js";
 import { getFilter } from "../runtime/filters.js";
-import { UNINITIALIZED, findScopeFrom, searchInScope } from "../shared.js";
+import { findScopeFrom, searchInScope } from "../shared.js";
 import { getComponentByKey, registerComponent } from "../runtime/components.js";
-
-const EACH_ITEM_REACTIVE = 1;
-const EACH_INDEX_REACTIVE = 1 << 1;
-const EACH_KEYED = 1 << 2;
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
+import {
+    EACH_INDEX_REACTIVE,
+    EACH_ITEM_REACTIVE,
+    EACH_KEYED,
+    UNINITIALIZED,
+} from "../../../compiler/phases/constants.js";
 
 /**
  * @param {() => void} callback
@@ -194,7 +196,7 @@ function findScopeFromExpression(expression, currentNode, ctx, onfallback) {
 }
 
 /**
- * @param {import("#ast").Any} node
+ * @param {import("#ast").ZvelteNode} node
  * @param {any} currentNode
  * @param {import("../types.js").Ctx} ctx
  * @returns {any}
@@ -219,7 +221,7 @@ function handle(node, currentNode, ctx) {
             break;
         }
 
-        case "Element": {
+        case "RegularElement": {
             node.attributes.forEach((attr) => handle(attr, currentNode, ctx));
             handle(node.fragment, currentNode, ctx);
             break;
@@ -1019,7 +1021,7 @@ function handle(node, currentNode, ctx) {
 }
 
 /**
- * @param {import("#ast").Any} node
+ * @param {import("#ast").ZvelteNode} node
  * @returns {DocumentFragment}
  */
 function getRoot(node) {

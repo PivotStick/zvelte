@@ -8,7 +8,7 @@ const propsName = "props";
 /**
  * @type {import("../types.js").Transformer}
  */
-export function renderPhpSSR(ast, options, meta) {
+export function renderPhpSSR(ast, analysis, options, meta) {
     const renderMethod = b.method("render", "string");
 
     renderMethod.isStatic = true;
@@ -149,7 +149,7 @@ function createCtx(block) {
  *  block: import("./type.js").Block;
  * }} Ctx
  *
- * @param {Exclude<import("#ast").Any, import("#ast").Expression>} node
+ * @param {Exclude<import("#ast").ZvelteNode, import("#ast").Expression>} node
  * @param {Ctx} ctx
  * @param {boolean} deep
  * @param {string[][]} scope
@@ -167,7 +167,7 @@ function handle(node, ctx, deep, scope, meta) {
             );
             break;
 
-        case "Element": {
+        case "RegularElement": {
             ctx.appendText(`<${node.name}`);
 
             node.attributes.forEach((attr) => {
@@ -564,47 +564,6 @@ function handle(node, ctx, deep, scope, meta) {
             ctx.appendText(`<${node.name}>`);
             ctx.append(render);
             ctx.appendText(`</${node.name}>`);
-            break;
-        }
-
-        case "SlotElement": {
-            const props = new Map();
-
-            node.attributes.forEach((attr) => {
-                switch (attr.type) {
-                    case "Attribute":
-                        const key = b.string(attr.name);
-                        let value;
-
-                        if (attr.values === true) {
-                            value = b.boolean(true);
-                        } else if (
-                            attr.values.length === 1 &&
-                            attr.values[0].type === "Text"
-                        ) {
-                            value = b.string(attr.values[0].data);
-                        } else {
-                            value = computeAttrValue(attr, ctx, deep, scope);
-                        }
-
-                        props.set(key, value);
-                        break;
-
-                    default:
-                        throw new Error(
-                            `Unhandled "${attr.type}" on slot element php render`,
-                        );
-                }
-            });
-
-            ctx.appendText(`<!--[-->`);
-            ctx.append(
-                b.call(
-                    b.offsetLookup(b.variable("slots"), b.string("default")),
-                    [b.object(props)],
-                ),
-            );
-            ctx.appendText(`<!--]-->`);
             break;
         }
 
