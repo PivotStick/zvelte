@@ -21,7 +21,8 @@
     "exports": {
         "./package.json": "./package.json",
         ".": {
-            "default": "./src/internal/client/index.js"
+            "default": "./src/internal/client/index.js",
+            "types": "./src/internal/client/index.d.ts"
         },
         "./parser": {
             "default": "./src/compiler/phases/1-parse/index.js"
@@ -30,10 +31,12 @@
             "default": "./src/compiler/index.js"
         },
         "./easing": {
-            "default": "./src/internal/client/easing/index.js"
+            "default": "./src/internal/client/easing/index.js",
+            "types": "./src/internal/client/easing/index.d.js"
         },
         "./transition": {
-            "default": "./src/internal/client/transition/index.js"
+            "default": "./src/internal/client/transition/index.js",
+            "types": "./src/internal/client/transition/index.d.js"
         },
         "./types": {
             "default": "./src/compiler/phases/1-parse/types.d.ts"
