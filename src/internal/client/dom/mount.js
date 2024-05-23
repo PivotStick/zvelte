@@ -80,7 +80,8 @@ export function createComponent({ init, ast, key, initScope }) {
 
         $.append($$anchor, fragment);
 
-        if (init) $.pop();
+        // @ts-ignore
+        if (init) return $.pop(methods);
     };
 
     /**
@@ -797,6 +798,11 @@ function handle(node, currentNode, ctx) {
 
             const props = $.proxy({});
 
+            /**
+             * @type {import("#ast").BindDirective | undefined}
+             */
+            let thisAttr;
+
             node.attributes.forEach((attr) => {
                 switch (attr.type) {
                     case "Attribute": {
@@ -820,28 +826,33 @@ function handle(node, currentNode, ctx) {
                     }
 
                     case "BindDirective": {
-                        const expression = attr.expression ?? {
-                            type: "Identifier",
-                            name: attr.name,
-                            start: -1,
-                            end: -1,
-                        };
+                        if (attr.name === "this") {
+                            thisAttr = attr;
+                        } else {
+                            const expression = attr.expression ?? {
+                                type: "Identifier",
+                                name: attr.name,
+                                start: -1,
+                                end: -1,
+                            };
 
-                        $.render_effect(() => {
-                            props[attr.name] = handle(
-                                expression,
-                                currentNode,
-                                ctx,
-                            );
-                        });
-                        $.render_effect(() => {
-                            setInScope(
-                                props[attr.name],
-                                expression,
-                                currentNode,
-                                ctx,
-                            );
-                        });
+                            $.render_effect(() => {
+                                props[attr.name] = handle(
+                                    expression,
+                                    currentNode,
+                                    ctx,
+                                );
+                            });
+                            $.render_effect(() => {
+                                setInScope(
+                                    props[attr.name],
+                                    expression,
+                                    currentNode,
+                                    ctx,
+                                );
+                            });
+                        }
+
                         break;
                     }
 
@@ -873,7 +884,9 @@ function handle(node, currentNode, ctx) {
                     }
 
                     default:
-                        break;
+                        throw new Error(
+                            `"${attr.type}" not handled yet in component`,
+                        );
                 }
             });
 
@@ -905,7 +918,26 @@ function handle(node, currentNode, ctx) {
                 };
             }
 
-            component(anchor, props);
+            if (thisAttr) {
+                if (!thisAttr.expression)
+                    throw new Error(
+                        "`bind:this` value must be an Identifier or a MemberExpression",
+                    );
+
+                const ex = thisAttr.expression;
+
+                const _ctx = {
+                    ...ctx,
+                    scope: [ctx.els],
+                };
+                $.bind_this(
+                    component(anchor, props),
+                    ($$value) => setInScope($$value, ex, currentNode, _ctx),
+                    () => handle(ex, currentNode, _ctx),
+                );
+            } else {
+                component(anchor, props);
+            }
             break;
         }
 
