@@ -127,9 +127,9 @@ export const element = (parser) => {
 
         if (
             keyAttr.type !== "Attribute" ||
-            keyAttr.values === true ||
-            keyAttr.values.length !== 1 ||
-            keyAttr.values[0].type !== "Text"
+            keyAttr.value === true ||
+            keyAttr.value.length !== 1 ||
+            keyAttr.value[0].type !== "Text"
         ) {
             throw parser.error(
                 `"${parser.component?.key}" is expected to have a Text value only on a component`,
@@ -137,7 +137,7 @@ export const element = (parser) => {
             );
         }
 
-        element.key = keyAttr.values[0];
+        element.key = keyAttr.value[0];
     }
 
     if (element.type === "RegularElement") {
@@ -154,8 +154,8 @@ export const element = (parser) => {
 
                 if (
                     typeAttr &&
-                    typeAttr.values !== true &&
-                    typeAttr.values.some((v) => v.type !== "Text")
+                    typeAttr.value !== true &&
+                    typeAttr.value.some((v) => v.type !== "Text")
                 ) {
                     throw parser.error(
                         "'type' attribute must be a static text value if input uses two-way binding",
@@ -195,9 +195,9 @@ export const element = (parser) => {
 
                         if (
                             !typeAttr ||
-                            typeAttr?.values === true ||
-                            (typeAttr?.values[0].type === "Text" &&
-                                typeAttr.values[0].data !== "checkbox")
+                            typeAttr?.value === true ||
+                            (typeAttr?.value[0].type === "Text" &&
+                                typeAttr.value[0].data !== "checkbox")
                         ) {
                             throw parser.error(
                                 '`bind:checked` can only be used with <input type="checkbox">',
@@ -223,11 +223,8 @@ export const element = (parser) => {
         }
 
         if (
-            thisAttr.values === true ||
-            !(
-                thisAttr.values.length === 1 &&
-                thisAttr.values[0].type !== "Text"
-            )
+            thisAttr.value === true ||
+            !(thisAttr.value.length === 1 && thisAttr.value[0].type !== "Text")
         ) {
             throw parser.error(
                 'Invalid component definition — must be an `"{{ expression }}"`',
@@ -236,7 +233,7 @@ export const element = (parser) => {
         }
 
         element.attributes.splice(element.attributes.indexOf(thisAttr), 1);
-        element.expression = thisAttr.values[0];
+        element.expression = thisAttr.value[0].expression;
     }
 
     if (element.type !== "RegularElement") {
@@ -269,10 +266,10 @@ export const element = (parser) => {
             (attr) =>
                 attr.type === "Attribute" &&
                 attr.name === "lang" &&
-                attr.values !== true &&
-                attr.values.length === 1 &&
-                attr.values[0].type === "Text" &&
-                ["scss", "sass"].includes(attr.values[0].data),
+                attr.value !== true &&
+                attr.value.length === 1 &&
+                attr.value[0].type === "Text" &&
+                ["scss", "sass"].includes(attr.value[0].data),
         );
 
         if (!selfClosing) {
@@ -381,7 +378,17 @@ const readAttribute = (parser, uniqueNames) => {
         const expression =
             value === true
                 ? null
-                : /** @type {import("../types.d.ts").Expression} */ (value[0]);
+                : /** @type {import("../types.d.ts").ExpressionTag} */ (
+                      value[0]
+                  ).expression;
+
+        /** @type {import("../types.d.ts").Identifier} */
+        const fallback = {
+            type: "Identifier",
+            name: directive.name,
+            start: start + directive.type.length,
+            end: parser.index,
+        };
 
         switch (directive.type) {
             case "on":
@@ -410,7 +417,7 @@ const readAttribute = (parser, uniqueNames) => {
                     type: "BindDirective",
                     start,
                     end,
-                    expression,
+                    expression: expression ?? fallback,
                     name: directive.name,
                     modifiers: directive.modifiers,
                 };
@@ -422,7 +429,7 @@ const readAttribute = (parser, uniqueNames) => {
                     type: "TransitionDirective",
                     start,
                     end,
-                    expression,
+                    expression: expression ?? fallback,
                     name: directive.name,
                     modifiers: directive.modifiers,
                     intro:
@@ -438,7 +445,7 @@ const readAttribute = (parser, uniqueNames) => {
                     type: "ClassDirective",
                     name: directive.name,
                     modifiers: directive.modifiers,
-                    expression,
+                    expression: expression ?? fallback,
                     start,
                     end,
                 };
@@ -453,7 +460,7 @@ const readAttribute = (parser, uniqueNames) => {
         end,
         type: "Attribute",
         name,
-        values: value,
+        value: value,
     };
 };
 
@@ -478,17 +485,23 @@ const readAttributeValue = (parser) => {
         throw parser.error(`Expected quote mark after attribute name`);
 
     /**
-     * @type {Array<import("../types.js").Text | import("../types.js").Expression>}
+     * @type {import("../types.d.ts").Attribute["value"]}
      */
     const values = [];
 
     while (!parser.match(quoteMark)) {
         if (parser.eat("{{")) {
+            const start = parser.index - 2;
             parser.allowWhitespace();
             const expression = parseExpression(parser);
             parser.allowWhitespace();
             parser.eat("}}", true);
-            values.push(expression);
+            values.push({
+                type: "ExpressionTag",
+                expression,
+                start,
+                end: parser.index,
+            });
         } else {
             let text = values.at(-1);
 

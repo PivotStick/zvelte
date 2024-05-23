@@ -56,13 +56,13 @@ function handle(node, template) {
                                     name: "class",
                                     start: -1,
                                     end: -1,
-                                    values: [],
+                                    value: [],
                                 };
                                 node.attributes.push(classAttr);
                             }
 
-                            if (classAttr.values !== true) {
-                                let text = classAttr.values[0];
+                            if (classAttr.value !== true) {
+                                let text = classAttr.value[0];
 
                                 if (text?.type !== "Text") {
                                     text = {
@@ -71,10 +71,10 @@ function handle(node, template) {
                                         start: -1,
                                         data: styleSheetId,
                                     };
-                                    if (classAttr.values.length > 0) {
+                                    if (classAttr.value.length > 0) {
                                         text.data += " ";
                                     }
-                                    classAttr.values.unshift(text);
+                                    classAttr.value.unshift(text);
                                 } else {
                                     text.data = `${styleSheetId} ${text.data}`;
                                 }
@@ -158,14 +158,14 @@ function handle(node, template) {
             break;
 
         case "Attribute":
-            if (node.values === true) {
+            if (node.value === true) {
                 template.src += ` ${node.name}`;
                 break;
             }
 
-            if (node.values.length === 1 && node.values[0].type === "Text") {
+            if (node.value.length === 1 && node.value[0].type === "Text") {
                 template.src += ` ${node.name}="`;
-                handle(node.values[0], template);
+                handle(node.value[0], template);
                 template.src += '"';
             }
 

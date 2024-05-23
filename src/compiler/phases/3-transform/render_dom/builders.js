@@ -1,6 +1,61 @@
 import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 
 /**
+ * @param {import('estree').Pattern} argument
+ * @returns {import('estree').RestElement}
+ */
+export function rest(argument) {
+    return { type: "RestElement", argument };
+}
+
+/**
+ * @param {import('estree').AssignmentOperator} operator
+ * @param {import('estree').Pattern} left
+ * @param {import('estree').Expression} right
+ * @returns {import('estree').AssignmentExpression}
+ */
+export function assignment(operator, left, right) {
+    return { type: "AssignmentExpression", operator, left, right };
+}
+
+/**
+ * @param {Array<import('estree').Expression | import('estree').SpreadElement | null>} elements
+ * @returns {import('estree').ArrayExpression}
+ */
+export function array(elements = []) {
+    return { type: "ArrayExpression", elements };
+}
+
+/**
+ * @param {import('estree').Expression} left
+ * @param {import('estree').BinaryOperator} operator
+ * @param {import('estree').Expression} right
+ * @returns {import('estree').BinaryExpression}
+ */
+export function binary(left, operator, right) {
+    return { type: "BinaryExpression", operator, left, right };
+}
+
+/**
+ * @param {import('estree').Expression} left
+ * @param {import('estree').LogicalOperator} operator
+ * @param {import('estree').Expression} right
+ * @returns {import('estree').LogicalExpression}
+ */
+export function logical(left, operator, right) {
+    return { type: "LogicalExpression", operator, left, right };
+}
+
+/**
+ * @param {import('estree').UnaryOperator} operator
+ * @param {import('estree').Expression} argument
+ * @returns {import('estree').UnaryExpression}
+ */
+export function unary(operator, argument) {
+    return { type: "UnaryExpression", argument, operator, prefix: true };
+}
+
+/**
  * @param {Array<import('estree').Pattern>} params
  * @param {import('estree').BlockStatement | import('estree').Expression} body
  * @returns {import('estree').ArrowFunctionExpression}
@@ -13,6 +68,7 @@ export function arrow(params, body) {
         expression: body.type !== "BlockStatement",
         generator: false,
         async: false,
+        metadata: /** @type {any} */ (null), // should not be used by codegen
     };
 }
 
@@ -102,7 +158,7 @@ export function block(body) {
  * @param {import('estree').BlockStatement} body
  * @returns {import('estree').FunctionDeclaration}
  */
-export function fn(id, params, body) {
+export function function_declaration(id, params, body) {
     return {
         type: "FunctionDeclaration",
         id,
@@ -110,6 +166,7 @@ export function fn(id, params, body) {
         body,
         generator: false,
         async: false,
+        metadata: /** @type {any} */ (null), // should not be used by codegen
     };
 }
 
@@ -290,8 +347,40 @@ function var_builder(pattern, init) {
     return declaration("var", pattern, init);
 }
 
+/**
+ *
+ * @param {import('estree').Identifier | null} id
+ * @param {import('estree').Pattern[]} params
+ * @param {import('estree').BlockStatement} body
+ * @returns {import('estree').FunctionExpression}
+ */
+function function_builder(id, params, body) {
+    return {
+        type: "FunctionExpression",
+        id,
+        params,
+        body,
+        generator: false,
+        async: false,
+        metadata: /** @type {any} */ (null), // should not be used by codegen
+    };
+}
+
+/**
+ * @param {import('estree').Expression | null} argument
+ * @returns {import('estree').ReturnStatement}
+ */
+function return_builder(argument = null) {
+    return { type: "ReturnStatement", argument };
+}
+
 const true_instance = literal(true);
 const false_instance = literal(false);
+
+/** @type {import('estree').ThisExpression} */
+const this_instance = {
+    type: "ThisExpression",
+};
 
 export {
     let_builder as let,
@@ -299,4 +388,7 @@ export {
     var_builder as var,
     true_instance as true,
     false_instance as false,
+    function_builder as function,
+    return_builder as return,
+    this_instance as this,
 };

@@ -14,7 +14,7 @@ const notImplemented = (key) => () => {
 /**
  * @type {Record<string, (...args: any[]) => any>}
  */
-const filters = {
+export const filters = {
     abs: Math.abs,
     /**
      * @param {any[]} array

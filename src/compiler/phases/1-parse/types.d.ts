@@ -27,6 +27,7 @@ export type Expression =
     | Identifier
     | UnaryExpression
     | BinaryExpression
+    | LogicalExpression
     | StringLiteral
     | BooleanLiteral
     | NullLiteral
@@ -43,7 +44,7 @@ export type Expression =
 export interface ClassDirective extends BaseNode {
     type: "ClassDirective";
     name: string;
-    expression: null | Expression;
+    expression: Expression;
     modifiers: string[];
 }
 
@@ -52,7 +53,7 @@ export interface TransitionDirective extends BaseNode {
     /** The 'x' in `on:x` */
     name: string;
     /** The 'y' in `on:x={y}` */
-    expression: null | Expression;
+    expression: Expression;
     intro: boolean;
     outro: boolean;
     modifiers: string[];
@@ -73,7 +74,7 @@ export interface BindDirective extends BaseNode {
     /** The 'x' in `bind:x` */
     name: string;
     /** The y in `bind:x={y}` */
-    expression: null | Identifier | MemberExpression;
+    expression: Identifier | MemberExpression;
     modifiers: string[];
 }
 
@@ -180,7 +181,7 @@ export interface RegularElement extends BaseNode {
 export type Attribute = BaseNode & {
     type: "Attribute";
     name: string;
-    values: true | Array<Text | Expression>;
+    value: true | Array<Text | ExpressionTag>;
 };
 
 export interface Property extends BaseNode {
@@ -242,6 +243,13 @@ export interface StringLiteral extends BaseNode {
     raw: string;
 }
 
+export interface LogicalExpression extends BaseNode {
+    type: "LogicalExpression";
+    left: Expression;
+    operator: "||" | "or" | "and" | "??";
+    right: Expression;
+}
+
 export interface BinaryExpression extends BaseNode {
     type: "BinaryExpression";
     left: Expression;
@@ -251,10 +259,6 @@ export interface BinaryExpression extends BaseNode {
         | "/"
         | "*"
         | "~"
-        | "??"
-        | "||"
-        | "or"
-        | "and"
         | "=="
         | "!="
         | "<="

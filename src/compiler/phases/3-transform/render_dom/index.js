@@ -5,10 +5,27 @@ import { cleanNodes } from "../utils.js";
 import {
     TEMPLATE_FRAGMENT,
     TEMPLATE_USE_IMPORT_NODE,
+    TRANSITION_GLOBAL,
+    TRANSITION_IN,
+    TRANSITION_OUT,
 } from "../../constants.js";
 import { Scope, setScope } from "./scope.js";
-import { VoidElements } from "./constants.js";
+import {
+    AttributeAliases,
+    DOMBooleanAttributes,
+    DOMProperties,
+    PassiveEvents,
+    VoidElements,
+} from "./constants.js";
 import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
+import {
+    isEventAttribute,
+    isTextAttribute,
+    object,
+} from "../../../shared/utils/ast.js";
+import { escapeHtml } from "../../../escaping.js";
+import { regex_is_valid_identifier } from "../../patterns.js";
+import { filters } from "../../../../internal/client/runtime/filters.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -141,7 +158,7 @@ export function renderDom(ast, analysis, options, meta) {
 
     const body = [...state.hoisted];
 
-    const component = b.fn(
+    const component = b.function_declaration(
         b.id(options.filename),
         [b.id("$$anchor"), b.id("$$props")],
         componentBlock,
@@ -380,7 +397,7 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
 
             state.template.push(" ");
 
-            const text_id = get_node_id(expression(true), state, "text");
+            const text_id = getNodeId(expression(true), state, "text");
 
             const update = b.stmt(
                 b.call(
@@ -418,12 +435,15 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                     ? b.call("$.sibling", text_id, b.true)
                     : b.call("$.sibling", text_id);
         } else {
-            const text_id = get_node_id(expression(true), state, "text");
+            const text_id = getNodeId(expression(true), state, "text");
 
             state.template.push(" ");
 
-            const [contains_call_expression, value] =
-                serialize_template_literal(sequence, visit, state);
+            const [contains_call_expression, value] = serializeTemplateLiteral(
+                sequence,
+                visit,
+                state,
+            );
 
             const update = b.stmt(b.call("$.set_text", text_id, value));
 
@@ -481,7 +501,7 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                     node.metadata.is_controlled = true;
                     visit(node, state);
                 } else {
-                    const id = get_node_id(
+                    const id = getNodeId(
                         expression(false),
                         state,
                         node.type === "RegularElement" ? node.name : "node",
@@ -517,7 +537,179 @@ const templateVisitors = {
     },
 
     RegularElement(node, context) {
-        context.state.template.push(`<${node.name}>`);
+        context.state.template.push(`<${node.name}`);
+
+        /** @type {import('#ast').Attribute[]} */
+        const attributes = [];
+        /** @type {import('#ast').ClassDirective[]} */
+        const class_directives = [];
+
+        let needs_input_reset = false;
+        let needs_content_reset = false;
+
+        /** @type {import('#ast').BindDirective | null} */
+        let value_binding = null;
+
+        /** If true, needs `__value` for inputs */
+        let needs_special_value_handling =
+            node.name === "option" || node.name === "select";
+        let is_content_editable = false;
+        let has_content_editable_binding = false;
+        let img_might_be_lazy = false;
+
+        for (const attribute of node.attributes) {
+            if (attribute.type === "Attribute") {
+                attributes.push(attribute);
+                if (node.name === "img" && attribute.name === "loading") {
+                    img_might_be_lazy = true;
+                }
+                if (
+                    (attribute.name === "value" ||
+                        attribute.name === "checked") &&
+                    !isTextAttribute(attribute)
+                ) {
+                    needs_input_reset = true;
+                    needs_content_reset = true;
+                } else if (
+                    attribute.name === "contenteditable" &&
+                    (attribute.value === true ||
+                        (isTextAttribute(attribute) &&
+                            attribute.value[0].data === "true"))
+                ) {
+                    is_content_editable = true;
+                }
+            } else if (attribute.type === "ClassDirective") {
+                class_directives.push(attribute);
+            } else {
+                if (attribute.type === "BindDirective") {
+                    if (
+                        attribute.name === "group" ||
+                        attribute.name === "checked"
+                    ) {
+                        needs_special_value_handling = true;
+                        needs_input_reset = true;
+                    } else if (attribute.name === "value") {
+                        value_binding = attribute;
+                        needs_content_reset = true;
+                        needs_input_reset = true;
+                    } else if (
+                        attribute.name === "innerHTML" ||
+                        attribute.name === "innerText" ||
+                        attribute.name === "textContent"
+                    ) {
+                        has_content_editable_binding = true;
+                    }
+                }
+                context.visit(attribute);
+            }
+        }
+
+        if (
+            needs_input_reset &&
+            (node.name === "input" || node.name === "select")
+        ) {
+            context.state.init.push(
+                b.stmt(
+                    b.call("$.remove_input_attr_defaults", context.state.node),
+                ),
+            );
+        }
+
+        if (needs_content_reset && node.name === "textarea") {
+            context.state.init.push(
+                b.stmt(b.call("$.remove_textarea_child", context.state.node)),
+            );
+        }
+
+        if (value_binding !== null && node.name === "select") {
+            setup_select_synchronization(value_binding, context);
+        }
+
+        const node_id = context.state.node;
+
+        // Then do attributes
+        let is_attributes_reactive = false;
+        if (node.metadata?.has_spread) {
+            if (node.name === "img") {
+                img_might_be_lazy = true;
+            }
+            serialize_element_spread_attributes(
+                attributes,
+                context,
+                node,
+                node_id,
+                // If value binding exists, that one takes care of calling $.init_select
+                value_binding === null &&
+                    node.name === "select" &&
+                    child_metadata.namespace !== "foreign",
+            );
+            is_attributes_reactive = true;
+        } else {
+            for (const attribute of /** @type {import('#ast').Attribute[]} */ (
+                attributes
+            )) {
+                console.log(attribute);
+                if (isEventAttribute(attribute)) {
+                    serializeEventAttribute(attribute, context);
+                    continue;
+                }
+
+                if (
+                    needs_special_value_handling &&
+                    attribute.name === "value"
+                ) {
+                    serialize_element_special_value_attribute(
+                        node.name,
+                        node_id,
+                        attribute,
+                        context,
+                    );
+                    continue;
+                }
+
+                if (
+                    attribute.name !== "autofocus" &&
+                    (attribute.value === true || isTextAttribute(attribute))
+                ) {
+                    const name = getAttributeName(node, attribute, context);
+                    const literal_value =
+                        /** @type {import('estree').Literal} */ (
+                            serializeAttributeValue(attribute.value, context)[1]
+                        ).value;
+                    if (name !== "class" || literal_value) {
+                        // TODO namespace=foreign probably doesn't want to do template stuff at all and instead use programmatic methods
+                        // to create the elements it needs.
+                        context.state.template.push(
+                            ` ${attribute.name}${
+                                DOMBooleanAttributes.includes(name) &&
+                                literal_value === true
+                                    ? ""
+                                    : `="${literal_value === true ? "" : escapeHtml(literal_value, true)}"`
+                            }`,
+                        );
+                        continue;
+                    }
+                }
+
+                const is = serialize_element_attribute_update_assignment(
+                    node,
+                    node_id,
+                    attribute,
+                    context,
+                );
+                if (is) is_attributes_reactive = true;
+            }
+        }
+
+        // class/style directives must be applied last since they could override class/style attributes
+        serializeClassDirectives(
+            class_directives,
+            node_id,
+            context,
+            is_attributes_reactive,
+        );
+
+        context.state.template.push(`>`);
 
         /** @type {import('./types.js').ComponentClientTransformState} */
         const state = {
@@ -562,10 +754,91 @@ const templateVisitors = {
         }
     },
 
+    Attribute(node, context) {
+        if (isEventAttribute(node)) {
+            serializeEventAttribute(node, context);
+        }
+    },
+
+    OnDirective(node, context) {
+        serializeEvent(node, context);
+    },
+
+    TransitionDirective(node, { state, visit }) {
+        let flags = node.modifiers.includes("global") ? TRANSITION_GLOBAL : 0;
+        if (node.intro) flags |= TRANSITION_IN;
+        if (node.outro) flags |= TRANSITION_OUT;
+
+        const args = [
+            b.literal(flags),
+            state.node,
+            b.thunk(
+                /** @type {import('estree').Expression} */ (
+                    visit(parseDirectiveName(node.name))
+                ),
+            ),
+        ];
+
+        if (node.expression) {
+            args.push(
+                b.thunk(
+                    /** @type {import('estree').Expression} */ (
+                        visit(node.expression)
+                    ),
+                ),
+            );
+        }
+
+        state.init.push(b.stmt(b.call("$.transition", ...args)));
+    },
+
+    // @ts-ignore
+    FilterExpression(node, context) {
+        if (node.name.name in filters) {
+        } else {
+            const name = /** @type {import("estree").MemberExpression} */ (
+                context.visit(node.name)
+            );
+
+            const args = [];
+            let hasEvent = false;
+
+            const inOnDirective = context.path.at(-1)?.type === "OnDirective";
+
+            for (const arg of node.arguments) {
+                if (inOnDirective && object(arg)?.name === "_event") {
+                    hasEvent = true;
+                    args.push(arg);
+                } else {
+                    args.push(
+                        /** @type {import("estree").Expression} */ (
+                            context.visit(arg)
+                        ),
+                    );
+                }
+            }
+
+            const call = b.call(name, ...args);
+
+            if (inOnDirective) {
+                const patterns = [];
+                if (hasEvent) patterns.push(b.id("_event"));
+                return b.arrow(patterns, call);
+            }
+
+            return call;
+        }
+    },
+
     // @ts-ignore
     MemberExpression(node, context) {
-        const property = context.visit(node.property);
-        const object = context.visit(node.object);
+        const property = /** @type {import("estree").Expression} */ (
+            context.visit(node.property)
+        );
+
+        const object = /** @type {import("estree").Expression} */ (
+            context.visit(node.object)
+        );
 
         let member = b.member(object, property, node.computed);
 
@@ -584,6 +857,84 @@ const templateVisitors = {
             id = b.member(b.id("$$props"), id);
 
         return id;
+    },
+
+    // @ts-ignore
+    NumericLiteral: (node) => b.literal(node.value),
+    // @ts-ignore
+    StringLiteral: (node) => b.literal(node.value),
+    // @ts-ignore
+    BooleanLiteral: (node) => b.literal(node.value),
+    // @ts-ignore
+    NullLiteral: (node) => b.literal(node.value),
+
+    // @ts-ignore
+    UnaryExpression(node, context) {
+        const argument = /** @type {import("estree").Expression} */ (
+            context.visit(node.argument)
+        );
+
+        return b.unary(node.operator === "not" ? "!" : node.operator, argument);
+    },
+
+    // @ts-ignore
+    BinaryExpression(node, context) {
+        /**
+         * @type {import("estree").BinaryOperator}
+         */
+        let operator;
+
+        switch (node.operator) {
+            case "~":
+                operator = "+";
+                break;
+
+            default:
+                operator = node.operator;
+                break;
+        }
+
+        return b.binary(
+            /** @type {import("estree").Expression} */ (
+                context.visit(node.left)
+            ),
+            operator,
+            /** @type {import("estree").Expression} */ (
+                context.visit(node.right)
+            ),
+        );
+    },
+
+    // @ts-ignore
+    LogicalExpression(node, context) {
+        /**
+         * @type {import("estree").LogicalOperator}
+         */
+        let operator;
+
+        switch (node.operator) {
+            case "or":
+                operator = "||";
+                break;
+
+            case "and":
+                operator = "&&";
+                break;
+
+            default:
+                operator = node.operator;
+                break;
+        }
+
+        return b.logical(
+            /** @type {import("estree").Expression} */ (
+                context.visit(node.left)
+            ),
+            operator,
+            /** @type {import("estree").Expression} */ (
+                context.visit(node.right)
+            ),
+        );
     },
 };
 
@@ -636,7 +987,7 @@ function serialize_update(statement) {
  * @param {import('./types.js').ComponentClientTransformState} state
  * @param {string} name
  */
-function get_node_id(expression, state, name) {
+function getNodeId(expression, state, name) {
     let id = expression;
 
     if (id.type !== "Identifier") {
@@ -653,7 +1004,7 @@ function get_node_id(expression, state, name) {
  * @param {import("./types.js").ComponentClientTransformState} state
  * @returns {[boolean, import('estree').TemplateLiteral]}
  */
-function serialize_template_literal(values, visit, state) {
+function serializeTemplateLiteral(values, visit, state) {
     /** @type {import('estree').TemplateElement[]} */
     const quasis = [];
 
@@ -736,4 +1087,505 @@ function serialize_template_literal(values, visit, state) {
 
     // TODO instead of this tuple, return a `{ dynamic, complex, value }` object. will DRY stuff out
     return [contains_call_expression, b.template(quasis, expressions)];
+}
+
+/**
+ * @param {import('#ast').Attribute & { value: [import('#ast').ExpressionTag] }} node
+ * @param {import('./types.js').ComponentContext} context
+ */
+function serializeEventAttribute(node, context) {
+    /** @type {string[]} */
+    const modifiers = [];
+
+    let event_name = node.name.slice(2);
+    if (
+        event_name.endsWith("capture") &&
+        event_name !== "ongotpointercapture" &&
+        event_name !== "onlostpointercapture"
+    ) {
+        event_name = event_name.slice(0, -7);
+        modifiers.push("capture");
+    }
+
+    serializeEvent(
+        {
+            name: event_name,
+            expression: node.value[0].expression,
+            modifiers,
+            delegated: node.metadata.delegated,
+        },
+        context,
+    );
+}
+
+/**
+ * Serializes an event handler function of the `on:` directive or an attribute starting with `on`
+ * @param {{name: string; modifiers: string[]; expression: import('estree').Expression | null; delegated?: import('#compiler').DelegatedEvent | null; }} node
+ * @param {import('./types.js').ComponentContext} context
+ */
+function serializeEvent(node, context) {
+    const state = context.state;
+
+    /** @type {import('estree').Statement} */
+    let statement;
+
+    if (node.expression) {
+        let handler = serializeEventHandler(node, context);
+        const event_name = node.name;
+        const delegated = node.delegated;
+
+        if (delegated != null) {
+            let delegated_assignment;
+
+            if (!state.events.has(event_name)) {
+                state.events.add(event_name);
+            }
+            // Hoist function if we can, otherwise we leave the function as is
+            if (delegated.type === "hoistable") {
+                if (delegated.function === node.expression) {
+                    const func_name = context.state.scope.root.unique(
+                        "on_" + event_name,
+                    );
+                    state.hoisted.push(b.var(func_name, handler));
+                    handler = func_name;
+                }
+                if (node.modifiers.includes("once")) {
+                    handler = b.call("$.once", handler);
+                }
+                const hoistable_params =
+                    /** @type {import('estree').Expression[]} */ (
+                        delegated.function.metadata.hoistable_params
+                    );
+                // When we hoist a function we assign an array with the function and all
+                // hoisted closure params.
+                const args = [handler, ...hoistable_params];
+                delegated_assignment = b.array(args);
+            } else {
+                if (node.modifiers.includes("once")) {
+                    handler = b.call("$.once", handler);
+                }
+                delegated_assignment = handler;
+            }
+
+            state.init.push(
+                b.stmt(
+                    b.assignment(
+                        "=",
+                        b.member(context.state.node, b.id("__" + event_name)),
+                        delegated_assignment,
+                    ),
+                ),
+            );
+            return;
+        }
+
+        if (node.modifiers.includes("once")) {
+            handler = b.call("$.once", handler);
+        }
+
+        const args = [
+            b.literal(event_name),
+            context.state.node,
+            handler,
+            b.literal(node.modifiers.includes("capture")),
+        ];
+
+        if (node.modifiers.includes("passive")) {
+            args.push(b.literal(true));
+        } else if (node.modifiers.includes("nonpassive")) {
+            args.push(b.literal(false));
+        } else if (PassiveEvents.includes(node.name)) {
+            args.push(b.literal(true));
+        }
+
+        // Events need to run in order with bindings/actions
+        statement = b.stmt(b.call("$.event", ...args));
+    } else {
+        statement = b.stmt(
+            b.call(
+                "$.event",
+                b.literal(node.name),
+                state.node,
+                serializeEventHandler(node, context),
+            ),
+        );
+    }
+
+    const parent = /** @type {import('#ast').ZvelteNode} */ (
+        context.path.at(-1)
+    );
+    if (parent.type === "ZvelteDocument" || parent.type === "ZvelteWindow") {
+        state.before_init.push(statement);
+    } else {
+        state.after_update.push(statement);
+    }
+}
+
+/**
+ * Serializes the event handler function of the `on:` directive
+ * @param {Pick<import('#ast').OnDirective, 'name' | 'modifiers' | 'expression'>} node
+ * @param {import('./types.js').ComponentContext} context
+ */
+function serializeEventHandler(node, { state, visit }) {
+    /** @type {import('estree').Expression} */
+    let handler;
+
+    if (node.expression) {
+        const expr = node.expression;
+
+        // Event handlers can be dynamic (source/store/prop/conditional etc)
+        const dynamic_handler = () =>
+            b.function(
+                null,
+                [b.rest(b.id("$$args"))],
+                b.block([
+                    b.const(
+                        "$$callback",
+                        /** @type {import('estree').Expression} */ (
+                            visit(expr)
+                        ),
+                    ),
+                    b.return(
+                        b.call(
+                            b.member(
+                                b.id("$$callback"),
+                                b.id("apply"),
+                                false,
+                                true,
+                            ),
+                            b.this,
+                            b.id("$$args"),
+                        ),
+                    ),
+                ]),
+            );
+
+        if (expr.type === "Identifier" || expr.type === "MemberExpression") {
+            const id = object(expr);
+
+            /** @type {any} */
+            const binding = id === null ? null : state.scope.get(id.name);
+
+            if (
+                binding !== null &&
+                (binding.kind === "state" ||
+                    binding.kind === "frozen_state" ||
+                    binding.declaration_kind === "import" ||
+                    binding.kind === "legacy_reactive" ||
+                    binding.kind === "derived" ||
+                    binding.kind === "prop" ||
+                    binding.kind === "bindable_prop" ||
+                    binding.kind === "store_sub")
+            ) {
+                handler = dynamic_handler();
+            } else {
+                handler = /** @type {import('estree').Expression} */ (
+                    visit(expr)
+                );
+            }
+        } else if (
+            expr.type === "ConditionalExpression" ||
+            expr.type === "LogicalExpression"
+        ) {
+            handler = dynamic_handler();
+        } else {
+            handler = /** @type {import('estree').Expression} */ (visit(expr));
+        }
+    } else {
+        state.analysis.needs_props = true;
+
+        // Function + .call to preserve "this" context as much as possible
+        handler = b.function(
+            null,
+            [b.id("$$arg")],
+            b.block([
+                b.stmt(
+                    b.call(
+                        "$.bubble_event.call",
+                        b.this,
+                        b.id("$$props"),
+                        b.id("$$arg"),
+                    ),
+                ),
+            ]),
+        );
+    }
+
+    if (node.modifiers.includes("stopPropagation")) {
+        handler = b.call("$.stopPropagation", handler);
+    }
+    if (node.modifiers.includes("stopImmediatePropagation")) {
+        handler = b.call("$.stopImmediatePropagation", handler);
+    }
+    if (node.modifiers.includes("preventDefault")) {
+        handler = b.call("$.preventDefault", handler);
+    }
+    if (node.modifiers.includes("self")) {
+        handler = b.call("$.self", handler);
+    }
+    if (node.modifiers.includes("trusted")) {
+        handler = b.call("$.trusted", handler);
+    }
+
+    return handler;
+}
+
+/**
+ * @param {true | Array<import('#ast').Text | import('#ast').ExpressionTag>} attribute_value
+ * @param {import('./types.js').ComponentContext} context
+ * @returns {[boolean, import('estree').Expression]}
+ */
+function serializeAttributeValue(attribute_value, context) {
+    let contains_call_expression = false;
+
+    if (attribute_value === true) {
+        return [contains_call_expression, b.literal(true)];
+    }
+
+    if (attribute_value.length === 0) {
+        return [contains_call_expression, b.literal("")]; // is this even possible?
+    }
+
+    if (attribute_value.length === 1) {
+        const value = attribute_value[0];
+        if (value.type === "Text") {
+            return [contains_call_expression, b.literal(value.data)];
+        } else {
+            if (value.type === "ExpressionTag") {
+                contains_call_expression =
+                    value.metadata?.contains_call_expression;
+            }
+            return [
+                contains_call_expression,
+                /** @type {import('estree').Expression} */ (
+                    context.visit(value.expression)
+                ),
+            ];
+        }
+    }
+
+    return serializeTemplateLiteral(
+        attribute_value,
+        context.visit,
+        context.state,
+    );
+}
+
+/**
+ * @param {import('#ast').RegularElement} element
+ * @param {import('#ast').Attribute} attribute
+ * @param {{ state: { metadata: { namespace: import('#ast').Namespace }}}} context
+ */
+function getAttributeName(element, attribute, context) {
+    let name = attribute.name;
+    if (
+        !element.metadata?.svg &&
+        !element.metadata?.mathml &&
+        context.state.metadata.namespace !== "foreign"
+    ) {
+        name = name.toLowerCase();
+        if (name in AttributeAliases) {
+            name = AttributeAliases[name];
+        }
+    }
+    return name;
+}
+
+/**
+ * Serializes an assignment to an element property by adding relevant statements to either only
+ * the init or the the init and update arrays, depending on whether or not the value is dynamic.
+ * Resulting code for static looks something like this:
+ * ```js
+ * element.property = value;
+ * // or
+ * $.set_attribute(element, property, value);
+ * });
+ * ```
+ * Resulting code for dynamic looks something like this:
+ * ```js
+ * let value;
+ * $.template_effect(() => {
+ * 	if (value !== (value = 'new value')) {
+ * 		element.property = value;
+ * 		// or
+ * 		$.set_attribute(element, property, value);
+ * 	}
+ * });
+ * ```
+ * Returns true if attribute is deemed reactive, false otherwise.
+ * @param {import('#ast').RegularElement} element
+ * @param {import('estree').Identifier} node_id
+ * @param {import('#ast').Attribute} attribute
+ * @param {import('./types.js').ComponentContext} context
+ * @returns {boolean}
+ */
+function serialize_element_attribute_update_assignment(
+    element,
+    node_id,
+    attribute,
+    context,
+) {
+    const state = context.state;
+    const name = getAttributeName(element, attribute, context);
+    const is_svg = context.state.metadata.namespace === "svg";
+    const is_mathml = context.state.metadata.namespace === "mathml";
+    let [contains_call_expression, value] = serializeAttributeValue(
+        attribute.value,
+        context,
+    );
+
+    // The foreign namespace doesn't have any special handling, everything goes through the attr function
+    if (context.state.metadata.namespace === "foreign") {
+        const statement = b.stmt(
+            b.call("$.set_attribute", node_id, b.literal(name), value),
+        );
+
+        if (attribute.metadata?.dynamic) {
+            const id = state.scope.generate(`${node_id.name}_${name}`);
+            serialize_update_assignment(state, id, undefined, value, statement);
+            return true;
+        } else {
+            state.init.push(statement);
+            return false;
+        }
+    }
+
+    if (name === "autofocus") {
+        state.init.push(b.stmt(b.call("$.autofocus", node_id, value)));
+        return false;
+    }
+
+    /** @type {import('estree').Statement} */
+    let update;
+
+    if (name === "class") {
+        update = b.stmt(
+            b.call(
+                is_svg
+                    ? "$.set_svg_class"
+                    : is_mathml
+                      ? "$.set_mathml_class"
+                      : "$.set_class",
+                node_id,
+                value,
+            ),
+        );
+    } else if (DOMProperties.includes(name)) {
+        update = b.stmt(
+            b.assignment("=", b.member(node_id, b.id(name)), value),
+        );
+    } else {
+        const callee = name.startsWith("xlink")
+            ? "$.set_xlink_attribute"
+            : "$.set_attribute";
+        update = b.stmt(b.call(callee, node_id, b.literal(name), value));
+    }
+
+    if (attribute.metadata?.dynamic) {
+        if (contains_call_expression) {
+            state.init.push(serialize_update(update));
+        } else {
+            state.update.push(update);
+        }
+        return true;
+    } else {
+        state.init.push(update);
+        return false;
+    }
+}
+
+/**
+ * Serializes each class directive into something like `$.class_toogle(element, class_name, value)`
+ * and adds it either to init or update, depending on whether or not the value or the attributes are dynamic.
+ * @param {import('#ast').ClassDirective[]} class_directives
+ * @param {import('estree').Identifier} element_id
+ * @param {import('./types.js').ComponentContext} context
+ * @param {boolean} is_attributes_reactive
+ */
+function serializeClassDirectives(
+    class_directives,
+    element_id,
+    context,
+    is_attributes_reactive,
+) {
+    const state = context.state;
+    for (const directive of class_directives) {
+        const value = /** @type {import('estree').Expression} */ (
+            context.visit(directive.expression)
+        );
+        const update = b.stmt(
+            b.call(
+                "$.toggle_class",
+                element_id,
+                b.literal(directive.name),
+                value,
+            ),
+        );
+        const contains_call_expression =
+            directive.expression.type === "CallExpression";
+
+        if (!is_attributes_reactive && contains_call_expression) {
+            state.init.push(serialize_update(update));
+        } else if (
+            is_attributes_reactive ||
+            directive.metadata.dynamic ||
+            contains_call_expression
+        ) {
+            state.update.push(update);
+        } else {
+            state.init.push(update);
+        }
+    }
+}
+
+/**
+ * For unfortunate legacy reasons, directive names can look like this `use:a.b-c`
+ * This turns that string into a member expression
+ * @param {string} name
+ * @returns {import("#ast").Identifier | import("#ast").MemberExpression}
+ */
+function parseDirectiveName(name) {
+    // this allow for accessing members of an object
+    const parts = name.split(".");
+    let part = /** @type {string} */ (parts.shift());
+
+    /** @type {import('#ast').Identifier | import('#ast').MemberExpression} */
+    let expression = {
+        type: "Identifier",
+        name: part,
+        start: -1,
+        end: -1,
+    };
+
+    while ((part = /** @type {string} */ (parts.shift()))) {
+        const computed = !regex_is_valid_identifier.test(part);
+        expression = {
+            type: "MemberExpression",
+            object: expression,
+            ...(computed === true
+                ? {
+                      computed,
+                      property: {
+                          type: "StringLiteral",
+                          value: part,
+                          raw: `"${part}"`,
+                          start: -1,
+                          end: -1,
+                      },
+                  }
+                : {
+                      computed,
+                      property: {
+                          type: "Identifier",
+                          name: part,
+                          start: -1,
+                          end: -1,
+                      },
+                  }),
+            start: -1,
+            end: -1,
+        };
+    }
+
+    return expression;
 }

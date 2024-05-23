@@ -182,14 +182,14 @@ function handle(node, ctx, deep, scope, meta) {
                             break;
                         }
 
-                        if (attr.values === true) {
+                        if (attr.value === true) {
                             ctx.appendText(` ${attr.name}`);
                         } else if (
-                            attr.values.length === 1 &&
-                            attr.values[0].type === "Text"
+                            attr.value.length === 1 &&
+                            attr.value[0].type === "Text"
                         ) {
                             ctx.appendText(
-                                ` ${attr.name}="${attr.values[0].data}"`,
+                                ` ${attr.name}="${attr.value[0].data}"`,
                             );
                         } else {
                             ctx.appendText(` ${attr.name}="`);
@@ -222,13 +222,13 @@ function handle(node, ctx, deep, scope, meta) {
                             );
 
                         attrs.forEach((a) => {
-                            if (a.values === true) return;
+                            if (a.value === true) return;
 
-                            const last = a.values[a.values.length - 1];
+                            const last = a.value[a.value.length - 1];
                             if (last.type === "Text") {
                                 last.data += " ";
                             } else {
-                                a.values.push({
+                                a.value.push({
                                     type: "Text",
                                     data: " ",
                                     end: -1,
@@ -796,18 +796,18 @@ function expression(node, ctx, deep, scope) {
  * @param {string[][]} scope
  */
 function computeAttrValue(attr, ctx, deep, scope) {
-    if (attr.values === true) return b.boolean(true);
+    if (attr.value === true) return b.boolean(true);
 
-    if (attr.values.length === 1) {
-        if (attr.values[0].type !== "Text") {
-            const ex = attr.values[0];
+    if (attr.value.length === 1) {
+        if (attr.value[0].type !== "Text") {
+            const ex = attr.value[0];
             return expression(ex, ctx, deep, scope);
         } else {
-            return b.string(attr.values[0].data);
+            return b.string(attr.value[0].data);
         }
     }
 
-    const template = attr.values.map((val) => {
+    const template = attr.value.map((val) => {
         if (val.type === "Text") {
             return val.data;
         } else {

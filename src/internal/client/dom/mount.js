@@ -230,8 +230,8 @@ function handle(node, currentNode, ctx) {
 
         case "Attribute": {
             if (
-                node.values !== true &&
-                (node.values.length > 1 || node.values[0].type !== "Text")
+                node.value !== true &&
+                (node.value.length > 1 || node.value[0].type !== "Text")
             ) {
                 const element = /** @type {HTMLElement} */ (currentNode);
 
@@ -265,12 +265,7 @@ function handle(node, currentNode, ctx) {
         }
 
         case "BindDirective": {
-            const ex = node.expression ?? {
-                type: "Identifier",
-                name: node.name,
-                start: -1,
-                end: -1,
-            };
+            const ex = node.expression;
 
             const get = () => handle(ex, currentNode, ctx);
             const set = (/** @type {any} */ $$value) =>
@@ -396,12 +391,7 @@ function handle(node, currentNode, ctx) {
         case "ClassDirective": {
             const element = /** @type {HTMLElement} */ (currentNode);
             const name = node.name;
-            const ex = node.expression ?? {
-                type: "Identifier",
-                name: node.name,
-                start: -1,
-                end: -1,
-            };
+            const ex = node.expression;
 
             $.render_effect(() => {
                 $.toggle_class(element, name, handle(ex, currentNode, ctx));
@@ -460,14 +450,28 @@ function handle(node, currentNode, ctx) {
             return array;
         }
 
-        case "BinaryExpression": {
+        case "LogicalExpression": {
             const left = handle(node.left, currentNode, ctx);
+            const right = () => handle(node.right, currentNode, ctx);
 
             switch (node.operator) {
                 case "??":
-                    return left ?? handle(node.right, currentNode, ctx);
-            }
+                    return left ?? right();
+                case "and":
+                    return left && right();
+                case "||":
+                case "or":
+                    return left || right();
 
+                default:
+                    throw new Error(
+                        // @ts-expect-error
+                        `Unhandled LogicalExpression operator "${node.operator}"`,
+                    );
+            }
+        }
+        case "BinaryExpression": {
+            const left = handle(node.left, currentNode, ctx);
             const right = handle(node.right, currentNode, ctx);
 
             switch (node.operator) {
@@ -498,14 +502,9 @@ function handle(node, currentNode, ctx) {
                 case "*":
                     return left * right;
 
-                case "and":
-                    return left && right;
-                case "||":
-                case "or":
-                    return left || right;
-
                 default:
                     throw new Error(
+                        // @ts-expect-error
                         `Unhandled BinaryExpression operator "${node.operator}"`,
                     );
             }
@@ -667,7 +666,7 @@ function handle(node, currentNode, ctx) {
             const text = $.text(anchor);
             anchor.before(text);
 
-            $.render_effect(() =>
+            $.template_effect(() =>
                 $.set_text(
                     text,
                     $.stringify(handle(node.expression, currentNode, ctx)),
@@ -806,13 +805,13 @@ function handle(node, currentNode, ctx) {
             node.attributes.forEach((attr) => {
                 switch (attr.type) {
                     case "Attribute": {
-                        if (attr.values === true) {
+                        if (attr.value === true) {
                             props[attr.name] = true;
                         } else if (
-                            attr.values.length === 1 &&
-                            attr.values[0].type === "Text"
+                            attr.value.length === 1 &&
+                            attr.value[0].type === "Text"
                         ) {
-                            props[attr.name] = attr.values[0].data;
+                            props[attr.name] = attr.value[0].data;
                         } else {
                             $.render_effect(() => {
                                 props[attr.name] = computeAttributeValue(
@@ -829,12 +828,7 @@ function handle(node, currentNode, ctx) {
                         if (attr.name === "this") {
                             thisAttr = attr;
                         } else {
-                            const expression = attr.expression ?? {
-                                type: "Identifier",
-                                name: attr.name,
-                                start: -1,
-                                end: -1,
-                            };
+                            const expression = attr.expression;
 
                             $.render_effect(() => {
                                 props[attr.name] = handle(
@@ -987,12 +981,7 @@ function handle(node, currentNode, ctx) {
                     }
 
                     case "BindDirective": {
-                        const ex = attr.expression ?? {
-                            type: "Identifier",
-                            name: attr.name,
-                            start: -1,
-                            end: -1,
-                        };
+                        const ex = attr.expression;
 
                         $.render_effect(() => {
                             props[attr.name] = handle(ex, currentNode, ctx);
@@ -1078,10 +1067,14 @@ function computeAttributeValue(attr, currentNode, ctx) {
     /** @type {any} */
     let value = UNINITIALIZED;
 
-    if (attr.values === true) value = true;
+    if (attr.value === true) value = true;
     else
-        attr.values.forEach((n) => {
-            const r = handle(n, currentNode, ctx);
+        attr.value.forEach((n) => {
+            const r = handle(
+                n.type === "Text" ? n : n.expression,
+                currentNode,
+                ctx,
+            );
 
             if (value === UNINITIALIZED) {
                 value = r;

@@ -48,13 +48,13 @@ export function parseLogicExpression(parser) {
 
     parser.allowWhitespace();
     /**
-     * @type {"or" | "and" | "||"}
+     * @type {import("../types.js").LogicalExpression["operator"]}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(or|and|\|\|)/))
+        (operator = parser.read(/^(or|and|\?\?|\|\|)/))
     ) {
         parser.allowWhitespace();
         const right = parseComparison(parser);
@@ -62,7 +62,7 @@ export function parseLogicExpression(parser) {
         parser.allowWhitespace();
 
         left = {
-            type: "BinaryExpression",
+            type: "LogicalExpression",
             operator,
             left,
             right,
@@ -83,13 +83,13 @@ export function parseComparison(parser) {
 
     parser.allowWhitespace();
     /**
-     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "??"}
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!="}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(<=|>=|==|!=|\?\?|>|<)/))
+        (operator = parser.read(/^(<=|>=|==|!=|>|<)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
