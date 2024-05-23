@@ -1,6 +1,6 @@
 /**
  * @template [T = any]
- * @template {Record<string, HTMLElement>} [Els = Record<string, HTMLElement>]
+ * @template {Record<string, HTMLElement | Record<string, any>>} [Els = Record<string, HTMLElement>]
  * @typedef {import("./types.js").ComponentInitArgs<T, Els>} Args
  */
 
@@ -52,4 +52,12 @@ export function derived(fn) {
  */
 export function proxy(object) {
     return $.proxy(object);
+}
+
+/**
+ * @param {*} a
+ * @param {*} b
+ */
+export function is(a, b) {
+    return $.is(a, b);
 }
