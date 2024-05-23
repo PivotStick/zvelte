@@ -61,7 +61,10 @@ export function renderDom(ast, analysis, options, meta) {
         scope: analysis.template.scope,
         scopes: analysis.template.scopes,
         options,
-        hoisted: [b.importAll("$", "svelte/internal/client")],
+        hoisted: [
+            b.importAll("$", "svelte/internal/client"),
+            b.importAll("svelte", "svelte"),
+        ],
         node: /** @type {any} */ (null), // populated by the root node
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
@@ -165,6 +168,27 @@ export function renderDom(ast, analysis, options, meta) {
     );
 
     body.push(b.exportDefault(component));
+
+    body.push(
+        b.exportNamed(
+            b.function_declaration(
+                b.id("mount"),
+                [b.id("args")],
+                b.block([
+                    b.stmt(
+                        b.assignment(
+                            "=",
+                            b.id("args.props"),
+                            b.call("$.proxy", b.id("args.props")),
+                        ),
+                    ),
+                    b.return(
+                        b.call("svelte.mount", component.id, b.id("args")),
+                    ),
+                ]),
+            ),
+        ),
+    );
 
     return print({
         type: "Program",

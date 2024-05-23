@@ -145,6 +145,18 @@ export function exportDefault(declaration) {
 }
 
 /**
+ * @param {import("estree").ExportNamedDeclaration["declaration"]=} declaration
+ * @returns {import('estree').ExportNamedDeclaration}
+ */
+export function exportNamed(declaration) {
+    return {
+        type: "ExportNamedDeclaration",
+        declaration,
+        specifiers: [],
+    };
+}
+
+/**
  * @param {import('estree').Statement[]} body
  * @returns {import('estree').BlockStatement}
  */
