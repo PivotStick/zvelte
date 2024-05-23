@@ -1,9 +1,3 @@
-/**
- * @template [T = any]
- * @template {Record<string, HTMLElement | Record<string, any>>} [Els = Record<string, HTMLElement>]
- * @typedef {import("./types.js").ComponentInitArgs<T, Els>} Args
- */
-
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
