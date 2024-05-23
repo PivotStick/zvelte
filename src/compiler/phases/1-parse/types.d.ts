@@ -134,7 +134,7 @@ export interface IfBlock extends BaseNode {
 export interface ForBlock extends BaseNode {
     type: "ForBlock";
     expression: Expression;
-    key: null | Identifier;
+    key: null | Identifier | MemberExpression;
     index?: string;
     context: Identifier;
     body: Fragment;

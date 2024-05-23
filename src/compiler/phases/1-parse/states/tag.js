@@ -1,5 +1,9 @@
 import { Parser } from "../index.js";
-import { parseExpression, parseIdentifier } from "../read/expression.js";
+import {
+    parseChainableExpression,
+    parseExpression,
+    parseIdentifier,
+} from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 
 /**
@@ -123,8 +127,12 @@ function open(parser, start) {
         parser.allowWhitespace();
         if (parser.eat("#")) {
             parser.eat("(", true);
-            key = parseIdentifier(parser);
-            if (!key) throw parser.error("Expected an identifier");
+            key = parseChainableExpression(parser) ?? parseIdentifier(parser);
+            if (key?.type !== "Identifier" && key?.type !== "MemberExpression")
+                throw parser.error(
+                    "Expected an Identifier or a MemberExpression",
+                );
+
             parser.eat(")", true);
             parser.allowWhitespace();
         }
