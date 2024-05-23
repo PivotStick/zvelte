@@ -374,7 +374,7 @@ const readAttribute = (parser, uniqueNames) => {
         ) {
             throw parser.error(
                 "Directive value must be an expression enclosed in curly braces",
-                start,
+                start + name.length + 2,
             );
         }
 
@@ -480,7 +480,7 @@ const readAttributeValue = (parser) => {
     /**
      * @type {Array<import("../types.js").Text | import("../types.js").Expression>}
      */
-    const value = [];
+    const values = [];
 
     while (!parser.match(quoteMark)) {
         if (parser.eat("{{")) {
@@ -488,9 +488,9 @@ const readAttributeValue = (parser) => {
             const expression = parseExpression(parser);
             parser.allowWhitespace();
             parser.eat("}}", true);
-            value.push(expression);
+            values.push(expression);
         } else {
-            let text = value.at(-1);
+            let text = values.at(-1);
 
             if (text?.type !== "Text") {
                 text = {
@@ -499,7 +499,7 @@ const readAttributeValue = (parser) => {
                     type: "Text",
                     data: "",
                 };
-                value.push(text);
+                values.push(text);
             }
 
             text.data += parser.template[parser.index++];
@@ -507,7 +507,16 @@ const readAttributeValue = (parser) => {
         }
     }
 
+    if (!values.length) {
+        values.push({
+            type: "Text",
+            start: parser.index,
+            end: parser.index,
+            data: "",
+        });
+    }
+
     parser.eat(quoteMark, true);
 
-    return value;
+    return values;
 };
