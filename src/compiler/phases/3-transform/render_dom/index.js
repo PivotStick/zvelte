@@ -61,10 +61,7 @@ export function renderDom(ast, analysis, options, meta) {
         scope: analysis.template.scope,
         scopes: analysis.template.scopes,
         options,
-        hoisted: [
-            b.importAll("$", "svelte/internal/client"),
-            b.importAll("svelte", "svelte"),
-        ],
+        hoisted: [b.importAll("$", "@pivotass/zvelte/internal/client")],
         node: /** @type {any} */ (null), // populated by the root node
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
@@ -165,7 +162,6 @@ export function renderDom(ast, analysis, options, meta) {
                 "js",
                 `./${options.filename.replace(/\.[^\.]*$/, ".js")}`,
             ),
-            b.importAll("zvelte", "@pivotass/zvelte/internal/client"),
         );
 
         componentBlock.body.unshift(
@@ -219,9 +215,7 @@ export function renderDom(ast, analysis, options, meta) {
                 b.id("mount"),
                 [b.id("args")],
                 b.block([
-                    b.return(
-                        b.call("svelte.mount", component.id, b.id("args")),
-                    ),
+                    b.return(b.call("$.mount", component.id, b.id("args"))),
                 ]),
             ),
         ),
@@ -885,7 +879,7 @@ const templateVisitors = {
             member = b.member(
                 context.state.options.hasJS
                     ? b.call(
-                          "zvelte.scope",
+                          "$.scope",
                           b.id("$$scopes"),
                           b.literal(member.object.name),
                       )
@@ -905,11 +899,7 @@ const templateVisitors = {
         if (context.path.at(-1)?.type !== "MemberExpression") {
             id = b.member(
                 context.state.options.hasJS
-                    ? b.call(
-                          "zvelte.scope",
-                          b.id("$$scopes"),
-                          b.literal(id.name),
-                      )
+                    ? b.call("$.scope", b.id("$$scopes"), b.literal(id.name))
                     : b.id("$$props"),
                 id,
             );

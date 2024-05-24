@@ -1,3 +1,6 @@
+export { mount, hydrate } from "svelte";
+export * from "svelte/internal/client";
+
 /**
  * @param {Record<string, any>[]} scopes
  * @param {string} key
