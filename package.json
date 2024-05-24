@@ -40,6 +40,9 @@
         },
         "./types": {
             "default": "./src/compiler/phases/1-parse/types.d.ts"
+        },
+        "./internal/client": {
+            "default": "./src/internal/client/runtime/index.js"
         }
     },
     "bugs": {

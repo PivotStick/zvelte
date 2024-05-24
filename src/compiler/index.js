@@ -14,6 +14,7 @@ const renderers = {
  *  filename?: string;
  *  namespace?: string;
  *  generate?: keyof renderers;
+ *  hasJS?: boolean;
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
  * }=} options
@@ -37,7 +38,8 @@ export function compile(source, options = {}, meta = {}) {
         {
             dir: options.dir ?? "",
             namespace: options.namespace ?? "Zvelte\\components",
-            filename: options.filename ?? "Component",
+            filename: options.filename ?? "Component.twig",
+            hasJS: options.hasJS ?? false,
         },
         meta,
     );

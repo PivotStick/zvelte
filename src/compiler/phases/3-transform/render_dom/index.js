@@ -159,10 +159,54 @@ export function renderDom(ast, analysis, options, meta) {
         /** @type {import('estree').Statement[]} */ (template.body),
     );
 
+    if (options.hasJS) {
+        state.hoisted.unshift(
+            b.importAll(
+                "js",
+                `./${options.filename.replace(/\.[^\.]*$/, ".js")}`,
+            ),
+            b.importAll("zvelte", "@pivotass/zvelte/internal/client"),
+        );
+
+        componentBlock.body.unshift(
+            b.stmt(
+                b.assignment(
+                    "=",
+                    b.id("$$props"),
+                    b.call("$.proxy", b.id("$$props")),
+                ),
+            ),
+            b.stmt(b.call("$.push", b.id("$$props"), b.true)),
+            b.const("$$els", b.object([])),
+            b.const(
+                "$$scope",
+                b.logical(b.optionalCall("js.scope"), "??", b.object([])),
+            ),
+            b.const(
+                "$$methods",
+                b.logical(
+                    b.optionalCall(
+                        "js.default",
+                        b.object([
+                            b.prop("init", b.id("props"), b.id("$$props")),
+                            b.prop("init", b.id("scope"), b.id("$$scope")),
+                            b.prop("init", b.id("els"), b.id("$$els")),
+                        ]),
+                    ),
+                    "??",
+                    b.object([]),
+                ),
+            ),
+            b.const("$$scopes", b.array([b.id("$$scope"), b.id("$$props")])),
+        );
+
+        componentBlock.body.push(b.return(b.call("$.pop", b.id("$$methods"))));
+    }
+
     const body = [...state.hoisted];
 
     const component = b.function_declaration(
-        b.id(options.filename),
+        b.id(options.filename.replace(/\.[^\.]*$/, "")),
         [b.id("$$anchor"), b.id("$$props")],
         componentBlock,
     );
@@ -175,13 +219,6 @@ export function renderDom(ast, analysis, options, meta) {
                 b.id("mount"),
                 [b.id("args")],
                 b.block([
-                    b.stmt(
-                        b.assignment(
-                            "=",
-                            b.id("args.props"),
-                            b.call("$.proxy", b.id("args.props")),
-                        ),
-                    ),
                     b.return(
                         b.call("svelte.mount", component.id, b.id("args")),
                     ),
@@ -817,40 +854,15 @@ const templateVisitors = {
     },
 
     // @ts-ignore
+    CallExpression(node, context) {
+        return serializeFunction(node, context);
+    },
+
+    // @ts-ignore
     FilterExpression(node, context) {
         if (node.name.name in filters) {
         } else {
-            const name = /** @type {import("estree").MemberExpression} */ (
-                context.visit(node.name)
-            );
-
-            const args = [];
-            let hasEvent = false;
-
-            const inOnDirective = context.path.at(-1)?.type === "OnDirective";
-
-            for (const arg of node.arguments) {
-                if (inOnDirective && object(arg)?.name === "_event") {
-                    hasEvent = true;
-                    args.push(arg);
-                } else {
-                    args.push(
-                        /** @type {import("estree").Expression} */ (
-                            context.visit(arg)
-                        ),
-                    );
-                }
-            }
-
-            const call = b.call(name, ...args);
-
-            if (inOnDirective) {
-                const patterns = [];
-                if (hasEvent) patterns.push(b.id("_event"));
-                return b.arrow(patterns, call);
-            }
-
-            return call;
+            return serializeFunction(node, context);
         }
     },
 
@@ -866,19 +878,42 @@ const templateVisitors = {
 
         let member = b.member(object, property, node.computed);
 
-        if (context.path.at(-1)?.type !== "MemberExpression")
-            member = b.member(b.id("$$props"), member);
+        if (
+            context.path.at(-1)?.type !== "MemberExpression" &&
+            member.object.type === "Identifier"
+        ) {
+            member = b.member(
+                context.state.options.hasJS
+                    ? b.call(
+                          "zvelte.scope",
+                          b.id("$$scopes"),
+                          b.literal(member.object.name),
+                      )
+                    : b.id("$$props"),
+                member,
+            );
+        }
 
         return member;
     },
 
     // @ts-ignore
     Identifier(node, context) {
-        /** @type {import("estree").Identifier | import("estree").MemberExpression} */
+        /** @type {import("estree").Expression} */
         let id = b.id(node.name);
 
-        if (context.path.at(-1)?.type !== "MemberExpression")
-            id = b.member(b.id("$$props"), id);
+        if (context.path.at(-1)?.type !== "MemberExpression") {
+            id = b.member(
+                context.state.options.hasJS
+                    ? b.call(
+                          "zvelte.scope",
+                          b.id("$$scopes"),
+                          b.literal(id.name),
+                      )
+                    : b.id("$$props"),
+                id,
+            );
+        }
 
         return id;
     },
@@ -1612,4 +1647,40 @@ function parseDirectiveName(name) {
     }
 
     return expression;
+}
+
+/**
+ * @param {import("#ast").FilterExpression | import("#ast").CallExpression} node
+ * @param {import("./types.js").ComponentContext} context
+ */
+function serializeFunction(node, context) {
+    const name = /** @type {import("estree").MemberExpression} */ (
+        context.visit(node.name)
+    );
+
+    const args = [];
+    let hasEvent = false;
+
+    const inOnDirective = context.path.at(-1)?.type === "OnDirective";
+
+    for (const arg of node.arguments) {
+        if (inOnDirective && object(arg)?.name === "_event") {
+            hasEvent = true;
+            args.push(arg);
+        } else {
+            args.push(
+                /** @type {import("estree").Expression} */ (context.visit(arg)),
+            );
+        }
+    }
+
+    const call = b.call(name, ...args);
+
+    if (inOnDirective) {
+        const patterns = [];
+        if (hasEvent) patterns.push(b.id("_event"));
+        return b.arrow(patterns, call);
+    }
+
+    return call;
 }

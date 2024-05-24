@@ -1,16 +1,11 @@
 import type { ZvelteNode } from "#ast";
+import type { Transformer } from "../types.js";
 import type { Scope } from "./scope.js";
 
 export type ComponentClientTransformState = {
     readonly scope: Scope;
     readonly scopes: Map<ZvelteNode, Scope>;
-    options: {
-        dir: string;
-        namespace: string;
-        filename: string;
-        preserveWhitespace?: boolean;
-        preserveComments?: boolean;
-    };
+    options: Parameters<Transformer>[2];
     hoisted: ImportDeclaration[];
     node: any;
     readonly before_init: any[];

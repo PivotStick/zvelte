@@ -10,8 +10,10 @@ export type Transformer = (
         namespace: string;
         filename: string;
         preserveWhitespace?: boolean;
+        preserveComments?: boolean;
+        hasJS: boolean;
     },
-    meta: any,
+    meta: {},
 ) => {
     code: string;
 };

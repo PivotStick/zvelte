@@ -1,6 +1,26 @@
 import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 
 /**
+ * @template {import('estree').Expression} Value
+ * @param {'init' | 'get' | 'set'} kind
+ * @param {import('estree').Expression} key
+ * @param {Value} value
+ * @param {boolean} computed
+ * @returns {import('estree').Property & { value: Value }}
+ */
+export function prop(kind, key, value, computed = false) {
+    return {
+        type: "Property",
+        kind,
+        key,
+        value,
+        method: false,
+        shorthand: false,
+        computed,
+    };
+}
+
+/**
  * @param {import('estree').Pattern} argument
  * @returns {import('estree').RestElement}
  */
@@ -269,12 +289,24 @@ export function call(callee, ...args) {
     return {
         type: "CallExpression",
         callee,
+        optional: false,
         arguments:
             /** @type {Array<import('estree').Expression | import('estree').SpreadElement>} */ (
                 args
             ),
-        optional: false,
     };
+}
+
+/**
+ * @param {string | import('estree').Expression} callee
+ * @param {...(import('estree').Expression | import('estree').SpreadElement | false | undefined)} args
+ * @returns {import('estree').CallExpression}
+ */
+export function optionalCall(callee, ...args) {
+    const expr = call(callee, ...args);
+    // @ts-ignore
+    expr.optional = true;
+    return expr;
 }
 
 /**
