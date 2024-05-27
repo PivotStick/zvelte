@@ -66,6 +66,7 @@ export function createComponent({ init, ast, key, initScope }) {
         const ctx = {
             scope: [scope, $$props],
             els: {},
+            bindingGroups: {},
         };
 
         if (init) {
@@ -200,9 +201,10 @@ function findScopeFromExpression(expression, currentNode, ctx, onfallback) {
  * @param {import("#ast").ZvelteNode} node
  * @param {any} currentNode
  * @param {import("../types.js").Ctx} ctx
+ * @param {import("#ast").ZvelteNode | null} parent
  * @returns {any}
  */
-function handle(node, currentNode, ctx) {
+function handle(node, currentNode, ctx, parent = null) {
     switch (node.type) {
         case "Root":
             handle(node.fragment, currentNode, ctx);
@@ -223,7 +225,9 @@ function handle(node, currentNode, ctx) {
         }
 
         case "RegularElement": {
-            node.attributes.forEach((attr) => handle(attr, currentNode, ctx));
+            node.attributes.forEach((attr) => {
+                handle(attr, currentNode, ctx, node);
+            });
             handle(node.fragment, currentNode, ctx);
             break;
         }
@@ -234,6 +238,20 @@ function handle(node, currentNode, ctx) {
                 (node.value.length > 1 || node.value[0].type !== "Text")
             ) {
                 const element = /** @type {HTMLElement} */ (currentNode);
+
+                const hasBindGroup =
+                    parent?.type === "RegularElement" &&
+                    parent.attributes.some(
+                        (a) => a.type === "BindDirective" && a.name === "group",
+                    );
+
+                if (
+                    element instanceof HTMLInputElement &&
+                    node.name === "value" &&
+                    hasBindGroup
+                ) {
+                    return;
+                }
 
                 if (
                     (element instanceof HTMLButtonElement &&
@@ -306,24 +324,58 @@ function handle(node, currentNode, ctx) {
                         currentNode
                     );
                     const id = JSON.stringify(node.expression);
-                    const bindingGroup = ((ctx.bindingGroups ??= {})[id] ??=
-                        []);
+                    const bindingGroup = (ctx.bindingGroups[id] ??= []);
                     const groupIndex = [];
                     const loop = searchInScope("loop", ctx.scope);
                     if (loop?.index0 !== undefined) {
                         groupIndex.push(loop.index0);
                     }
-                    element.value =
-                        // @ts-ignore
-                        null == (element.__value = element.value)
-                            ? ""
-                            : element.value;
+
+                    $.remove_input_attr_defaults(element);
+
+                    const valueAttribute =
+                        parent?.type === "RegularElement" &&
+                        parent.attributes.find(
+                            (attr) =>
+                                attr.type === "Attribute" &&
+                                attr.name === "value",
+                        );
+
+                    /**
+                     * @type {(() => any)=}
+                     */
+                    let getValue;
+                    if (
+                        typeof valueAttribute !== "boolean" &&
+                        valueAttribute?.type === "Attribute"
+                    ) {
+                        /** @type {any} */
+                        let input_value;
+                        const v = (getValue = () =>
+                            computeAttributeValue(
+                                valueAttribute,
+                                currentNode,
+                                ctx,
+                            ));
+
+                        $.template_effect(() => {
+                            if (input_value !== (input_value = v())) {
+                                element.value =
+                                    // @ts-ignore
+                                    null == (element.__value = v()) ? "" : v();
+                            }
+                        });
+                    }
+
                     $.bind_group(
                         bindingGroup,
                         // @ts-ignore
-                        groupIndex,
+                        [],
                         element,
-                        get,
+                        () => {
+                            getValue?.();
+                            return get();
+                        },
                         set,
                     );
                 }

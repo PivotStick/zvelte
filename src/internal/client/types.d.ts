@@ -1,7 +1,7 @@
 export type Ctx = {
     scope: Record<string, any>[];
     els: Record<string, HTMLElement | Record<string, any>>;
-    bindingGroups?: Record<string, any[]>;
+    bindingGroups: Record<string, any[]>;
 };
 
 export type ComponentInitArgs<
