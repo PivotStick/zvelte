@@ -171,7 +171,6 @@ function handle(node, template) {
 
             break;
 
-        case "Comment":
         case "ClassDirective":
         case "TransitionDirective":
         case "BindDirective":
@@ -215,6 +214,10 @@ function handle(node, template) {
             newRoot(node.body);
             break;
         }
+
+        case "Comment":
+            template.src += `<!--${node.data}-->`;
+            break;
 
         case "RenderTag":
         case "Variable":
