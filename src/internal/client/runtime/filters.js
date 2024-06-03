@@ -57,7 +57,7 @@ export const filters = {
     default: (value, fallback) => value ?? fallback,
     escape: notImplemented("escape"),
     filter: (array, callback) => array?.filter(callback),
-    first: (array) => Object.keys(array)[0],
+    first: (array) => array[Object.keys(array).at(0)],
     format: sprintf,
     format_currency: notImplemented("format_currency"),
     format_date: notImplemented("format_date"),
@@ -94,7 +94,7 @@ export const filters = {
     language_name: notImplemented("language_name"),
     last: (value) => {
         const keys = Object.keys(value);
-        return keys[keys.length - 1];
+        return value[keys[keys.length - 1]];
     },
     length: (value) => {
         if (typeof value === "object" && value !== null) {
