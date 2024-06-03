@@ -4,7 +4,79 @@ import { Parser } from "../index.js";
  * @param {Parser} parser
  */
 export function parseExpression(parser) {
-    return parseConditional(parser);
+    return parseArrowFunctionExpression(parser);
+}
+
+/**
+ * @param {Parser} parser
+ * @returns {import("../types.js").Expression}
+ */
+export function parseArrowFunctionExpression(parser) {
+    const start = parser.index;
+    let expression = parseSequenceExpression(parser);
+
+    parser.allowWhitespace();
+
+    if (parser.eat("=>")) {
+        parser.allowWhitespace();
+        const body = parseExpression(parser);
+        const params = [];
+
+        if (expression.type === "Identifier") {
+            params.push(expression);
+        } else if (expression.type === "SequenceExpression") {
+            for (const item of expression.expressions) {
+                if (item.type !== "Identifier") {
+                    throw parser.error(
+                        `Only Identifiers can be declared`,
+                        start,
+                    );
+                }
+
+                params.push(item);
+            }
+        }
+
+        return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
+            type: "ArrowFunctionExpression",
+            start,
+            end: parser.index,
+            expression: true,
+            params,
+            body,
+        });
+    }
+
+    return expression;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseSequenceExpression(parser) {
+    const start = parser.index;
+    let first = parseConditional(parser);
+
+    parser.allowWhitespace();
+
+    const expressions = [first];
+
+    while (parser.eat(",")) {
+        parser.allowWhitespace();
+        expressions.push(parseConditional(parser));
+        parser.allowWhitespace();
+    }
+
+    if (expressions.length > 1) {
+        return /** @type {import("../types.js").SequenceExpression} */ ({
+            type: "SequenceExpression",
+            start,
+            end: parser.index,
+            expressions,
+        });
+    }
+
+    return first;
 }
 
 /**
