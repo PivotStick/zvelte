@@ -13,27 +13,35 @@ export function parseExpression(parser) {
  */
 export function parseArrowFunctionExpression(parser) {
     const start = parser.index;
-    let expression = parseSequenceExpression(parser);
+    let expression = !parser.eat("()") ? parseSequenceExpression(parser) : null;
 
     parser.allowWhitespace();
 
-    if (parser.eat("=>")) {
+    if (parser.eat("=>", expression === null)) {
         parser.allowWhitespace();
         const body = parseExpression(parser);
+
+        /**
+         * @type {import("../types.js").ArrowFunctionExpression["params"]}
+         */
         const params = [];
 
-        if (expression.type === "Identifier") {
-            params.push(expression);
-        } else if (expression.type === "SequenceExpression") {
-            for (const item of expression.expressions) {
-                if (item.type !== "Identifier") {
-                    throw parser.error(
-                        `Only Identifiers can be declared`,
-                        start,
-                    );
-                }
+        if (expression) {
+            if (expression.type === "Identifier") {
+                params.push(expression);
+            } else if (expression.type === "SequenceExpression") {
+                for (const item of expression.expressions) {
+                    if (item.type !== "Identifier") {
+                        throw parser.error(
+                            `Only Identifiers can be declared`,
+                            start,
+                        );
+                    }
 
-                params.push(item);
+                    params.push(item);
+                }
+            } else {
+                throw parser.error("Unexpected expression", start);
             }
         }
 
@@ -47,6 +55,7 @@ export function parseArrowFunctionExpression(parser) {
         });
     }
 
+    // @ts-ignore
     return expression;
 }
 
