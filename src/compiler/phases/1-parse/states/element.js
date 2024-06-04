@@ -1,4 +1,4 @@
-import { parseExpression } from "../read/expression.js";
+import { parseExpression, parseIdentifier } from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 import { isVoid } from "../../../shared/utils/names.js";
 import { Parser } from "../index.js";
@@ -340,10 +340,49 @@ const readAttribute = (parser, uniqueNames) => {
     }
 
     if (/\{\{/.test(name)) {
-        throw parser.error(
-            `"{{ ... }} expression cannot be used directly inside element's attributes, only in attribute's values"`,
+        parser.allowWhitespace();
+
+        if (parser.eat("...")) {
+            parser.allowWhitespace();
+            const expression = parseExpression(parser);
+
+            parser.allowWhitespace();
+            parser.eat("}}", true);
+
+            return {
+                type: "Spread",
+                start,
+                end: parser.index,
+                expression,
+            };
+        }
+
+        const identifier = parseIdentifier(parser);
+
+        if (!identifier) {
+            throw parser.error(
+                `"{{ ... }}" expression cannot be used directly inside element's attributes, only in attribute's values. It also can be used like this {{ foo }} as a shortcut for foo="{{ foo }}"`,
+                start,
+            );
+        }
+
+        parser.allowWhitespace();
+        parser.eat("}}", true);
+
+        return {
+            type: "Attribute",
+            name: identifier.name,
+            value: [
+                {
+                    type: "ExpressionTag",
+                    start,
+                    end: parser.index,
+                    expression: identifier,
+                },
+            ],
             start,
-        );
+            end: parser.index,
+        };
     }
 
     if (!name) return null;

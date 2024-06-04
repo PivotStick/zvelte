@@ -82,7 +82,7 @@ export interface BindDirective extends BaseNode {
 
 export interface Component extends BaseNode {
     type: "Component";
-    attributes: Array<Attribute | Directive>;
+    attributes: Array<Attribute | Directive | Spread>;
     fragment: Fragment;
     name: string;
     key: Text;
@@ -90,7 +90,7 @@ export interface Component extends BaseNode {
 
 export interface ZvelteComponent extends BaseNode {
     type: "ZvelteComponent";
-    attributes: Array<Attribute | BindDirective | OnDirective>;
+    attributes: Array<Attribute | BindDirective | OnDirective | Spread>;
     fragment: Fragment;
     name: string;
     expression: Expression;
@@ -175,7 +175,7 @@ export interface Root extends BaseNode {
 
 export interface RegularElement extends BaseNode {
     type: "RegularElement";
-    attributes: Array<Attribute | Directive>;
+    attributes: Array<Attribute | Directive | Spread>;
     fragment: Fragment;
     name: string;
 }
@@ -185,6 +185,11 @@ export type Attribute = BaseNode & {
     name: string;
     value: true | Array<Text | ExpressionTag>;
 };
+
+export interface Spread extends BaseNode {
+    type: "Spread";
+    expression: Expression;
+}
 
 export interface Property extends BaseNode {
     type: "Property";
@@ -331,5 +336,6 @@ export type ZvelteNode =
     | Fragment
     | Root
     | Attribute
+    | Spread
     | Property
     | Text;

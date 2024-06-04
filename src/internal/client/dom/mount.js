@@ -890,6 +890,16 @@ function handle(node, currentNode, ctx, parent = null) {
                         break;
                     }
 
+                    case "Spread": {
+                        $.render_effect(() => {
+                            Object.assign(
+                                props,
+                                handle(attr.expression, currentNode, ctx),
+                            );
+                        });
+                        break;
+                    }
+
                     case "BindDirective": {
                         if (attr.name === "this") {
                             thisAttr = attr;
