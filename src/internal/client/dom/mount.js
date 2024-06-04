@@ -660,6 +660,20 @@ function handle(node, currentNode, ctx, parent = null) {
             });
         }
 
+        case "ArrowFunctionExpression": {
+            return (/** @type {any[]} */ ...args) => {
+                /** @type {any} */
+                const scope = {};
+
+                for (let i = 0; i < node.params.length; i++) {
+                    const param = node.params[i];
+                    scope[param.name] = args[i];
+                }
+
+                return handle(node.body, currentNode, pushNewScope(ctx, scope));
+            };
+        }
+
         case "NumericLiteral":
         case "NullLiteral":
         case "BooleanLiteral":
