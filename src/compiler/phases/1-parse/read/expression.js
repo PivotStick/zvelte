@@ -577,7 +577,7 @@ export function parseObjectExpression(parser) {
             parser.allowWhitespace();
             parser.eat(":", true);
             parser.allowWhitespace();
-            const value = parseExpression(parser);
+            const value = parseConditional(parser);
             parser.allowWhitespace();
             parser.eat(",", !parser.match("}"));
             const end = parser.index;
