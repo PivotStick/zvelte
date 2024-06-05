@@ -415,7 +415,7 @@ export function parseChainableExpression(parser) {
             if (parser.eat("(")) {
                 parser.allowWhitespace();
                 while (!parser.eof() && !parser.eat(")")) {
-                    args.push(parseExpression(parser));
+                    args.push(parseConditional(parser));
                     parser.allowWhitespace();
                     if (!parser.match(")")) {
                         parser.eat(",", true);
@@ -443,7 +443,7 @@ export function parseChainableExpression(parser) {
             const args = [];
 
             while (!parser.eof() && !parser.eat(")")) {
-                args.push(parseExpression(parser));
+                args.push(parseConditional(parser));
                 parser.allowWhitespace();
                 if (!parser.match(")")) {
                     parser.eat(",", true);
