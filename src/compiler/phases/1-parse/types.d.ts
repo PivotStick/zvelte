@@ -24,7 +24,6 @@ export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
 export type Block = ForBlock | IfBlock | SnippetBlock;
 export type Expression =
     | ArrowFunctionExpression
-    | SequenceExpression
     | ConditionalExpression
     | Identifier
     | UnaryExpression
@@ -319,11 +318,6 @@ export interface ArrowFunctionExpression extends BaseNode {
     expression: true;
     body: Expression;
     params: Array<Identifier>;
-}
-
-export interface SequenceExpression extends BaseNode {
-    type: "SequenceExpression";
-    expressions: Array<Expression>;
 }
 
 export type ZvelteNode =

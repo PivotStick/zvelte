@@ -13,7 +13,47 @@ export function parseExpression(parser) {
  */
 export function parseArrowFunctionExpression(parser) {
     const start = parser.index;
-    let expression = !parser.eat("()") ? parseSequenceExpression(parser) : null;
+    const foundMatch = parser.matchRegex(/^\(.*\)\s*=>/);
+
+    if (foundMatch) {
+        /**
+         * @type {import("../types.js").ArrowFunctionExpression["params"]}
+         */
+        const params = [];
+
+        parser.eat("(", true);
+        parser.allowWhitespace();
+
+        while (!parser.eat(")")) {
+            const identifier = parseIdentifier(parser);
+            if (!identifier)
+                throw parser.error("Expected an Identifier", parser.index);
+            params.push(identifier);
+            parser.allowWhitespace();
+
+            if (!parser.match(")")) {
+                parser.eat(",", true);
+                parser.allowWhitespace();
+            }
+        }
+
+        parser.allowWhitespace();
+        parser.eat("=>", true);
+        parser.allowWhitespace();
+
+        const body = parseExpression(parser);
+
+        return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
+            type: "ArrowFunctionExpression",
+            start,
+            end: parser.index,
+            expression: true,
+            params,
+            body,
+        });
+    }
+
+    let expression = parseConditionalExpression(parser);
 
     parser.allowWhitespace();
 
@@ -29,17 +69,6 @@ export function parseArrowFunctionExpression(parser) {
         if (expression) {
             if (expression.type === "Identifier") {
                 params.push(expression);
-            } else if (expression.type === "SequenceExpression") {
-                for (const item of expression.expressions) {
-                    if (item.type !== "Identifier") {
-                        throw parser.error(
-                            `Only Identifiers can be declared`,
-                            start,
-                        );
-                    }
-
-                    params.push(item);
-                }
             } else {
                 throw parser.error("Unexpected expression", start);
             }
@@ -62,36 +91,7 @@ export function parseArrowFunctionExpression(parser) {
 /**
  * @param {Parser} parser
  */
-export function parseSequenceExpression(parser) {
-    const start = parser.index;
-    let first = parseConditional(parser);
-
-    parser.allowWhitespace();
-
-    const expressions = [first];
-
-    while (parser.eat(",")) {
-        parser.allowWhitespace();
-        expressions.push(parseConditional(parser));
-        parser.allowWhitespace();
-    }
-
-    if (expressions.length > 1) {
-        return /** @type {import("../types.js").SequenceExpression} */ ({
-            type: "SequenceExpression",
-            start,
-            end: parser.index,
-            expressions,
-        });
-    }
-
-    return first;
-}
-
-/**
- * @param {Parser} parser
- */
-export function parseConditional(parser) {
+export function parseConditionalExpression(parser) {
     const start = parser.index;
     let test = parseLogicExpression(parser);
 
@@ -415,7 +415,7 @@ export function parseChainableExpression(parser) {
             if (parser.eat("(")) {
                 parser.allowWhitespace();
                 while (!parser.eof() && !parser.eat(")")) {
-                    args.push(parseConditional(parser));
+                    args.push(parseExpression(parser));
                     parser.allowWhitespace();
                     if (!parser.match(")")) {
                         parser.eat(",", true);
@@ -443,7 +443,7 @@ export function parseChainableExpression(parser) {
             const args = [];
 
             while (!parser.eof() && !parser.eat(")")) {
-                args.push(parseConditional(parser));
+                args.push(parseExpression(parser));
                 parser.allowWhitespace();
                 if (!parser.match(")")) {
                     parser.eat(",", true);
@@ -577,7 +577,7 @@ export function parseObjectExpression(parser) {
             parser.allowWhitespace();
             parser.eat(":", true);
             parser.allowWhitespace();
-            const value = parseConditional(parser);
+            const value = parseExpression(parser);
             parser.allowWhitespace();
             parser.eat(",", !parser.match("}"));
             const end = parser.index;
