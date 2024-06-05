@@ -103,7 +103,7 @@ export function parseConditionalExpression(parser) {
         parser.eat(":", true);
         parser.allowWhitespace();
         const alternate = parseExpression(parser);
-        const end = parser.index;
+        const end = alternate.end;
         parser.allowWhitespace();
 
         test = /** @type {import("../types.js").ConditionalExpression} */ ({
@@ -139,7 +139,7 @@ export function parseLogicExpression(parser) {
     ) {
         parser.allowWhitespace();
         const right = parseComparison(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -174,7 +174,7 @@ export function parseComparison(parser) {
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -206,7 +206,7 @@ export function parseIsExpression(parser) {
         const not = parser.eat("not");
         parser.allowWhitespace();
         const right = parsePrimary(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -234,7 +234,7 @@ export function parseInExpression(parser) {
         const not = match.startsWith("not");
         parser.requireWhitespace();
         const right = parseAdditive(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -267,7 +267,7 @@ export function parseAdditive(parser) {
     while ((operator = parser.read(/^(\+|-)/))) {
         parser.allowWhitespace();
         const right = parseMultiplicative(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -300,7 +300,7 @@ export function parseMultiplicative(parser) {
     while ((operator = parser.read(/^(\*|\/)/))) {
         parser.allowWhitespace();
         const right = parseConcatenation(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -328,7 +328,7 @@ export function parseConcatenation(parser) {
     while (parser.eat("~")) {
         parser.allowWhitespace();
         const right = parseChainableExpression(parser);
-        const end = parser.index;
+        const end = right.end;
         parser.allowWhitespace();
 
         left = {
@@ -383,11 +383,12 @@ export function parseChainableExpression(parser) {
 
             parser.allowWhitespace();
 
+            let end = property.end;
+
             if (computed) {
                 parser.eat("]", true);
+                end = parser.index;
             }
-
-            const end = parser.index;
 
             // @ts-ignore
             left = {
@@ -404,13 +405,15 @@ export function parseChainableExpression(parser) {
     }
 
     function parseFilterExpression() {
-        if (parser.eat("|")) {
+        if (!parser.matchRegex(/^\|\|/) && parser.eat("|")) {
             parser.allowWhitespace();
             const name = parseIdentifier(parser);
             if (!name) throw parser.error("Expected an Identifier");
 
             parser.allowWhitespace();
             const args = [left];
+
+            let end = name.end;
 
             if (parser.eat("(")) {
                 parser.allowWhitespace();
@@ -422,9 +425,9 @@ export function parseChainableExpression(parser) {
                         parser.allowWhitespace();
                     }
                 }
-            }
 
-            const end = parser.index;
+                end = parser.index;
+            }
 
             left = {
                 type: "FilterExpression",
@@ -453,17 +456,22 @@ export function parseChainableExpression(parser) {
 
             const end = parser.index;
 
-            // @ts-ignore
-            left = {
-                type:
-                    left.type === "Identifier"
-                        ? "FilterExpression"
-                        : "CallExpression",
-                name: left,
-                arguments: args,
-                start,
-                end,
-            };
+            left =
+                left.type === "Identifier"
+                    ? {
+                          type: "FilterExpression",
+                          name: left,
+                          arguments: args,
+                          start,
+                          end,
+                      }
+                    : {
+                          type: "CallExpression",
+                          callee: left,
+                          arguments: args,
+                          start,
+                          end,
+                      };
 
             return true;
         }

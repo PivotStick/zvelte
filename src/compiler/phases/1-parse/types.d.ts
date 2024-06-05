@@ -208,7 +208,7 @@ export interface ArrayExpression extends BaseNode {
 
 export interface CallExpression extends BaseNode {
     type: "CallExpression";
-    name: Expression;
+    callee: Exclude<Expression, Identifier>;
     arguments: Expression[];
 }
 
@@ -229,6 +229,7 @@ export type MemberExpression = BaseNode & {
 export interface NumericLiteral extends BaseNode {
     type: "NumericLiteral";
     value: number;
+    raw: string;
 }
 
 export interface BooleanLiteral extends BaseNode {

@@ -688,7 +688,7 @@ function expression(node, ctx, deep, scope) {
         case "CallExpression": {
             /** @type {import("./type.js").Expression[]} */
             const args = [];
-            const what = expression(node.name, ctx, deep, scope);
+            const what = expression(node.callee, ctx, deep, scope);
 
             node.arguments.forEach((arg) => {
                 args.push(expression(arg, ctx, deep, scope));

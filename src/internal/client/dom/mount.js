@@ -452,7 +452,7 @@ function handle(node, currentNode, ctx, parent = null) {
         }
 
         case "CallExpression": {
-            const fn = handle(node.name, currentNode, ctx);
+            const fn = handle(node.callee, currentNode, ctx);
             const args = node.arguments.map((arg) =>
                 handle(arg, currentNode, ctx),
             );
@@ -1014,7 +1014,7 @@ function handle(node, currentNode, ctx, parent = null) {
         case "RenderTag": {
             const anchor = /** @type {Comment} */ (currentNode);
             $.snippet(
-                () => handle(node.expression.name, currentNode, ctx),
+                () => handle(node.expression.callee, currentNode, ctx),
                 anchor,
             );
             break;

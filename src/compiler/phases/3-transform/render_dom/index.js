@@ -1645,7 +1645,7 @@ function parseDirectiveName(name) {
  */
 function serializeFunction(node, context) {
     const name = /** @type {import("estree").MemberExpression} */ (
-        context.visit(node.name)
+        context.visit(node.callee)
     );
 
     const args = [];
