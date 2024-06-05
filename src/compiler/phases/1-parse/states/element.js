@@ -72,12 +72,18 @@ export const element = (parser) => {
             if (parent.type !== type) {
                 throw parser.error(`"</${name}>" has no opening tag`, start);
             }
-            parent.end = start;
+
+            parent.fragment.end = start;
+            parent.end = parser.index;
             parser.pop();
             parent = parser.current();
         }
 
-        parent.end = start;
+        if (parent.type === type) {
+            parent.fragment.end = start;
+        }
+
+        parent.end = parser.index;
         parser.pop();
         return;
     }
