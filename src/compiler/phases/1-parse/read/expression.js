@@ -46,7 +46,7 @@ export function parseArrowFunctionExpression(parser) {
         return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
             type: "ArrowFunctionExpression",
             start,
-            end: parser.index,
+            end: body.end,
             expression: true,
             params,
             body,
@@ -59,12 +59,11 @@ export function parseArrowFunctionExpression(parser) {
 
     if (parser.eat("=>", expression === null)) {
         parser.allowWhitespace();
-        const body = parseExpression(parser);
-
         /**
          * @type {import("../types.js").ArrowFunctionExpression["params"]}
          */
         const params = [];
+        const body = parseExpression(parser);
 
         if (expression) {
             if (expression.type === "Identifier") {
@@ -77,7 +76,7 @@ export function parseArrowFunctionExpression(parser) {
         return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
             type: "ArrowFunctionExpression",
             start,
-            end: parser.index,
+            end: body.end,
             expression: true,
             params,
             body,
@@ -128,6 +127,7 @@ export function parseLogicExpression(parser) {
     let left = parseComparison(parser);
 
     parser.allowWhitespace();
+
     /**
      * @type {import("../types.js").LogicalExpression["operator"]}
      */
@@ -135,7 +135,7 @@ export function parseLogicExpression(parser) {
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(or|and|\?\?|\|\|)/))
+        (operator = parser.read(/^\s*(or|and|\?\?|\|\|)/))
     ) {
         parser.allowWhitespace();
         const right = parseComparison(parser);
@@ -577,10 +577,12 @@ export function parseObjectExpression(parser) {
             parser.allowWhitespace();
             parser.eat(":", true);
             parser.allowWhitespace();
+
             const value = parseExpression(parser);
+            const end = value.end;
+
             parser.allowWhitespace();
             parser.eat(",", !parser.match("}"));
-            const end = parser.index;
 
             const property = {
                 type: "Property",

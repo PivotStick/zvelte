@@ -298,7 +298,7 @@ export const element = (parser) => {
         parser.append(element);
 
         if (selfClosing) {
-            element.end = parser.index;
+            element.fragment.end = element.end = parser.index;
         } else {
             parser.stack.push(element);
             parser.fragments.push(element.fragment);
