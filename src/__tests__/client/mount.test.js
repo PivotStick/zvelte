@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { mount } from "../../internal/client/index.js";
-import { tick } from "svelte/internal/client";
+import { mount, tick } from "../../internal/client/index.js";
 
 beforeEach(() => {
     document.body.innerHTML = "";
