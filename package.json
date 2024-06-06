@@ -63,10 +63,12 @@
   ],
   "license": "ISC",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@vitest/browser": "^1.6.0",
+    "husky": "^9.0.11",
     "jsdom": "^24.1.0",
     "vitest": "^1.6.0",
     "webdriverio": "^8.38.2"
