@@ -160,7 +160,7 @@ export interface HtmlTag extends BaseNode {
 
 export interface RenderTag extends BaseNode {
     type: "RenderTag";
-    expression: CallExpression;
+    expression: CallExpression | FilterExpression;
 }
 
 export interface Root extends BaseNode {

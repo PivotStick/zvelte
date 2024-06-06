@@ -1013,10 +1013,12 @@ function handle(node, currentNode, ctx, parent = null) {
 
         case "RenderTag": {
             const anchor = /** @type {Comment} */ (currentNode);
-            $.snippet(
-                () => handle(node.expression.callee, currentNode, ctx),
-                anchor,
-            );
+            const callee =
+                node.expression.type === "FilterExpression"
+                    ? node.expression.name
+                    : node.expression.callee;
+
+            $.snippet(() => handle(callee, currentNode, ctx), anchor);
             break;
         }
 
