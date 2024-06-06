@@ -1,5 +1,3 @@
-// @vitest-environment happy-dom
-
 import { beforeEach, describe, expect, test } from "vitest";
 import { mount } from "../../internal/client/index.js";
 import { tick } from "svelte/internal/client";
