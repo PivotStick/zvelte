@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { mount, tick } from "../../internal/client/index.js";
+import { createComponent, mount, tick } from "../../internal/client/index.js";
+import { parse } from "../../compiler/phases/1-parse/index.js";
 
 beforeEach(() => {
     document.body.innerHTML = "";
@@ -201,5 +202,14 @@ describe("Test client's internal mount()", () => {
 
         expect(document.body.children[0]).toBe(incrementButton);
         expect(incrementButton.textContent).toBe("clicks: 4");
+    });
+
+    test("snippet block with render tag", () => {
+        mount({
+            target: document.body,
+            source: "{% snippet foo() %}Hello Component!{% endsnippet %}{{ @render foo() }}",
+        });
+
+        expect(document.body.textContent).toBe("Hello Component!");
     });
 });
