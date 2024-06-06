@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { mount, tick } from "../../internal/client/index.js";
 
 beforeEach(() => {
@@ -59,10 +59,11 @@ describe("Test client's internal mount()", () => {
             source: "<h1>Hello <span>Joe</span>!</h1>",
         });
 
-        const h1 = document.body.querySelector("h1");
+        const h1 = /** @type {HTMLHeadingElement} */ (
+            document.body.querySelector("h1")
+        );
 
         expect(h1).not.toBeNull();
-        if (!h1) throw new Error();
 
         expect(h1.childNodes[0].nodeName).toEqual("#text");
         expect(h1.childNodes[0].textContent).toEqual("Hello ");
@@ -85,7 +86,27 @@ describe("Test client's internal mount()", () => {
         expect(document.body.textContent).toEqual("Hello Joe!");
     });
 
-    test("counter", async () => {
+    test("on:click listener", async () => {
+        const listener = vi.fn();
+        mount({
+            target: document.body,
+            scope: { listener },
+            source: `<button on:click="{{ listener() }}" />`,
+        });
+
+        const button = /** @type {HTMLButtonElement} */ (
+            document.body.querySelector("button")
+        );
+
+        expect(button).not.toBeNull();
+        expect(button.attributes.length).toBe(0);
+
+        expect(listener).not.toHaveBeenCalledOnce();
+        button.click();
+        expect(listener).toHaveBeenCalledOnce();
+    });
+
+    test("counter button", async () => {
         mount({
             target: document.body,
             props: { counter: 0 },
@@ -97,7 +118,7 @@ describe("Test client's internal mount()", () => {
             source: `<button on:click="{{ increment() }}">clicks: {{ counter }}</button>`,
         });
 
-        let button = /** @type {HTMLButtonElement} */ (
+        const button = /** @type {HTMLButtonElement} */ (
             document.body.querySelector("button")
         );
 
@@ -108,5 +129,77 @@ describe("Test client's internal mount()", () => {
             button.click();
             await tick();
         }
+    });
+
+    test("if block", async () => {
+        mount({
+            target: document.body,
+            props: { counter: 0 },
+            init({ props, scope }) {
+                scope.increment = () => {
+                    props.counter++;
+                };
+
+                scope.decrement = () => {
+                    props.counter--;
+                };
+            },
+            source: `
+                <button on:click="{{ increment() }}">clicks: {{ counter }}</button>
+
+                {% if counter >= 5 %}
+                    <p>not bad!</p>
+                    <button on:click="{{ decrement() }}">decrement</button>
+                {% endif %}
+            `,
+        });
+
+        expect(document.body.children.length).toBe(1);
+
+        const incrementButton = /** @type {HTMLButtonElement} */ (
+            document.body.children[0]
+        );
+
+        expect(incrementButton.nodeName).toBe("BUTTON");
+        expect(incrementButton.textContent).toBe("clicks: 0");
+
+        incrementButton.click();
+        await tick();
+
+        expect(incrementButton.textContent).toBe("clicks: 1");
+        expect(document.body.children.length).toBe(1);
+
+        incrementButton.click();
+        incrementButton.click();
+        incrementButton.click();
+        incrementButton.click();
+        await tick();
+
+        expect(document.body.children.length).toBe(3);
+        expect(document.body.children[0]).toBe(incrementButton);
+        expect(incrementButton.textContent).toBe("clicks: 5");
+
+        const decrementButton = /** @type {HTMLButtonElement} */ (
+            document.body.children[2]
+        );
+
+        expect(decrementButton).not.toBeNull();
+        expect(decrementButton.nodeName).toBe("BUTTON");
+        expect(decrementButton.textContent).toBe("decrement");
+
+        const p = document.body.children[1];
+
+        expect(p.nodeName).toBe("P");
+        expect(p.textContent).toBe("not bad!");
+
+        decrementButton.click();
+        await tick();
+
+        expect(document.body.children.length).toBe(1);
+        expect(decrementButton.isConnected).toBeFalsy();
+        expect(p.isConnected).toBeFalsy();
+
+        expect(document.body.children[0]).toBe(incrementButton);
+        expect(incrementButton.textContent).toBe("clicks: 4");
     });
 });
