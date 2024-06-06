@@ -1,4 +1,4 @@
-import { test, expect, describe } from "@jest/globals";
+import { test, expect, describe } from "vitest";
 import { parse } from "../index.js";
 
 describe("Test parser", () => {
