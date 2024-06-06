@@ -232,6 +232,29 @@ function open(parser, start) {
         return;
     }
 
+    if (parser.eat("key")) {
+        parser.requireWhitespace();
+        const expression = parseExpression(parser);
+        parser.allowWhitespace();
+        parser.eat("%}", true);
+
+        /** @type {import("../types.js").KeyBlock} */
+        const block = parser.append({
+            type: "KeyBlock",
+            start,
+            end: -1,
+            expression,
+            fragment: createFragment(),
+        });
+
+        block.fragment.start = parser.index;
+
+        parser.stack.push(block);
+        parser.fragments.push(block.fragment);
+
+        return;
+    }
+
     throw parser.error(`Unknown block type`);
 }
 
@@ -339,6 +362,16 @@ function close(parser, start) {
 
         case "SnippetBlock": {
             parser.eat("snippet", true);
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+
+            block.end = parser.index;
+            parser.pop();
+            break;
+        }
+
+        case "KeyBlock": {
+            parser.eat("key", true);
             parser.allowWhitespace();
             parser.eat("%}", true);
 

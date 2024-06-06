@@ -215,6 +215,12 @@ function handle(node, template) {
             break;
         }
 
+        case "KeyBlock": {
+            template.src += `<!>`;
+            newRoot(node.fragment);
+            break;
+        }
+
         case "Comment":
             template.src += `<!--${node.data}-->`;
             break;

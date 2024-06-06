@@ -1039,6 +1039,25 @@ function handle(node, currentNode, ctx, parent = null) {
             break;
         }
 
+        case "KeyBlock": {
+            const anchor = /** @type {Comment} */ (currentNode);
+
+            $.key(
+                anchor,
+                () => handle(node.expression, currentNode, ctx),
+                ($$anchor) => {
+                    const fragment = getRoot(node.fragment);
+
+                    handle(node.fragment, fragment, ctx);
+
+                    // @ts-ignore
+                    $.append($$anchor, fragment);
+                },
+            );
+
+            break;
+        }
+
         case "ZvelteComponent": {
             const anchor = /** @type {Comment} */ (currentNode);
             const props = $.proxy({});

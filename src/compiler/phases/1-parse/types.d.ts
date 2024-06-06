@@ -21,7 +21,7 @@ export type Directive =
     | ClassDirective;
 export type ElementLike = RegularElement | Component | ZvelteComponent;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
-export type Block = ForBlock | IfBlock | SnippetBlock;
+export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock;
 export type Expression =
     | ArrowFunctionExpression
     | ConditionalExpression
@@ -103,15 +103,7 @@ export interface Comment extends BaseNode {
 export interface Fragment extends BaseNode {
     type: "Fragment";
     transparent: boolean;
-    nodes: (
-        | ElementLike
-        | Text
-        | Tag
-        | IfBlock
-        | ForBlock
-        | SnippetBlock
-        | Comment
-    )[];
+    nodes: Array<ElementLike | Text | Tag | Block | Comment>;
 }
 
 export interface Text extends BaseNode {
@@ -148,6 +140,12 @@ export interface SnippetBlock extends BaseNode {
     expression: Identifier;
     parameters: Array<Identifier>;
     body: Fragment;
+}
+
+export interface KeyBlock extends BaseNode {
+    type: "KeyBlock";
+    expression: Expression;
+    fragment: Fragment;
 }
 
 export interface ExpressionTag extends BaseNode {
