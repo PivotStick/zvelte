@@ -282,7 +282,7 @@ function next(parser, start) {
 
             /** @type {import("../types.js").IfBlock} */
             const child = parser.append({
-                start: parser.index,
+                start,
                 end: -1,
                 type: "IfBlock",
                 elseif: true,
@@ -344,6 +344,10 @@ function close(parser, start) {
                 block = /** @type {import('../types.js').IfBlock} */ (
                     parser.current()
                 );
+
+                if (block.alternate) {
+                    block.alternate.end = start;
+                }
             }
 
             block.end = parser.index;

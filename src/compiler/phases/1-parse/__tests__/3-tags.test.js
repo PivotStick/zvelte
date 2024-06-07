@@ -83,7 +83,87 @@ describe("Parser: will test tags", () => {
             );
         });
 
-        test.todo("elseif");
+        test("elseif", () => {
+            TemplateRootOf(
+                `{% if foo %}consequent{% elseif other %}sub consequent{% else %}alternate{% endif %}`,
+                [
+                    {
+                        type: "IfBlock",
+                        start: 0,
+                        end: 84,
+                        elseif: false,
+                        test: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 6,
+                            end: 9,
+                        },
+                        consequent: {
+                            type: "Fragment",
+                            start: 12,
+                            end: 22,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "consequent",
+                                    start: 12,
+                                    end: 22,
+                                },
+                            ],
+                        },
+                        alternate: {
+                            type: "Fragment",
+                            start: 40,
+                            end: 73,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "IfBlock",
+                                    elseif: true,
+                                    start: 22,
+                                    end: 84,
+                                    test: {
+                                        type: "Identifier",
+                                        name: "other",
+                                        start: 32,
+                                        end: 37,
+                                    },
+                                    consequent: {
+                                        type: "Fragment",
+                                        start: 40,
+                                        end: 54,
+                                        transparent: false,
+                                        nodes: [
+                                            {
+                                                type: "Text",
+                                                data: "sub consequent",
+                                                start: 40,
+                                                end: 54,
+                                            },
+                                        ],
+                                    },
+                                    alternate: {
+                                        type: "Fragment",
+                                        start: 64,
+                                        end: 73,
+                                        transparent: false,
+                                        nodes: [
+                                            {
+                                                type: "Text",
+                                                data: "alternate",
+                                                start: 64,
+                                                end: 73,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ]
+            );
+        });
     });
 
     describe("for tag", () => {
