@@ -7,5 +7,9 @@ export default defineConfig({
             name: "chrome",
             headless: true,
         },
+        coverage: {
+            enabled: true,
+            provider: "istanbul",
+        },
     },
 });
