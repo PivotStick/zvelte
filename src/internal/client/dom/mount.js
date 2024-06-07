@@ -28,7 +28,7 @@ export function contextualizeComponent(callback, props) {
         },
         {
             target: document.body,
-        },
+        }
     );
     return {
         flush() {
@@ -56,7 +56,7 @@ export function createComponent({ init, ast, key, initScope }) {
 
     const component = (
         /** @type {any} */ $$anchor,
-        /** @type {Record<string, any>} */ $$props,
+        /** @type {Record<string, any>} */ $$props
     ) => {
         if (init) $.push($$props, true);
 
@@ -242,7 +242,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 const hasBindGroup =
                     parent?.type === "RegularElement" &&
                     parent.attributes.some(
-                        (a) => a.type === "BindDirective" && a.name === "group",
+                        (a) => a.type === "BindDirective" && a.name === "group"
                     );
 
                 if (
@@ -266,7 +266,7 @@ function handle(node, currentNode, ctx, parent = null) {
                         element[node.name] = computeAttributeValue(
                             node,
                             currentNode,
-                            ctx,
+                            ctx
                         );
                     });
                 } else {
@@ -274,7 +274,7 @@ function handle(node, currentNode, ctx, parent = null) {
                         $.set_attribute(
                             element,
                             node.name,
-                            computeAttributeValue(node, currentNode, ctx),
+                            computeAttributeValue(node, currentNode, ctx)
                         );
                     });
                 }
@@ -315,7 +315,7 @@ function handle(node, currentNode, ctx, parent = null) {
                     $.bind_this(
                         element,
                         ($$value) => setInScope($$value, ex, currentNode, _ctx),
-                        () => handle(ex, currentNode, _ctx),
+                        () => handle(ex, currentNode, _ctx)
                     );
                 }
 
@@ -327,8 +327,8 @@ function handle(node, currentNode, ctx, parent = null) {
                     const bindingGroup = (ctx.bindingGroups[id] ??= []);
                     const groupIndex = [];
                     const loop = searchInScope("loop", ctx.scope);
-                    if (loop?.index0 !== undefined) {
-                        groupIndex.push(loop.index0);
+                    if (loop?.parent) {
+                        groupIndex.push(loop.parent.index0);
                     }
 
                     $.remove_input_attr_defaults(element);
@@ -338,7 +338,7 @@ function handle(node, currentNode, ctx, parent = null) {
                         parent.attributes.find(
                             (attr) =>
                                 attr.type === "Attribute" &&
-                                attr.name === "value",
+                                attr.name === "value"
                         );
 
                     /**
@@ -355,7 +355,7 @@ function handle(node, currentNode, ctx, parent = null) {
                             computeAttributeValue(
                                 valueAttribute,
                                 currentNode,
-                                ctx,
+                                ctx
                             ));
 
                         $.template_effect(() => {
@@ -370,13 +370,13 @@ function handle(node, currentNode, ctx, parent = null) {
                     $.bind_group(
                         bindingGroup,
                         // @ts-ignore
-                        [],
+                        groupIndex,
                         element,
                         () => {
                             getValue?.();
                             return get();
                         },
-                        set,
+                        set
                     );
                 }
 
@@ -411,7 +411,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 flag,
                 element,
                 () => searchInScope(node.name, ctx.scope),
-                getParams,
+                getParams
             );
 
             break;
@@ -428,7 +428,7 @@ function handle(node, currentNode, ctx, parent = null) {
                     (_event) => {
                         handle(ex, currentNode, pushNewScope(ctx, { _event }));
                     },
-                    false,
+                    false
                 );
             } else {
                 // @ts-ignore
@@ -454,7 +454,7 @@ function handle(node, currentNode, ctx, parent = null) {
         case "CallExpression": {
             const fn = handle(node.callee, currentNode, ctx);
             const args = node.arguments.map((arg) =>
-                handle(arg, currentNode, ctx),
+                handle(arg, currentNode, ctx)
             );
 
             return fn(...args);
@@ -466,7 +466,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 getFilter(node.name.name);
 
             const args = node.arguments.map((arg) =>
-                handle(arg, currentNode, ctx),
+                handle(arg, currentNode, ctx)
             );
 
             return fn(...args);
@@ -518,7 +518,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 default:
                     throw new Error(
                         // @ts-expect-error
-                        `Unhandled LogicalExpression operator "${node.operator}"`,
+                        `Unhandled LogicalExpression operator "${node.operator}"`
                     );
             }
         }
@@ -557,7 +557,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 default:
                     throw new Error(
                         // @ts-expect-error
-                        `Unhandled BinaryExpression operator "${node.operator}"`,
+                        `Unhandled BinaryExpression operator "${node.operator}"`
                     );
             }
         }
@@ -642,7 +642,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 default:
                     throw new Error(
                         // @ts-expect-error
-                        `Unhandled UnaryExpression operator "${node.operator}"`,
+                        `Unhandled UnaryExpression operator "${node.operator}"`
                     );
             }
         }
@@ -695,7 +695,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 anchor,
                 () => handle(node.expression, currentNode, ctx),
                 false,
-                false,
+                false
             );
             break;
         }
@@ -711,14 +711,14 @@ function handle(node, currentNode, ctx, parent = null) {
                 ctx,
                 (object, key) => {
                     const signal = $.source(
-                        handle(node.value, currentNode, ctx),
+                        handle(node.value, currentNode, ctx)
                     );
 
                     Object.defineProperty(object, key, {
                         get: () => $.get(signal),
                         set: (value) => $.set(signal, value),
                     });
-                },
+                }
             );
 
             $.render_effect(() => {
@@ -735,8 +735,8 @@ function handle(node, currentNode, ctx, parent = null) {
             $.template_effect(() =>
                 $.set_text(
                     text,
-                    $.stringify(handle(node.expression, currentNode, ctx)),
-                ),
+                    $.stringify(handle(node.expression, currentNode, ctx))
+                )
             );
             break;
         }
@@ -766,7 +766,7 @@ function handle(node, currentNode, ctx, parent = null) {
                           $.append($$anchor, fragment);
                       }
                     : undefined,
-                node.elseif,
+                node.elseif
             );
 
             break;
@@ -831,7 +831,7 @@ function handle(node, currentNode, ctx, parent = null) {
                                     return searchInScope("loop", ctx.scope);
                                 },
                             },
-                        }),
+                        })
                     );
 
                     // @ts-ignore
@@ -846,7 +846,7 @@ function handle(node, currentNode, ctx, parent = null) {
                           // @ts-ignore
                           $.append($$anchor, fragment);
                       }
-                    : undefined,
+                    : undefined
             );
 
             break;
@@ -883,7 +883,7 @@ function handle(node, currentNode, ctx, parent = null) {
                                 props[attr.name] = computeAttributeValue(
                                     attr,
                                     currentNode,
-                                    ctx,
+                                    ctx
                                 );
                             });
                         }
@@ -894,7 +894,7 @@ function handle(node, currentNode, ctx, parent = null) {
                         $.render_effect(() => {
                             Object.assign(
                                 props,
-                                handle(attr.expression, currentNode, ctx),
+                                handle(attr.expression, currentNode, ctx)
                             );
                         });
                         break;
@@ -910,7 +910,7 @@ function handle(node, currentNode, ctx, parent = null) {
                                 props[attr.name] = handle(
                                     expression,
                                     currentNode,
-                                    ctx,
+                                    ctx
                                 );
                             });
                             $.render_effect(() => {
@@ -918,7 +918,7 @@ function handle(node, currentNode, ctx, parent = null) {
                                     props[attr.name],
                                     expression,
                                     currentNode,
-                                    ctx,
+                                    ctx
                                 );
                             });
                         }
@@ -934,18 +934,18 @@ function handle(node, currentNode, ctx, parent = null) {
                                 handle(
                                     expression,
                                     currentNode,
-                                    pushNewScope(ctx, { _event }),
+                                    pushNewScope(ctx, { _event })
                                 );
                             };
                         } else {
                             (props.$$events ??= {})[node.name] = function (
-                                /** @type {any} */ $$args,
+                                /** @type {any} */ $$args
                             ) {
                                 $.bubble_event.call(
                                     this,
                                     // @ts-ignore
                                     ctx.scope.at(1),
-                                    $$args,
+                                    $$args
                                 );
                             };
                         }
@@ -955,7 +955,7 @@ function handle(node, currentNode, ctx, parent = null) {
 
                     default:
                         throw new Error(
-                            `"${attr.type}" not handled yet in component`,
+                            `"${attr.type}" not handled yet in component`
                         );
                 }
             });
@@ -974,14 +974,14 @@ function handle(node, currentNode, ctx, parent = null) {
             if (node.fragment.nodes.length) {
                 props.children = (
                     /** @type {Element | Comment | Text} */ $$anchor,
-                    /** @type {any} */ $$slotProps,
+                    /** @type {any} */ $$slotProps
                 ) => {
                     const fragment = getRoot(node.fragment);
 
                     handle(
                         node.fragment,
                         fragment,
-                        pushNewScope(ctx, $$slotProps),
+                        pushNewScope(ctx, $$slotProps)
                     );
 
                     $.append($$anchor, fragment);
@@ -991,7 +991,7 @@ function handle(node, currentNode, ctx, parent = null) {
             if (thisAttr) {
                 if (!thisAttr.expression)
                     throw new Error(
-                        "`bind:this` value must be an Identifier or a MemberExpression",
+                        "`bind:this` value must be an Identifier or a MemberExpression"
                     );
 
                 const ex = thisAttr.expression;
@@ -1003,7 +1003,7 @@ function handle(node, currentNode, ctx, parent = null) {
                 $.bind_this(
                     component(anchor, props),
                     ($$value) => setInScope($$value, ex, currentNode, _ctx),
-                    () => handle(ex, currentNode, _ctx),
+                    () => handle(ex, currentNode, _ctx)
                 );
             } else {
                 component(anchor, props);
@@ -1054,7 +1054,7 @@ function handle(node, currentNode, ctx, parent = null) {
 
                     // @ts-ignore
                     $.append($$anchor, fragment);
-                },
+                }
             );
 
             break;
@@ -1071,7 +1071,7 @@ function handle(node, currentNode, ctx, parent = null) {
                             props[attr.name] = computeAttributeValue(
                                 attr,
                                 currentNode,
-                                ctx,
+                                ctx
                             );
                         });
                         break;
@@ -1094,7 +1094,7 @@ function handle(node, currentNode, ctx, parent = null) {
                         $.render_effect(() => {
                             Object.assign(
                                 props,
-                                handle(attr.expression, currentNode, ctx),
+                                handle(attr.expression, currentNode, ctx)
                             );
                         });
                         break;
@@ -1102,7 +1102,7 @@ function handle(node, currentNode, ctx, parent = null) {
 
                     default:
                         throw new Error(
-                            `"${attr.type}" attribute not handled yet on "${node.type}"`,
+                            `"${attr.type}" attribute not handled yet on "${node.type}"`
                         );
                 }
             }
@@ -1121,14 +1121,14 @@ function handle(node, currentNode, ctx, parent = null) {
             if (node.fragment.nodes.length) {
                 props.children = (
                     /** @type {Element | Comment | Text} */ $$anchor,
-                    /** @type {any} */ $$slotProps,
+                    /** @type {any} */ $$slotProps
                 ) => {
                     const fragment = getRoot(node.fragment);
 
                     handle(
                         node.fragment,
                         fragment,
-                        pushNewScope(ctx, $$slotProps),
+                        pushNewScope(ctx, $$slotProps)
                     );
 
                     $.append($$anchor, fragment);
@@ -1138,7 +1138,7 @@ function handle(node, currentNode, ctx, parent = null) {
             $.component(
                 anchor,
                 () => handle(node.expression, currentNode, ctx),
-                ($$component) => $$component(anchor, props),
+                ($$component) => $$component(anchor, props)
             );
             break;
         }
@@ -1180,7 +1180,7 @@ function computeAttributeValue(attr, currentNode, ctx) {
             const r = handle(
                 n.type === "Text" ? n : n.expression,
                 currentNode,
-                ctx,
+                ctx
             );
 
             if (value === UNINITIALIZED) {
