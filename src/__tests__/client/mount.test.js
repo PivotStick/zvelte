@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { createComponent, mount, tick } from "../../internal/client/index.js";
-import { parse } from "../../compiler/phases/1-parse/index.js";
+import { mount, tick } from "../../internal/client/index.js";
 
 beforeEach(() => {
     document.body.innerHTML = "";
@@ -211,5 +210,221 @@ describe("Test client's internal mount()", () => {
         });
 
         expect(document.body.textContent).toBe("Hello Component!");
+    });
+
+    test("2 deep for blocks with bind:group in nested for block", async () => {
+        const datas = [
+            {
+                name: "First",
+                roles: ["foo", "bar", "baz"],
+                selected: [],
+                open: true,
+            },
+            {
+                name: "Second",
+                roles: ["yes", "no", "stuff", "something"],
+                selected: ["yes"],
+                open: false,
+            },
+            {
+                name: "Third",
+                roles: ["admin", "modo", "user"],
+                selected: ["modo", "user"],
+                open: false,
+            },
+            {
+                name: "Fourth",
+                roles: ["owner", "distributor", "seller"],
+                selected: [],
+                open: false,
+            },
+        ];
+
+        mount({
+            target: document.body,
+            init({ props, scope }) {
+                props.sections = datas;
+
+                scope.open = (/** @type {*} */ section) => {
+                    section.open = !section.open;
+                };
+            },
+            source: `
+                {% for section in sections %}
+                    <section>
+                        <h1 on:click="{{ open(section) }}">{{ section.name }} {{ section.selected|length }} / {{ section.roles|length }} <div class="bar" /></h1>
+                        {% if section.open %}
+                            <ul>
+                                {% for role in section.roles %}
+                                    <li>
+                                        <label>
+                                            <input type="checkbox" bind:group="{{ section.selected }}" value="{{ role }}" />
+                                            <span>{{ role }}</span>
+                                        </label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </section>
+                {% endfor %}
+            `,
+        });
+
+        function validate() {
+            expect(document.body.children).toHaveLength(datas.length);
+
+            for (let i = 0; i < document.body.children.length; i++) {
+                const section = document.body.children[i];
+                const data = datas[i];
+
+                expect(section.nodeName).toBe("SECTION");
+                expect(section.children).toHaveLength(data.open ? 2 : 1);
+
+                const h1 = section.children[0];
+
+                expect(h1.nodeName).toBe("H1");
+                expect(h1.attributes).toHaveLength(0);
+                expect(h1.textContent).toBe(
+                    `${data.name} ${data.selected.length} / ${data.roles.length} `
+                );
+
+                if (data.open) {
+                    const ul = section.children[1];
+
+                    expect(ul.nodeName).toBe("UL");
+                    expect(ul.children).toHaveLength(data.roles.length);
+
+                    for (let i = 0; i < ul.children.length; i++) {
+                        const li = ul.children[i];
+                        const role = data.roles[i];
+
+                        expect(li.nodeName).toBe("LI");
+                        expect(li.children).toHaveLength(1);
+                        expect(li.attributes).toHaveLength(0);
+
+                        const label = li.children[0];
+
+                        expect(label.nodeName).toBe("LABEL");
+                        expect(label.children).toHaveLength(2);
+                        expect(label.attributes).toHaveLength(0);
+
+                        const input = label.children[0];
+                        const span = label.children[1];
+
+                        expect(input.nodeName).toBe("INPUT");
+                        expect(input.children).toHaveLength(0);
+                        expect(input.attributes).toHaveLength(2);
+
+                        expect(input.attributes[0].name).toBe("type");
+                        expect(input.attributes[0].value).toBe("checkbox");
+
+                        expect(input.attributes[1].name).toBe("value");
+                        expect(input.attributes[1].value).toBe(role);
+
+                        expect(span.nodeName).toBe("SPAN");
+                        expect(span.children).toHaveLength(0);
+                        expect(span.attributes).toHaveLength(0);
+                        expect(span.textContent).toBe(role);
+                    }
+                }
+            }
+        }
+
+        /**
+         * @param {string} selectors
+         */
+        async function click(selectors) {
+            const element = /** @type {HTMLElement} */ (
+                document.querySelector(selectors)
+            );
+            expect(element).toBeInstanceOf(HTMLElement);
+
+            element.click();
+            await tick();
+            validate();
+        }
+
+        validate();
+
+        await click("body > section:nth-child(1) > h1");
+
+        for (const data of datas) {
+            expect(data.open).toBe(false);
+        }
+
+        await click("body > section:nth-child(1) > h1");
+        await click("body > section:nth-child(2) > h1");
+        await click("body > section:nth-child(3) > h1");
+        await click("body > section:nth-child(4) > h1");
+
+        for (const data of datas) {
+            expect(data.open).toBe(true);
+        }
+
+        await click("body > section:nth-child(2) > h1");
+        await click("body > section:nth-child(3) > h1");
+        await click("body > section:nth-child(4) > h1");
+
+        for (let i = 0; i < datas.length; i++) {
+            const data = datas[i];
+            expect(data.open).toBe(i === 0);
+        }
+
+        await click(
+            "body > section:nth-child(1) > ul > li:nth-child(1) > label"
+        );
+
+        expect(datas[0].selected).toHaveLength(1);
+        expect(datas[0].selected[0]).toEqual(datas[0].roles[0]);
+
+        await click(
+            "body > section:nth-child(1) > ul > li:nth-child(2) > label"
+        );
+        await click(
+            "body > section:nth-child(1) > ul > li:nth-child(3) > label"
+        );
+
+        expect(datas[0].selected).toHaveLength(3);
+
+        for (let i = 0; i < datas[0].selected.length; i++) {
+            const value = datas[0].selected[i];
+            expect(datas[0].roles).toContain(value);
+        }
+
+        await click("body > section:nth-child(2) > h1");
+
+        for (let i = 0; i < datas.length; i++) {
+            const data = datas[i];
+            expect(data.open).toBe(i <= 1);
+        }
+
+        expect(datas[1].selected).toHaveLength(1);
+        expect(datas[1].selected[0]).toEqual(datas[1].roles[0]);
+
+        await click(
+            "body > section:nth-child(2) > ul > li:nth-child(1) > label"
+        );
+
+        expect(datas[1].selected).toHaveLength(0);
+
+        await click(
+            "body > section:nth-child(2) > ul > li:nth-child(1) > label"
+        );
+        await click(
+            "body > section:nth-child(2) > ul > li:nth-child(2) > label"
+        );
+        await click(
+            "body > section:nth-child(2) > ul > li:nth-child(3) > label"
+        );
+        await click(
+            "body > section:nth-child(2) > ul > li:nth-child(4) > label"
+        );
+
+        expect(datas[1].selected).toHaveLength(4);
+
+        for (let i = 0; i < datas[1].selected.length; i++) {
+            const value = datas[1].selected[i];
+            expect(datas[1].roles).toContain(value);
+        }
     });
 });
