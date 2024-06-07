@@ -43,7 +43,7 @@ function expressionTag(parser) {
     ) {
         throw parser.error(
             "`{{ @render ... }` tags can only contain call expressions",
-            expression.start,
+            expression.start
         );
     }
 
@@ -130,7 +130,7 @@ function open(parser, start) {
             key = parseChainableExpression(parser) ?? parseIdentifier(parser);
             if (key?.type !== "Identifier" && key?.type !== "MemberExpression")
                 throw parser.error(
-                    "Expected an Identifier or a MemberExpression",
+                    "Expected an Identifier or a MemberExpression"
                 );
 
             parser.eat(")", true);
@@ -180,7 +180,7 @@ function open(parser, start) {
                 end: parser.index,
                 name,
                 value,
-            }),
+            })
         );
 
         return;
@@ -302,6 +302,7 @@ function next(parser, start) {
             parser.eat("%}", true);
         }
 
+        block.alternate.start = parser.index;
         return;
     }
 
@@ -319,7 +320,7 @@ function next(parser, start) {
     }
 
     throw parser.error(
-        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)",
+        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)"
     );
 }
 
