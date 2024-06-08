@@ -173,7 +173,63 @@ describe("Parser: will test tags", () => {
     });
 
     describe("set tag", () => {
-        test.todo("simple form");
+        test("identifier", () => {
+            TemplateRootOf(`{% set foo = "value" %}`, [
+                {
+                    type: "Variable",
+                    start: 0,
+                    end: 23,
+                    name: {
+                        type: "Identifier",
+                        name: "foo",
+                        start: 7,
+                        end: 10,
+                    },
+                    value: {
+                        type: "StringLiteral",
+                        raw: '"value"',
+                        value: "value",
+                        start: 13,
+                        end: 20,
+                    },
+                },
+            ]);
+        });
+
+        test("member expression", () => {
+            TemplateRootOf(`{% set foo.bar = "value" %}`, [
+                {
+                    type: "Variable",
+                    start: 0,
+                    end: 27,
+                    name: {
+                        type: "MemberExpression",
+                        start: 7,
+                        end: 14,
+                        computed: false,
+                        object: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 7,
+                            end: 10,
+                        },
+                        property: {
+                            type: "Identifier",
+                            name: "bar",
+                            start: 11,
+                            end: 14,
+                        },
+                    },
+                    value: {
+                        type: "StringLiteral",
+                        raw: '"value"',
+                        value: "value",
+                        start: 17,
+                        end: 24,
+                    },
+                },
+            ]);
+        });
     });
 
     describe("snippet tag", () => {
