@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { mount, tick } from "../../internal/client/index.js";
+import { mount } from "./mount.js";
+import { tick } from "../index.js";
 
 beforeEach(() => {
     document.body.innerHTML = "";
