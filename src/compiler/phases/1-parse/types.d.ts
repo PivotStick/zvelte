@@ -1,3 +1,5 @@
+import type { CssNodePlain } from "css-tree";
+
 interface BaseNode {
     type: string;
     start: number;
@@ -54,7 +56,7 @@ export interface TransitionDirective extends BaseNode {
     /** The 'x' in `on:x` */
     name: string;
     /** The 'y' in `on:x={y}` */
-    expression: Expression;
+    expression: Expression | null;
     intro: boolean;
     outro: boolean;
     modifiers: string[];
@@ -129,10 +131,10 @@ export interface ForBlock extends BaseNode {
     type: "ForBlock";
     expression: Expression;
     key: null | Identifier | MemberExpression;
-    index?: string;
+    index: Identifier | null;
     context: Identifier;
     body: Fragment;
-    fallback?: Fragment;
+    fallback: Fragment | null;
 }
 
 export interface SnippetBlock extends BaseNode {
@@ -166,8 +168,13 @@ export interface RenderTag extends BaseNode {
 export interface Root extends BaseNode {
     type: "Root";
     fragment: Fragment;
-    js: any;
-    css: any;
+    js: null;
+    css:
+        | null
+        | (Omit<BaseNode, "type"> & {
+              code: string;
+              ast: CssNodePlain;
+          });
 }
 
 export interface RegularElement extends BaseNode {

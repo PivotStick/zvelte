@@ -1,5 +1,6 @@
 import { test, describe } from "vitest";
 import { TemplateRootOf } from "./common.js";
+import { parse } from "../index.js";
 
 describe("Parser: will test expressions", () => {
     /**
@@ -16,6 +17,12 @@ describe("Parser: will test expressions", () => {
             },
         ]);
     };
+
+    describe("Unexpected Token", () => {
+        test.fails("empty", () => parse(`{{  }}`));
+        test.fails("@", () => parse(`{{ @ }}`));
+        test.fails("&", () => parse(`{{ & }}`));
+    });
 
     describe("ArrowFunctionExpression", () => {
         test("without arguments", () => {
@@ -58,6 +65,10 @@ describe("Parser: will test expressions", () => {
             });
         });
 
+        test.fails("expect only an identifier with that form", () => {
+            parse(`{{ "foo" => foo }}`);
+        });
+
         test("with many arguments", () => {
             ExpressionTagOf(`{{ (arg1, arg2, arg3) => null }}`, {
                 type: "ArrowFunctionExpression",
@@ -92,6 +103,10 @@ describe("Parser: will test expressions", () => {
                     end: 29,
                 },
             });
+        });
+
+        test.fails("expect only an identifiers for params", () => {
+            parse(`{{ (arg1, arg2, "arg3") => foo }}`);
         });
     });
 
@@ -562,6 +577,10 @@ describe("Parser: will test expressions", () => {
                 ],
             });
         });
+
+        test.fails("expect identifier or string literal for keys", () => {
+            parse(`{{ { 15: "foo" } }}`);
+        });
     });
 
     describe("ArrayExpression", () => {
@@ -729,6 +748,14 @@ describe("Parser: will test expressions", () => {
                 step: -1,
             });
         });
+
+        test.fails("expect numbers only for 'from'", () => {
+            parse(`{{ "0"..10 }}`);
+        });
+
+        test.fails("expect numbers only for 'to'", () => {
+            parse(`{{ 0.."10" }}`);
+        });
     });
 
     describe("MemberExpression", () => {
@@ -774,9 +801,21 @@ describe("Parser: will test expressions", () => {
                 },
             });
         });
+
+        test.fails("expect an identifier after '.'", () => {
+            parse(`{{ foo."string" }}`);
+        });
+
+        test.fails("expect an expression in the computed property", () => {
+            parse(`{{ foo[] }}`);
+        });
     });
 
     describe("FilterExpression", () => {
+        test.fails("expect an identifier", () => {
+            parse(`{{ foo|"bar" }}`);
+        });
+
         test("pipe form without parentheses", () => {
             ExpressionTagOf(`{{ foo|bar }}`, {
                 type: "FilterExpression",
@@ -1075,6 +1114,44 @@ describe("Parser: will test expressions", () => {
                         raw: "20",
                     },
                 ],
+            });
+        });
+    });
+
+    describe("ParentheziedExpression", () => {
+        test("binary precedence", () => {
+            ExpressionTagOf(`{{ (1 + 2) * 3 }}`, {
+                type: "BinaryExpression",
+                operator: "*",
+                start: 3,
+                end: 14,
+                left: {
+                    type: "BinaryExpression",
+                    operator: "+",
+                    start: 4,
+                    end: 9,
+                    left: {
+                        type: "NumericLiteral",
+                        raw: "1",
+                        value: 1,
+                        start: 4,
+                        end: 5,
+                    },
+                    right: {
+                        type: "NumericLiteral",
+                        raw: "2",
+                        value: 2,
+                        start: 8,
+                        end: 9,
+                    },
+                },
+                right: {
+                    type: "NumericLiteral",
+                    raw: "3",
+                    value: 3,
+                    start: 13,
+                    end: 14,
+                },
             });
         });
     });

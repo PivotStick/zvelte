@@ -18,12 +18,6 @@ export class Parser {
             key: "key",
         };
 
-        if (this.component?.name.test("slot")) {
-            throw new Error(
-                "`slot` is a reserved element, it cannot be used for components",
-            );
-        }
-
         /**
          * @type {import("./types.js").Root}
          */
@@ -112,14 +106,14 @@ export class Parser {
      * @param {string} str
      * @param {boolean=} required
      */
-    eat(str, required) {
+    eat(str, required, errorMessage = `Expected "${str}"`) {
         if (this.match(str)) {
             this.index += str.length;
             return true;
         }
 
         if (required) {
-            throw this.error(`Expected "${str}"`);
+            throw this.error(errorMessage);
         }
 
         return false;
@@ -178,7 +172,10 @@ export class Parser {
         this.allowWhitespace();
     }
 
-    error(message = "Something went wrong", start = this.index) {
+    /**
+     * @param {string} message
+     */
+    error(message, start = this.index) {
         let col = 0;
         let ln = 0;
         let cursor = 0;
@@ -209,17 +206,21 @@ export class Parser {
         lines.splice(
             ln + 1,
             0,
-            `${red}${"-".repeat(Math.max(0, col - 1))}^ ${message} at ${ln + 1}:${col + 1}${reset}${dim}`,
+            `${red}${"-".repeat(Math.max(0, col - 1))}^ ${message} at ${
+                ln + 1
+            }:${col + 1}${reset}${dim}`
         );
 
-        lines[ln] =
-            `${lines[ln].replace(/[^\s]/, `${underline}${bold}$&`)}${reset}`;
+        lines[ln] = `${lines[ln].replace(
+            /[^\s]/,
+            `${underline}${bold}$&`
+        )}${reset}`;
 
         return new SyntaxError(
             "\n" +
                 reset +
                 lines.slice(Math.max(0, ln - 4)).join("\n") +
-                `...${reset}`,
+                `...${reset}`
         );
     }
 

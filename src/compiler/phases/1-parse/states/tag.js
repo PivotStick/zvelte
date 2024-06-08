@@ -107,14 +107,14 @@ function open(parser, start) {
 
     if (parser.eat("for")) {
         parser.requireWhitespace();
-        let index;
+        let index = null;
         let context = parseIdentifier(parser);
         if (!context) throw parser.error("Expected an Identifier");
         parser.allowWhitespace();
 
         if (parser.eat(",")) {
             parser.allowWhitespace();
-            index = context.name;
+            index = context;
             context = parseIdentifier(parser);
             if (!context) throw parser.error("Expected an Identifier");
             parser.allowWhitespace();
@@ -127,7 +127,7 @@ function open(parser, start) {
         parser.allowWhitespace();
         if (parser.eat("#")) {
             parser.eat("(", true);
-            key = parseChainableExpression(parser) ?? parseIdentifier(parser);
+            key = parseChainableExpression(parser);
             if (key?.type !== "Identifier" && key?.type !== "MemberExpression")
                 throw parser.error(
                     "Expected an Identifier or a MemberExpression"
@@ -148,7 +148,7 @@ function open(parser, start) {
             key,
             context,
             body: createFragment(),
-            fallback: undefined,
+            fallback: null,
         });
 
         block.body.start = parser.index;
@@ -345,9 +345,8 @@ function close(parser, start) {
                     parser.current()
                 );
 
-                if (block.alternate) {
-                    block.alternate.end = start;
-                }
+                // @ts-expect-error
+                block.alternate.end = start;
             }
 
             block.end = parser.index;

@@ -53,11 +53,11 @@ export function parseArrowFunctionExpression(parser) {
         });
     }
 
-    let expression = parseConditionalExpression(parser);
+    const expression = parseConditionalExpression(parser);
 
     parser.allowWhitespace();
 
-    if (parser.eat("=>", expression === null)) {
+    if (parser.eat("=>")) {
         parser.allowWhitespace();
         /**
          * @type {import("../types.js").ArrowFunctionExpression["params"]}
@@ -65,12 +65,10 @@ export function parseArrowFunctionExpression(parser) {
         const params = [];
         const body = parseExpression(parser);
 
-        if (expression) {
-            if (expression.type === "Identifier") {
-                params.push(expression);
-            } else {
-                throw parser.error("Unexpected expression", start);
-            }
+        if (expression.type === "Identifier") {
+            params.push(expression);
+        } else {
+            throw parser.error("Unexpected expression", start);
         }
 
         return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
@@ -374,11 +372,7 @@ export function parseChainableExpression(parser) {
                 : parseIdentifier(parser);
 
             if (!property) {
-                throw parser.error(
-                    computed
-                        ? "Expected an Expression"
-                        : "Expected an Identifier",
-                );
+                throw parser.error("Expected an Identifier");
             }
 
             parser.allowWhitespace();
