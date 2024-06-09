@@ -528,8 +528,10 @@ function handle(node, currentNode, ctx, parent = null) {
 
             switch (node.operator) {
                 case "~":
+                    return String(left) + String(right);
+
                 case "+":
-                    return left + right;
+                    return Number(left) + Number(right);
 
                 case "-":
                     return left - right;
@@ -585,6 +587,8 @@ function handle(node, currentNode, ctx, parent = null) {
                     case "empty": {
                         if (Array.isArray(left)) {
                             test = !left.length;
+                        } else if (left !== null && typeof left === "object") {
+                            test = !Object.keys(left).length;
                         } else {
                             test = !left;
                         }
@@ -592,7 +596,17 @@ function handle(node, currentNode, ctx, parent = null) {
                     }
 
                     case "defined": {
-                        test = left !== undefined;
+                        if (node.left.type !== "Identifier") {
+                            throw new Error(
+                                `"... is${
+                                    node.not ? " not" : ""
+                                } defined" expressions can only be done on an Identifier or a MemberExpression`
+                            );
+                        }
+
+                        test =
+                            findScopeFrom(node.left.name, ctx.scope) !==
+                            undefined;
                         break;
                     }
                 }
