@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { mount } from "./mount.js";
+import { createComponent, mount } from "./mount.js";
 import { proxy, tick } from "../index.js";
+import { parse } from "../../../compiler/phases/1-parse/index.js";
 
 /**
  * @type {ReturnType<typeof mount>=}
@@ -1324,5 +1325,71 @@ describe("Test client's internal mount()", () => {
         test.todo("Children");
 
         test.todo.fails("Component not found");
+    });
+
+    describe.only("Styling", () => {
+        test("should scope to only one component", () => {
+            createComponent({
+                key: "Sub",
+                ast: parse(`<p>Sub paragraph</p>`),
+            });
+
+            currentInstance = mount({
+                target: document.body,
+                source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>p { color: red; }</style>`,
+            });
+
+            expect(document.body.children).toHaveLength(2);
+
+            const p = document.body.children[0];
+            const zvelte = document.body.children[1];
+
+            expect(p.nodeName).toBe("P");
+            expect(p.attributes).toHaveLength(1);
+            expect(p.hasAttribute("class")).toBe(true);
+
+            expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
+
+            expect(zvelte.nodeName).toBe("ZVELTE");
+            expect(zvelte.children).toHaveLength(1);
+
+            const subP = zvelte.children[0];
+
+            expect(subP.nodeName).toBe("P");
+            expect(subP.attributes).toHaveLength(0);
+
+            expect(window.getComputedStyle(subP).color).toBe("rgb(0, 0, 0)");
+        });
+
+        test(":global()", () => {
+            createComponent({
+                key: "Sub",
+                ast: parse(`<p>Sub paragraph</p>`),
+            });
+
+            currentInstance = mount({
+                target: document.body,
+                source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>:global(p), :global(a), h1 { color: red; }</style>`,
+            });
+
+            expect(document.body.children).toHaveLength(2);
+
+            const p = document.body.children[0];
+            const zvelte = document.body.children[1];
+
+            expect(p.nodeName).toBe("P");
+
+            expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
+
+            expect(zvelte.nodeName).toBe("ZVELTE");
+            expect(zvelte.children).toHaveLength(1);
+
+            const subP = zvelte.children[0];
+
+            expect(subP.nodeName).toBe("P");
+            expect(subP.attributes).toHaveLength(0);
+
+            expect(window.getComputedStyle(subP).color).toBe("rgb(255, 0, 0)");
+        });
     });
 });

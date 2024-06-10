@@ -1,3 +1,4 @@
+import { hash } from "../../utils/hash.js";
 import { ScopeRoot, createScopes } from "../3-transform/render_dom/scope.js";
 
 /**
@@ -10,15 +11,24 @@ export function analyseComponent(root) {
         root.fragment,
         scopeRoot,
         false,
-        null,
+        null
     );
 
-    return {
+    const analysis = {
         root: scopeRoot,
+        css: root.css
+            ? {
+                  hash: "zvelte-" + hash(root.css.code),
+                  ast: root.css.ast,
+                  code: root.css.code,
+              }
+            : null,
         template: {
             ast: root.fragment,
             scope,
             scopes,
         },
     };
+
+    return analysis;
 }

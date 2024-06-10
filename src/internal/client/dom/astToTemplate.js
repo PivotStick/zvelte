@@ -1,11 +1,13 @@
 import { appendStyles } from "../shared.js";
-import { walk } from "estree-walker";
 import { hash } from "../../../compiler/utils/hash.js";
 import * as cssTree from "css-tree";
 import { isVoid } from "../../../compiler/shared/utils/names.js";
 
 // @ts-ignore
 import * as $ from "svelte/internal/client";
+import { walk } from "zimmerframe";
+import { analyseComponent } from "../../../compiler/phases/2-analyze/index.js";
+import { renderStylesheet } from "../../../compiler/phases/3-transform/css/index.js";
 
 /**
  * @param {import("#ast").ZvelteNode} ast
@@ -39,16 +41,18 @@ function newRoot(node) {
 function handle(node, template) {
     switch (node.type) {
         case "Root":
-            if (node.css) {
-                const styleSheetId = "zvelte-" + hash(node.css.code);
-                // @ts-ignore
-                walk(node.fragment, {
-                    leave(/** @type {import("#ast").ZvelteNode} */ node) {
-                        if (node.type === "RegularElement") {
+            const analysis = analyseComponent(node);
+            if (analysis.css) {
+                const { code, hash } = analysis.css;
+                walk(
+                    /** @type {import("#ast").ZvelteNode} */ (node.fragment),
+                    {},
+                    {
+                        RegularElement(node) {
                             let classAttr = node.attributes.find(
                                 (attr) =>
                                     attr.type === "Attribute" &&
-                                    attr.name === "class",
+                                    attr.name === "class"
                             );
                             if (classAttr?.type !== "Attribute") {
                                 classAttr = {
@@ -69,57 +73,27 @@ function handle(node, template) {
                                         type: "Text",
                                         end: -1,
                                         start: -1,
-                                        data: styleSheetId,
+                                        data: hash,
                                     };
                                     if (classAttr.value.length > 0) {
                                         text.data += " ";
                                     }
                                     classAttr.value.unshift(text);
                                 } else {
-                                    text.data = `${styleSheetId} ${text.data}`;
+                                    text.data = `${hash} ${text.data}`;
                                 }
                             }
-                        }
-                    },
+                        },
+                    }
+                );
+
+                const result = renderStylesheet(code, analysis, {
+                    dev: false,
+                    filename: hash + ".css",
                 });
 
-                walk(node.css.ast, {
-                    enter(/** @type {any} */ node) {
-                        if (
-                            node.type === "Atrule" &&
-                            node.name === "keyframes"
-                        ) {
-                            this.skip();
-                        }
-                    },
-                    leave(/** @type {any} */ node) {
-                        if (node.type === "Selector") {
-                            let index = 0;
-                            for (let i = 0; i < node.children.length; i++) {
-                                index = i;
-                                const selector = node.children[i];
-                                if (
-                                    selector.type === "PseudoElementSelector" ||
-                                    selector.type === "PseudoClassSelector"
-                                ) {
-                                    index--;
-                                    break;
-                                }
-                            }
-
-                            node.children.splice(index + 1, 0, {
-                                type: "ClassSelector",
-                                name: styleSheetId,
-                                loc: null,
-                            });
-                        }
-                    },
-                });
-
-                node.css.code = cssTree.generate(node.css.ast);
-
-                // @ts-ignore
-                appendStyles(undefined, styleSheetId, node.css.code);
+                console.log(result.code);
+                appendStyles(undefined, hash, result.code);
             }
 
             handle(node.fragment, template);
@@ -234,7 +208,7 @@ function handle(node, template) {
 
         default:
             throw new Error(
-                `${node.type} node not handled in template rendering`,
+                `${node.type} node not handled in template rendering`
             );
     }
 }

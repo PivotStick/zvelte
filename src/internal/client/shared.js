@@ -34,7 +34,7 @@ export function pushNewScope(scope, newScope = {}) {
 }
 
 /**
- * @param {Node} target
+ * @param {Node | undefined} target
  * @param {string} styleSheetId
  * @param {string} styles
  */
@@ -54,7 +54,7 @@ export async function appendStyles(target, styleSheetId, styles) {
 }
 
 /**
- * @param {Node} node
+ * @param {Node=} node
  */
 function getRootForStyle(node) {
     if (!node) return document;

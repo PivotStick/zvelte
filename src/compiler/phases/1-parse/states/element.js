@@ -298,6 +298,7 @@ export const element = (parser) => {
             ast: csstree.toPlainObject(
                 csstree.parse(isScss ? sass.compileString(code).css : code, {
                     offset: start,
+                    positions: true,
                 })
             ),
         };

@@ -175,7 +175,7 @@ export class Parser {
     /**
      * @param {string} message
      */
-    error(message, start = this.index) {
+    error(message, start = this.index, end = start) {
         let col = 0;
         let ln = 0;
         let cursor = 0;
