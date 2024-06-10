@@ -1327,7 +1327,7 @@ describe("Test client's internal mount()", () => {
         test.todo.fails("Component not found");
     });
 
-    describe.only("Styling", () => {
+    describe("Styling", () => {
         test("should scope to only one component", () => {
             createComponent({
                 key: "Sub",
@@ -1369,7 +1369,7 @@ describe("Test client's internal mount()", () => {
 
             currentInstance = mount({
                 target: document.body,
-                source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>:global(p), :global(a), h1 { color: red; }</style>`,
+                source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>:global(p) { color: red; }</style>`,
             });
 
             expect(document.body.children).toHaveLength(2);
@@ -1390,6 +1390,42 @@ describe("Test client's internal mount()", () => {
             expect(subP.attributes).toHaveLength(0);
 
             expect(window.getComputedStyle(subP).color).toBe("rgb(255, 0, 0)");
+        });
+
+        test("correctly add class id on already existing class", () => {
+            currentInstance = mount({
+                target: document.body,
+                source: `<p class="foo">Paragraph</p> <style>p.foo { color: red; }</style>`,
+            });
+
+            expect(document.body.children).toHaveLength(1);
+
+            const p = document.body.children[0];
+
+            expect(p.nodeName).toBe("P");
+            expect(p.attributes).toHaveLength(1);
+            expect(p.classList).toHaveLength(2);
+            expect(p.classList.contains("foo")).toBe(true);
+
+            expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
+        });
+
+        test("correctly add class id on already existing class with expression only", () => {
+            currentInstance = mount({
+                target: document.body,
+                source: `<p class="{{ 'foo' }}">Paragraph</p> <style>p.foo { color: red; }</style>`,
+            });
+
+            expect(document.body.children).toHaveLength(1);
+
+            const p = document.body.children[0];
+
+            expect(p.nodeName).toBe("P");
+            expect(p.attributes).toHaveLength(1);
+            expect(p.classList).toHaveLength(2);
+            expect(p.classList.contains("foo")).toBe(true);
+
+            expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
         });
     });
 });

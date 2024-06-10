@@ -1,6 +1,4 @@
 import { appendStyles } from "../shared.js";
-import { hash } from "../../../compiler/utils/hash.js";
-import * as cssTree from "css-tree";
 import { isVoid } from "../../../compiler/shared/utils/names.js";
 
 // @ts-ignore
@@ -92,7 +90,6 @@ function handle(node, template) {
                     filename: hash + ".css",
                 });
 
-                console.log(result.code);
                 appendStyles(undefined, hash, result.code);
             }
 
@@ -106,7 +103,6 @@ function handle(node, template) {
             break;
 
         case "Text":
-            if (node.data === "") break;
             if (node.data.trim() === "") {
                 template.src += " ";
                 break;

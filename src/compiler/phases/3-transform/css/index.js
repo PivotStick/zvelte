@@ -6,11 +6,11 @@ import {
     remove_css_prefix,
 } from "../../css.js";
 import { analyseComponent } from "../../2-analyze/index.js";
+import { generate } from "css-tree";
 
 /**
  * @typedef {{
- *   code: MagicString;
- *   source: string;
+ *   code: string;
  *   hash: string;
  *   selector: string;
  * }} State
@@ -27,80 +27,52 @@ import { analyseComponent } from "../../2-analyze/index.js";
  * }} options
  */
 export function renderStylesheet(source, analysis, options) {
-    const code = new MagicString(source);
+    if (!analysis.css) throw new Error(`expected css`);
 
     /** @type {State} */
     const state = {
-        source,
-        code,
+        code: source,
         hash: analysis.css.hash,
         selector: `.${analysis.css.hash}`,
     };
 
-    // @ts-ignore
-    walk(
-        /** @type {import('css-tree').CssNode} */ (analysis.css.ast),
-        state,
-        visitors
-    );
+    walk(analysis.css.ast, state, visitors);
 
-    const css = {
-        code: code.toString(),
-        map: code.generateMap({
-            // include source content; makes it easier/more robust looking up the source map code
-            includeContent: true,
-            // generateMap takes care of calculating source relative to file
-            source: options.filename,
-            file: options.cssOutputFilename || options.filename,
-        }),
+    return {
+        // @ts-ignore
+        code: generate(analysis.css.ast),
     };
-
-    return css;
 }
 
-/** @type {import('zimmerframe').Visitors<import('css-tree').CssNode, State>} */
+/** @type {import('zimmerframe').Visitors<import('css-tree').CssNodePlain, State>} */
 const visitors = {
-    _: (node, context) => {
-        if (node.loc) {
-            const loc = locToIndex(context.state.code.toString(), node.loc);
-            context.state.code.addSourcemapLocation(loc.start);
-            context.state.code.addSourcemapLocation(loc.end);
-        }
-
-        context.next();
-    },
-
     SelectorList(node, { state, path }) {
-        console.log(node);
+        for (const selector of node.children) {
+            if (selector.type === "Selector") {
+                let indexToAdd = -1;
+
+                for (let i = selector.children.length - 1; i >= 0; i--) {
+                    const child = selector.children[i];
+                    if (
+                        child.type === "PseudoClassSelector" &&
+                        child.name === "global" &&
+                        child.children?.[0]
+                    ) {
+                        selector.children[i] = child.children[0];
+                        break;
+                    } else if (child.type === "TypeSelector" || i === 0) {
+                        indexToAdd = i + 1;
+                        break;
+                    }
+                }
+
+                if (indexToAdd !== -1) {
+                    selector.children.splice(indexToAdd, 0, {
+                        type: "ClassSelector",
+                        name: state.hash,
+                    });
+                }
+            }
+        }
     },
 };
-
-/**
- * @param {string} source
- * @param {import("css-tree").CssLocation} loc
- */
-function locToIndex(source, loc) {
-    return {
-        start: lineColToIndex(source, loc.start.line, loc.start.column),
-        end: lineColToIndex(source, loc.end.line, loc.end.column),
-    };
-}
-
-/**
- * @param {string} source
- * @param {number} line
- * @param {number} column
- */
-function lineColToIndex(source, line, column) {
-    let index = 0;
-    const lines = source.split("\n");
-    for (let i = 0; i < line; i++) {
-        if (i === line - 1) {
-            index += column - 1;
-        } else {
-            index += lines[i].length;
-        }
-    }
-
-    return index;
-}
