@@ -914,12 +914,12 @@ const templateVisitors = {
 
     // @ts-ignore
     MemberExpression(node, context) {
-        const property = /** @type {import("estree").Expression} */ (
-            context.visit(node.property)
-        );
-
         const object = /** @type {import("estree").Expression} */ (
             context.visit(node.object)
+        );
+
+        const property = /** @type {import("estree").Expression} */ (
+            context.visit(node.property)
         );
 
         let member = b.member(object, property, node.computed);
@@ -946,16 +946,17 @@ const templateVisitors = {
     },
 
     // @ts-ignore
-    Identifier(node, context) {
+    Identifier(node, { path, state }) {
         /** @type {import("estree").Expression} */
         let id = b.id(node.name);
+        const parent = path[path.length - 1];
 
         if (
-            context.path.at(-1)?.type !== "MemberExpression" &&
-            !context.state.nonPropVars.includes(id.name)
+            (parent.type !== "MemberExpression" || parent.computed) &&
+            !state.nonPropVars.includes(id.name)
         ) {
             id = b.member(
-                context.state.options.hasJS
+                state.options.hasJS
                     ? b.call(
                           "$.scope",
                           b.id("$$scopes"),
