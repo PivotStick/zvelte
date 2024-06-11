@@ -10,9 +10,13 @@ export default defineTest({
             target.querySelector("button")
         );
 
-        button.click();
-        await tick();
-
-        expect(target.innerHTML).toBe("<button>clicks: 11</button>");
+        // Try 10 clicks
+        for (let i = 0; i < 10; i++) {
+            button.click();
+            await tick();
+            expect(target.innerHTML).toBe(
+                `<button>clicks: ${10 + i + 1}</button>`
+            );
+        }
     },
 });

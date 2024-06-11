@@ -1024,6 +1024,20 @@ const templateVisitors = {
             )
         );
     },
+
+    // @ts-expect-error
+    RangeExpression(node, context) {
+        const array = b.array();
+
+        const count = Math.abs(node.to.value - node.from.value);
+
+        for (let i = 0; i < count; i++) {
+            const add = node.step * i;
+            array.elements.push(b.literal(node.from.value + add));
+        }
+
+        return array;
+    },
 };
 
 /**
