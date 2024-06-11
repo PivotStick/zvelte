@@ -50,7 +50,7 @@ for (const path in modulePaths) {
  */
 function run(tests) {
     for (const { name, config, component } of tests) {
-        test(name, async () => {
+        const exec = async () => {
             document.body.innerHTML = "";
 
             const props = proxy(config.props);
@@ -68,7 +68,10 @@ function run(tests) {
                 props,
                 target: document.body,
             });
-        });
+        };
+
+        if (config.todo) test.todo(name, exec);
+        else test(name, exec);
     }
 }
 
