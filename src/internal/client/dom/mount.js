@@ -13,6 +13,8 @@ import {
     EACH_KEYED,
     UNINITIALIZED,
 } from "../../../compiler/phases/constants.js";
+import { walk } from "zimmerframe";
+import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 
 /**
  * @param {() => void} callback
@@ -47,6 +49,31 @@ export function contextualizeComponent(callback, props) {
  * }} args
  */
 export function createComponent({ init, ast, key, initScope }) {
+    const preserveComments = true;
+    const preserveWhitespace = false;
+
+    // trim texts on all fragments
+    walk(
+        /** @type {import("#ast").ZvelteNode} */ (ast),
+        {},
+        {
+            Fragment(node, { path }) {
+                const { trimmed } = cleanNodes(
+                    path[path.length - 1],
+                    node.nodes,
+                    path,
+                    "",
+                    preserveWhitespace,
+                    preserveComments,
+                    false
+                );
+
+                // @ts-ignore
+                node.nodes = trimmed;
+            },
+        }
+    );
+
     addTemplatesToAST(ast);
 
     /**
@@ -88,7 +115,7 @@ export function createComponent({ init, ast, key, initScope }) {
     /**
      * @param {{ target: HTMLElement; props: any; hydrate?: boolean; }} args
      */
-    const mount = ({ target, props, hydrate = false }) => {
+    const mount = ({ target, props = {}, hydrate = false }) => {
         props = $.proxy(props);
 
         // @ts-ignore
@@ -218,6 +245,9 @@ function handle(node, currentNode, ctx, parent = null) {
                     i === 0
                         ? $.first_child(currentNode, isText)
                         : $.sibling(currentNode, isText);
+
+                currentNode.replace = (/** @type {any} */ node) =>
+                    (currentNode = node);
 
                 handle(child, currentNode, ctx);
             });
@@ -745,6 +775,8 @@ function handle(node, currentNode, ctx, parent = null) {
             const anchor = /** @type {Comment} */ (currentNode);
             const text = $.text(anchor);
             anchor.before(text);
+            anchor.remove();
+            currentNode.replace(text);
 
             $.template_effect(() =>
                 $.set_text(
@@ -1037,6 +1069,13 @@ function handle(node, currentNode, ctx, parent = null) {
         }
 
         case "SnippetBlock": {
+            const anchor = /** @type {Comment} */ (currentNode);
+            const empty = document.createTextNode("");
+
+            anchor.replaceWith(empty);
+            anchor.remove();
+            currentNode.replace(empty);
+
             const scope = ctx.scope[0];
 
             // @ts-ignore

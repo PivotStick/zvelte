@@ -40,13 +40,15 @@ import * as $legacy from "@pivotass/zvelte";
 
 export function legacy() {
     const ast = ${JSON.stringify(parse(code))};
-    const component = $legacy.createComponent({
+    const mount = $legacy.createComponent({
         ast,
+        init: ${hasJS} ? js.default : undefined,
+        initScope: ${hasJS} ? js.scope : undefined,
     });
 
     return {
-        default: component,
-        mount: (args) => $.mount(component, args),
+        default: mount.component,
+        mount,
     }
 }`;
 

@@ -25,6 +25,7 @@ export function cleanNodes(
     namespace = "html",
     preserve_whitespace,
     preserve_comments,
+    hoist = true
 ) {
     /** @type {import('#ast').ZvelteNode[]} */
     const hoisted = [];
@@ -37,7 +38,7 @@ export function cleanNodes(
             continue;
         }
 
-        if (node.type === "SnippetBlock") {
+        if (hoist && node.type === "SnippetBlock") {
             // TODO others?
             hoisted.push(node);
         } else {
@@ -79,7 +80,7 @@ export function cleanNodes(
         (namespace === "svg" &&
             (parent.type !== "RegularElement" || parent.name !== "text") &&
             !path.some(
-                (n) => n.type === "RegularElement" && n.name === "text",
+                (n) => n.type === "RegularElement" && n.name === "text"
             )) ||
         (parent.type === "RegularElement" &&
             // TODO others?
@@ -111,7 +112,7 @@ export function cleanNodes(
                     regex_ends_with_whitespaces.test(prev.data);
                 node.data = node.data.replace(
                     regex_starts_with_whitespaces,
-                    prev_is_text_ending_with_whitespace ? "" : " ",
+                    prev_is_text_ending_with_whitespace ? "" : " "
                 );
             }
             if (next?.type !== "ExpressionTag") {

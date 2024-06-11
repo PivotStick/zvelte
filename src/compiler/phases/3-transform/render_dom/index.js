@@ -255,7 +255,7 @@ function createBlock(parent, name, nodes, context) {
         context.path,
         namespace,
         context.state.preserve_whitespace ?? false,
-        context.state.options.preserveComments ?? false
+        context.state.options.preserveComments ?? true
     );
 
     if (hoisted.length === 0 && trimmed.length === 0) {
@@ -374,27 +374,18 @@ function createBlock(parent, name, nodes, context) {
 
             processChildren(trimmed, expression, false, { ...context, state });
 
-            const use_comment_template =
-                state.template.length === 1 && state.template[0] === "<!>";
+            let flags = TEMPLATE_FRAGMENT;
 
-            if (use_comment_template) {
-                // special case — we can use `$.comment` instead of creating a unique template
-                body.push(b.var(id, b.call("$.comment")));
-            } else {
-                let flags = TEMPLATE_FRAGMENT;
-
-                if (state.metadata.context.template_needs_import_node) {
-                    flags |= TEMPLATE_USE_IMPORT_NODE;
-                }
-
-                add_template(template_name, [
-                    b.template([b.quasi(state.template.join(""), true)], []),
-                    b.literal(flags),
-                ]);
-
-                body.push(b.var(id, b.call(template_name)));
+            if (state.metadata.context.template_needs_import_node) {
+                flags |= TEMPLATE_USE_IMPORT_NODE;
             }
 
+            add_template(template_name, [
+                b.template([b.quasi(state.template.join(""), true)], []),
+                b.literal(flags),
+            ]);
+
+            body.push(b.var(id, b.call(template_name)));
             body.push(...state.before_init, ...state.init);
 
             close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
@@ -611,6 +602,10 @@ const templateVisitors = {
     Fragment(node, context) {
         const body = createBlock(node, "root", node.nodes, context);
         return b.block(body);
+    },
+
+    Comment(node, { state }) {
+        state.template.push(`<!--${node.data}-->`);
     },
 
     RegularElement(node, context) {
@@ -834,6 +829,37 @@ const templateVisitors = {
         }
     },
 
+    SnippetBlock(node, context) {
+        const args = [b.id("$$anchor")];
+
+        context.state.init.push(
+            b.assignment(
+                "=",
+                context.visit(node.expression),
+                b.arrow(
+                    args,
+                    // @ts-expect-error
+                    /** @type {import("estree").BlockStatement} */ (
+                        context.visit(node.body)
+                    )
+                )
+            )
+        );
+    },
+
+    RenderTag(node, context) {
+        const callee = context.visit(
+            node.expression.type === "CallExpression"
+                ? node.expression.callee
+                : node.expression.name
+        );
+
+        context.state.template.push("<!>");
+        context.state.init.push(
+            b.stmt(b.call("$.snippet", b.arrow([], callee), context.state.node))
+        );
+    },
+
     Attribute(node, context) {
         if (isEventAttribute(node)) {
             serializeEventAttribute(node, context);
@@ -906,7 +932,8 @@ const templateVisitors = {
                     ? b.call(
                           "$.scope",
                           b.id("$$scopes"),
-                          b.literal(member.object.name)
+                          b.literal(member.object.name),
+                          b.id("$$scope")
                       )
                     : b.id("$$props"),
                 member
@@ -924,7 +951,12 @@ const templateVisitors = {
         if (context.path.at(-1)?.type !== "MemberExpression") {
             id = b.member(
                 context.state.options.hasJS
-                    ? b.call("$.scope", b.id("$$scopes"), b.literal(id.name))
+                    ? b.call(
+                          "$.scope",
+                          b.id("$$scopes"),
+                          b.literal(id.name),
+                          b.id("$$scope")
+                      )
                     : b.id("$$props"),
                 id
             );

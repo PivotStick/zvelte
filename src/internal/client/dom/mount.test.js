@@ -15,27 +15,6 @@ beforeEach(() => {
 });
 
 describe("Test client's internal mount()", () => {
-    test("text", () => {
-        currentInstance = mount({
-            target: document.body,
-            source: "Hello World",
-        });
-
-        expect(document.body.textContent).toEqual("Hello World");
-    });
-
-    test("comment", () => {
-        currentInstance = mount({
-            target: document.body,
-            source: `<!-- hello! -->`,
-        });
-
-        const comment = /** @type {Comment} */ (document.body.childNodes[0]);
-
-        expect(comment).toBeInstanceOf(Comment);
-        expect(comment.data).toBe(" hello! ");
-    });
-
     test("destroy component", () => {
         const instance = mount({
             target: document.body,
@@ -48,65 +27,6 @@ describe("Test client's internal mount()", () => {
     });
 
     describe("RegularElement", () => {
-        test("element", () => {
-            currentInstance = mount({
-                target: document.body,
-                source: "<h1></h1>",
-            });
-
-            const h1 = document.body.querySelector("h1");
-
-            expect(h1).not.toBeNull();
-            expect(h1?.innerText).toEqual("");
-            expect(h1?.attributes.length).toEqual(0);
-        });
-
-        test("self closing element", () => {
-            currentInstance = mount({
-                target: document.body,
-                source: "<h1 />",
-            });
-
-            const h1 = document.body.querySelector("h1");
-
-            expect(h1).not.toBeNull();
-            expect(h1?.innerText).toEqual("");
-            expect(h1?.attributes.length).toEqual(0);
-        });
-
-        test("element with text", () => {
-            currentInstance = mount({
-                target: document.body,
-                source: "<h1>Hello World!</h1>",
-            });
-
-            const h1 = document.body.querySelector("h1");
-
-            expect(h1).not.toBeNull();
-            expect(h1?.innerText).toEqual("Hello World!");
-        });
-
-        test("element with children", () => {
-            currentInstance = mount({
-                target: document.body,
-                source: "<h1>Hello <span>Joe</span>!</h1>",
-            });
-
-            const h1 = /** @type {HTMLHeadingElement} */ (
-                document.body.querySelector("h1")
-            );
-
-            expect(h1).not.toBeNull();
-
-            expect(h1.childNodes[0].nodeName).toEqual("#text");
-            expect(h1.childNodes[0].textContent).toEqual("Hello ");
-
-            expect(h1.childNodes[1].nodeName).toEqual("SPAN");
-            expect(h1.childNodes[1].textContent).toEqual("Joe");
-
-            expect(h1.childNodes[2].nodeName).toEqual("#text");
-            expect(h1.childNodes[2].textContent).toEqual("!");
-        });
         describe("Attributes", () => {
             describe("OnDirective", () => {
                 test("on:click listener", async () => {
@@ -239,42 +159,6 @@ describe("Test client's internal mount()", () => {
             describe.todo("TransitionDirective");
             describe.todo("Spread");
         });
-    });
-
-    test("text with first prop", () => {
-        currentInstance = mount({
-            target: document.body,
-            props: { name: "Joe" },
-            source: "<h1>Hello {{ name }}!</h1>",
-        });
-
-        expect(document.body.querySelector("h1")).not.toBeNull();
-        expect(document.body.textContent).toEqual("Hello Joe!");
-    });
-
-    test("counter button", async () => {
-        currentInstance = mount({
-            target: document.body,
-            props: { counter: 0 },
-            init({ props, scope }) {
-                scope.increment = () => {
-                    props.counter++;
-                };
-            },
-            source: `<button on:click="{{ increment() }}">clicks: {{ counter }}</button>`,
-        });
-
-        const button = /** @type {HTMLButtonElement} */ (
-            document.body.querySelector("button")
-        );
-
-        expect(button).toBeInstanceOf(HTMLButtonElement);
-
-        for (let i = 0; i < 10; i++) {
-            expect(button.textContent).toEqual(`clicks: ${i}`);
-            button.click();
-            await tick();
-        }
     });
 
     describe("IfBlock", () => {
@@ -452,15 +336,6 @@ describe("Test client's internal mount()", () => {
     });
 
     describe("SnippetBlock & RenderTag", () => {
-        test("without args and render tag", () => {
-            currentInstance = mount({
-                target: document.body,
-                source: "{% snippet foo() %}Hello Component!{% endsnippet %}{{ @render foo() }}",
-            });
-
-            expect(document.body.textContent).toBe("Hello Component!");
-        });
-
         test.todo("with one arg");
 
         test.todo("with many args");
@@ -712,124 +587,6 @@ describe("Test client's internal mount()", () => {
             instance.destroy();
         }
 
-        test("Identifier", () => {
-            currentInstance = mount({
-                target: document.body,
-                props: { foo: "bar" },
-                source: `{{ foo }}`,
-            });
-
-            expect(document.body.textContent).toBe("bar");
-        });
-
-        describe("LogicalExpressions", () => {
-            // "||" | "or" | "and" | "??";
-
-            test("|| - or", () => {
-                ExpressionOf("foo || bar", "yes", { foo: false, bar: "yes" });
-                ExpressionOf("foo or bar", "yes", { foo: false, bar: "yes" });
-
-                ExpressionOf("foo || bar", "stuff", {
-                    foo: "stuff",
-                    bar: "yes",
-                });
-                ExpressionOf("foo or bar", "stuff", {
-                    foo: "stuff",
-                    bar: "yes",
-                });
-            });
-
-            test("and", () => {
-                ExpressionOf("foo and bar", "yes", {
-                    foo: "stuff",
-                    bar: "yes",
-                });
-                ExpressionOf("foo and bar", "", { foo: "", bar: "yes" });
-                ExpressionOf("foo and bar", "", { foo: "stuff", bar: "" });
-                ExpressionOf("foo and bar", false, { foo: false, bar: false });
-            });
-
-            test("??", () => {
-                ExpressionOf("foo ?? bar", false, { foo: false, bar: "bar" });
-                ExpressionOf("foo ?? bar", "bar", { foo: null, bar: "bar" });
-                ExpressionOf("foo ?? bar", "bar", { bar: "bar" });
-            });
-        });
-
-        describe("BinaryExpressions", () => {
-            // "+" | "-" | "/" | "*" | "~" | "==" | "!=" | "<=" | ">=" | "<" | ">";
-
-            test("Additions & Substractions (+, -)", () => {
-                ExpressionOf(`1 + 1`, 2);
-                ExpressionOf(`14 + 20 + 50`, 84);
-
-                ExpressionOf(`1 - 1`, 0);
-                ExpressionOf(`14 - 20 - 50`, -56);
-            });
-
-            test("Concatenations are for numbers only", () => {
-                ExpressionOf("'1' + '2'", 3);
-                ExpressionOf("foo + bar", 90, { foo: "50", bar: "40" });
-            });
-
-            test("Divisions & Multiplications (/, *)", () => {
-                ExpressionOf(`1 * 2`, 2);
-                ExpressionOf(`34 * 20`, 680);
-
-                ExpressionOf(`1 / 2`, 0.5);
-                ExpressionOf(`20 / 20`, 1);
-                ExpressionOf(`0 / 20`, 0);
-                ExpressionOf(`20 / 0`, Infinity);
-            });
-
-            test("Concatenations (~)", () => {
-                ExpressionOf(`foo ~ " world!"`, "Hello world!", {
-                    foo: "Hello",
-                });
-
-                ExpressionOf(`foo ~ " world!"`, "undefined world!");
-            });
-
-            test("Concatenations are for strings only", () => {
-                ExpressionOf("1 ~ 2", "12");
-                ExpressionOf("foo ~ bar", "5040", { foo: 50, bar: 40 });
-            });
-
-            test("Equality & Greater/Lesser than (==, !=, <=, >=, <, >)", () => {
-                ExpressionOf(`1 == 1`, true);
-                ExpressionOf(`1 == 2`, false);
-
-                ExpressionOf(`1 != 1`, false);
-                ExpressionOf(`1 != 2`, true);
-
-                ExpressionOf(`1 > 1`, false);
-                ExpressionOf(`1 > 2`, false);
-                ExpressionOf(`2 > 1`, true);
-
-                ExpressionOf(`1 < 1`, false);
-                ExpressionOf(`1 < 2`, true);
-                ExpressionOf(`2 < 1`, false);
-
-                ExpressionOf(`1 <= 1`, true);
-                ExpressionOf(`1 <= 2`, true);
-                ExpressionOf(`2 <= 1`, false);
-
-                ExpressionOf(`1 >= 1`, true);
-                ExpressionOf(`1 >= 2`, false);
-                ExpressionOf(`2 >= 1`, true);
-            });
-        });
-
-        describe("ConditionalExpression", () => {
-            test("consequent", () => {
-                ExpressionOf("foo ? 'foo' : 'bar'", "bar", { foo: false });
-            });
-
-            test("alternate", () => {
-                ExpressionOf("foo ? 'foo' : 'bar'", "foo", { foo: true });
-            });
-        });
-
         describe("FilterExpression", () => {
             test("Without args", () => {
                 const fn = vi.fn();
@@ -907,27 +664,6 @@ describe("Test client's internal mount()", () => {
                     { type: "return", value: "6!" },
                     { type: "return", value: "25 woaw!" },
                 ]);
-            });
-        });
-
-        describe("ArrayExpression", () => {
-            test("empty", () => {
-                ExpressionOf("[]", []);
-            });
-
-            test("one element", () => {
-                ExpressionOf("['foo']", ["foo"]);
-            });
-
-            test("trailing ','", () => {
-                ExpressionOf(`['foo',]`, ["foo"]);
-            });
-
-            test("many elements", () => {
-                ExpressionOf(
-                    `['foo', 'bar', [true, 2 * 4], { object: "value"}]`,
-                    ["foo", "bar", [true, 8], { object: "value" }]
-                );
             });
         });
 

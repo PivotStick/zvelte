@@ -61,7 +61,7 @@ function run(tests) {
             });
 
             if (config.html) {
-                expect(document.body.innerHTML).toBe(config.html);
+                expect(document.body.innerHTML).toEqual(config.html);
             }
 
             await config.test?.({
@@ -72,5 +72,5 @@ function run(tests) {
     }
 }
 
+describe("runtime-legacy-browser", () => run(legacyTests));
 describe("runtime-browser", () => run(tests));
-describe("runtime-legacy-browser", () => run(tests));

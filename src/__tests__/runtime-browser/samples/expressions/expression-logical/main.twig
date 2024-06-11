@@ -1,0 +1,14 @@
+{% set or1 = false || "yes" %}
+{% set or2 = false or "yes" %}
+
+{% set or3 = "stuff" || "yes" %}
+{% set or4 = "stuff" or "yes" %}
+
+{% set and1 = "stuff" and "yes" %}
+{% set and2 = "" and "yes" %}
+{% set and3 = "stuff" and "" %}
+{% set and4 = false and false %}
+
+{% set nullish1 = false ?? "bar" %}
+{% set nullish2 = null ?? "bar" %}
+{% set nullish3 = foo ?? "bar" %}

@@ -9,7 +9,7 @@ export type ComponentInitArgs<
     Els extends Record<string, HTMLElement | Record<string, any>> = Record<
         string,
         HTMLElement
-    >,
+    >
 > = {
     props: T;
     els: Els;
