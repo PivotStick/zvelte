@@ -986,6 +986,61 @@ const templateVisitors = {
     },
 
     // @ts-expect-error
+    IsExpression(node, { visit, state }) {
+        if (node.right.type === "Identifier") {
+            switch (node.right.name) {
+                case "empty": {
+                    const test = b.call("$.is_empty", visit(node.left));
+                    if (node.not) return b.unary("!", test);
+                    return test;
+                }
+
+                case "defined": {
+                    if (node.left.type !== "Identifier") {
+                        throw new Error(
+                            `"... is${
+                                node.not ? " not" : ""
+                            } defined" expressions can only be done on an Identifier or a MemberExpression at ${
+                                node.left.start
+                            }`
+                        );
+                    }
+
+                    if (state.options.hasJS) {
+                        return b.binary(
+                            b.call(
+                                "$.scope",
+                                b.id("$$scopes"),
+                                b.literal(node.left.name)
+                            ),
+                            node.not ? "===" : "!==",
+                            b.id("undefined")
+                        );
+                    }
+
+                    const test = b.binary(
+                        b.literal(node.left.name),
+                        "in",
+                        b.id("$$props")
+                    );
+                    if (node.not) return b.unary("!", test);
+                    return test;
+                }
+            }
+        } else if (node.right.type === "NullLiteral") {
+            return b.binary(
+                visit(node.left),
+                node.not ? "!==" : "===",
+                b.literal(null)
+            );
+        }
+
+        throw new Error(
+            `Unhandled kind of "IsExpression" at ${node.right.start}`
+        );
+    },
+
+    // @ts-expect-error
     ArrowFunctionExpression(node, { state, visit }) {
         const vars = state.nonPropVars.slice();
         /** @type {import("estree").Pattern[]} */

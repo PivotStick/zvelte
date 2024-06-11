@@ -26,4 +26,17 @@ function in_expression(left, right) {
     }
 }
 
+/**
+ * @param {any} value
+ */
+export function is_empty(value) {
+    if (Array.isArray(value)) {
+        return !value.length;
+    } else if (value !== null && typeof value === "object") {
+        return !Object.keys(value).length;
+    } else {
+        return !value;
+    }
+}
+
 export { in_expression as in };
