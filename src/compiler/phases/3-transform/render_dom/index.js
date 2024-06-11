@@ -63,6 +63,7 @@ export function renderDom(ast, analysis, options, meta) {
         options,
         hoisted: [b.importAll("$", "@pivotass/zvelte/internal/client")],
         node: /** @type {any} */ (null), // populated by the root node
+        nonPropVars: [],
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -925,7 +926,8 @@ const templateVisitors = {
 
         if (
             context.path.at(-1)?.type !== "MemberExpression" &&
-            member.object.type === "Identifier"
+            member.object.type === "Identifier" &&
+            !context.state.nonPropVars.includes(member.object.name)
         ) {
             member = b.member(
                 context.state.options.hasJS
@@ -948,7 +950,10 @@ const templateVisitors = {
         /** @type {import("estree").Expression} */
         let id = b.id(node.name);
 
-        if (context.path.at(-1)?.type !== "MemberExpression") {
+        if (
+            context.path.at(-1)?.type !== "MemberExpression" &&
+            !context.state.nonPropVars.includes(id.name)
+        ) {
             id = b.member(
                 context.state.options.hasJS
                     ? b.call(
@@ -963,6 +968,24 @@ const templateVisitors = {
         }
 
         return id;
+    },
+
+    // @ts-expect-error
+    ArrowFunctionExpression(node, { state, visit }) {
+        const vars = state.nonPropVars.slice();
+        /** @type {import("estree").Pattern[]} */
+        const params = node.params.map((p) => {
+            vars.push(p.name);
+            return {
+                type: "Identifier",
+                name: p.name,
+            };
+        });
+
+        return b.arrow(
+            params,
+            visit(node.body, { ...state, nonPropVars: vars })
+        );
     },
 
     // @ts-ignore
