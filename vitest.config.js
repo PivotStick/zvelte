@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import { compile } from "./src/compiler/index";
 import { access } from "fs/promises";
 import { basename, dirname } from "path";
+import { parse } from "./src/compiler/phases/1-parse";
 
 export default defineConfig({
     test: {
@@ -24,12 +25,30 @@ export default defineConfig({
                         .then(() => true)
                         .catch(() => false);
 
-                    const result = compile(code, {
+                    const options = {
                         hasJS,
                         namespace: dirname(id),
                         filename: basename(id),
                         generate: "dom",
-                    });
+                    };
+
+                    const result = compile(code, options);
+
+                    result.code += `
+
+import * as $legacy from "@pivotass/zvelte";
+
+export function legacy() {
+    const ast = ${JSON.stringify(parse(code))};
+    const component = $legacy.createComponent({
+        ast,
+    });
+
+    return {
+        default: component,
+        mount: (args) => $.mount(component, args),
+    }
+}`;
 
                     return result;
                 }

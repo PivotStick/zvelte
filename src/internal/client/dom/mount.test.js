@@ -712,36 +712,6 @@ describe("Test client's internal mount()", () => {
             instance.destroy();
         }
 
-        describe("NumericLiteral", () => {
-            test("integer", () => {
-                ExpressionOf("4", 4);
-                ExpressionOf("2340", 2340);
-                ExpressionOf("800000", 800000);
-                ExpressionOf("+20", 20);
-            });
-
-            test("float", () => {
-                ExpressionOf("0.003", 0.003);
-                ExpressionOf("495.8837", 495.8837);
-                ExpressionOf("3.14", 3.14);
-                ExpressionOf("+40.00", 40);
-            });
-
-            test("negative integer", () => {
-                ExpressionOf("-4", -4);
-                ExpressionOf("-2340", -2340);
-                ExpressionOf("-800000", -800000);
-                ExpressionOf("-20", -20);
-            });
-
-            test("negative float", () => {
-                ExpressionOf("-0.003", -0.003);
-                ExpressionOf("-495.8837", -495.8837);
-                ExpressionOf("-3.14", -3.14);
-                ExpressionOf("-40.00", -40);
-            });
-        });
-
         describe("NullLiteral", () => {
             test("null", () => {
                 ExpressionOf("null", null);

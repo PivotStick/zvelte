@@ -69,7 +69,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "before_init.push should not be called outside create_block",
+                    "before_init.push should not be called outside create_block"
                 );
             };
             return a;
@@ -79,7 +79,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "init.push should not be called outside create_block",
+                    "init.push should not be called outside create_block"
                 );
             };
             return a;
@@ -89,7 +89,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "update.push should not be called outside create_block",
+                    "update.push should not be called outside create_block"
                 );
             };
             return a;
@@ -99,7 +99,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "after_update.push should not be called outside create_block",
+                    "after_update.push should not be called outside create_block"
                 );
             };
             return a;
@@ -109,7 +109,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "template.push should not be called outside create_block",
+                    "template.push should not be called outside create_block"
                 );
             };
             return a;
@@ -119,7 +119,7 @@ export function renderDom(ast, analysis, options, meta) {
             const a = [];
             a.push = () => {
                 throw new Error(
-                    "locations.push should not be called outside create_block",
+                    "locations.push should not be called outside create_block"
                 );
             };
             return a;
@@ -147,21 +147,21 @@ export function renderDom(ast, analysis, options, meta) {
             state,
             combineVisitors(
                 setScope(analysis.template.scopes),
-                templateVisitors,
-            ),
+                templateVisitors
+            )
         )
     );
 
     const componentBlock = b.block(
-        /** @type {import('estree').Statement[]} */ (template.body),
+        /** @type {import('estree').Statement[]} */ (template.body)
     );
 
     if (options.hasJS) {
         state.hoisted.unshift(
             b.importAll(
                 "js",
-                `./${options.filename.replace(/\.[^\.]*$/, ".js")}`,
-            ),
+                `./${options.filename.replace(/\.[^\.]*$/, ".js")}`
+            )
         );
 
         componentBlock.body.unshift(
@@ -169,14 +169,14 @@ export function renderDom(ast, analysis, options, meta) {
                 b.assignment(
                     "=",
                     b.id("$$props"),
-                    b.call("$.proxy", b.id("$$props")),
-                ),
+                    b.call("$.proxy", b.id("$$props"))
+                )
             ),
             b.stmt(b.call("$.push", b.id("$$props"), b.true)),
             b.const("$$els", b.object([])),
             b.const(
                 "$$scope",
-                b.logical(b.optionalCall("js.scope"), "??", b.object([])),
+                b.logical(b.optionalCall("js.scope"), "??", b.object([]))
             ),
             b.const(
                 "$$methods",
@@ -187,13 +187,13 @@ export function renderDom(ast, analysis, options, meta) {
                             b.prop("init", b.id("props"), b.id("$$props")),
                             b.prop("init", b.id("scope"), b.id("$$scope")),
                             b.prop("init", b.id("els"), b.id("$$els")),
-                        ]),
+                        ])
                     ),
                     "??",
-                    b.object([]),
-                ),
+                    b.object([])
+                )
             ),
-            b.const("$$scopes", b.array([b.id("$$scope"), b.id("$$props")])),
+            b.const("$$scopes", b.array([b.id("$$scope"), b.id("$$props")]))
         );
 
         componentBlock.body.push(b.return(b.call("$.pop", b.id("$$methods"))));
@@ -204,7 +204,7 @@ export function renderDom(ast, analysis, options, meta) {
     const component = b.function_declaration(
         b.id(options.filename.replace(/\.[^\.]*$/, "")),
         [b.id("$$anchor"), b.id("$$props")],
-        componentBlock,
+        componentBlock
     );
 
     body.push(b.exportDefault(component));
@@ -216,9 +216,9 @@ export function renderDom(ast, analysis, options, meta) {
                 [b.id("args")],
                 b.block([
                     b.return(b.call("$.mount", component.id, b.id("args"))),
-                ]),
-            ),
-        ),
+                ])
+            )
+        )
     );
 
     return print({
@@ -255,7 +255,7 @@ function createBlock(parent, name, nodes, context) {
         context.path,
         namespace,
         context.state.preserve_whitespace ?? false,
-        context.state.options.preserveComments ?? false,
+        context.state.options.preserveComments ?? false
     );
 
     if (hoisted.length === 0 && trimmed.length === 0) {
@@ -335,7 +335,7 @@ function createBlock(parent, name, nodes, context) {
         body.push(
             b.var(id, b.call(template_name)),
             ...state.before_init,
-            ...state.init,
+            ...state.init
         );
         close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
     } else if (is_single_child_not_needing_template) {
@@ -347,7 +347,7 @@ function createBlock(parent, name, nodes, context) {
         const use_space_template =
             trimmed.some((node) => node.type === "ExpressionTag") &&
             trimmed.every(
-                (node) => node.type === "Text" || node.type === "ExpressionTag",
+                (node) => node.type === "Text" || node.type === "ExpressionTag"
             );
 
         if (use_space_template) {
@@ -362,7 +362,7 @@ function createBlock(parent, name, nodes, context) {
             body.push(
                 b.var(id, b.call("$.text", b.id("$$anchor"))),
                 ...state.before_init,
-                ...state.init,
+                ...state.init
             );
             close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
         } else {
@@ -431,7 +431,7 @@ function createBlock(parent, name, nodes, context) {
 function processChildren(nodes, expression, is_element, { visit, state }) {
     const within_bound_contenteditable = state.metadata.bound_contenteditable;
 
-    /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag>} Sequence */
+    /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag | import("#ast").VariableTag>} Sequence */
 
     /** @type {Sequence} */
     let sequence = [];
@@ -450,6 +450,24 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                 return;
             }
 
+            if (node.type === "Variable") {
+                state.update.push(
+                    b.stmt(
+                        b.assignment(
+                            "=",
+                            /** @type {import('estree').Expression} */ (
+                                // @ts-expect-error
+                                visit(node.name)
+                            ),
+                            /** @type {import('estree').Expression} */ (
+                                visit(node.value)
+                            )
+                        )
+                    )
+                );
+                return;
+            }
+
             state.template.push(" ");
 
             const text_id = getNodeId(expression(true), state, "text");
@@ -460,8 +478,8 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                     text_id,
                     /** @type {import('estree').Expression} */ (
                         visit(node.expression)
-                    ),
-                ),
+                    )
+                )
             );
 
             if (node.expression && !within_bound_contenteditable) {
@@ -478,10 +496,10 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                                 "$.stringify",
                                 /** @type {import('estree').Expression} */ (
                                     visit(node.expression)
-                                ),
-                            ),
-                        ),
-                    ),
+                                )
+                            )
+                        )
+                    )
                 );
             }
 
@@ -494,33 +512,33 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
 
             state.template.push(" ");
 
-            const [contains_call_expression, value] = serializeTemplateLiteral(
-                sequence,
-                visit,
-                state,
-            );
+            const [contains_call_expression, value, assignments] =
+                serializeTemplateLiteral(sequence, visit, state);
 
             const update = b.stmt(b.call("$.set_text", text_id, value));
 
             if (contains_call_expression && !within_bound_contenteditable) {
+                state.init.push(...assignments.map((a) => b.stmt(a)));
                 state.init.push(serialize_update(update));
             } else if (
                 sequence.some(
                     (node) =>
-                        node.type === "ExpressionTag" && node.metadata.dynamic,
+                        node.type === "ExpressionTag" && node.metadata.dynamic
                 ) &&
                 !within_bound_contenteditable
             ) {
+                state.update.push(...assignments.map((a) => b.stmt(a)));
                 state.update.push(update);
             } else {
+                state.init.push(...assignments.map((a) => b.stmt(a)));
                 state.init.push(
                     b.stmt(
                         b.assignment(
                             "=",
                             b.member(text_id, b.id("nodeValue")),
-                            value,
-                        ),
-                    ),
+                            value
+                        )
+                    )
                 );
             }
 
@@ -534,7 +552,11 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
     for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[i];
 
-        if (node.type === "Text" || node.type === "ExpressionTag") {
+        if (
+            node.type === "Text" ||
+            node.type === "ExpressionTag" ||
+            node.type === "Variable"
+        ) {
             sequence.push(node);
         } else {
             if (sequence.length > 0) {
@@ -559,7 +581,7 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                     const id = getNodeId(
                         expression(false),
                         state,
-                        node.type === "RegularElement" ? node.name : "node",
+                        node.type === "RegularElement" ? node.name : "node"
                     );
 
                     expression = (is_text) =>
@@ -665,14 +687,14 @@ const templateVisitors = {
         ) {
             context.state.init.push(
                 b.stmt(
-                    b.call("$.remove_input_attr_defaults", context.state.node),
-                ),
+                    b.call("$.remove_input_attr_defaults", context.state.node)
+                )
             );
         }
 
         if (needs_content_reset && node.name === "textarea") {
             context.state.init.push(
-                b.stmt(b.call("$.remove_textarea_child", context.state.node)),
+                b.stmt(b.call("$.remove_textarea_child", context.state.node))
             );
         }
 
@@ -696,14 +718,13 @@ const templateVisitors = {
                 // If value binding exists, that one takes care of calling $.init_select
                 value_binding === null &&
                     node.name === "select" &&
-                    child_metadata.namespace !== "foreign",
+                    child_metadata.namespace !== "foreign"
             );
             is_attributes_reactive = true;
         } else {
             for (const attribute of /** @type {import('#ast').Attribute[]} */ (
                 attributes
             )) {
-                console.log(attribute);
                 if (isEventAttribute(attribute)) {
                     serializeEventAttribute(attribute, context);
                     continue;
@@ -717,7 +738,7 @@ const templateVisitors = {
                         node.name,
                         node_id,
                         attribute,
-                        context,
+                        context
                     );
                     continue;
                 }
@@ -739,8 +760,12 @@ const templateVisitors = {
                                 DOMBooleanAttributes.includes(name) &&
                                 literal_value === true
                                     ? ""
-                                    : `="${literal_value === true ? "" : escapeHtml(literal_value, true)}"`
-                            }`,
+                                    : `="${
+                                          literal_value === true
+                                              ? ""
+                                              : escapeHtml(literal_value, true)
+                                      }"`
+                            }`
                         );
                         continue;
                     }
@@ -750,7 +775,7 @@ const templateVisitors = {
                     node,
                     node_id,
                     attribute,
-                    context,
+                    context
                 );
                 if (is) is_attributes_reactive = true;
             }
@@ -761,7 +786,7 @@ const templateVisitors = {
             class_directives,
             node_id,
             context,
-            is_attributes_reactive,
+            is_attributes_reactive
         );
 
         context.state.template.push(`>`);
@@ -784,7 +809,7 @@ const templateVisitors = {
             context.path,
             "html",
             node.name === "script" || (state.preserve_whitespace ?? false),
-            state.options.preserveComments ?? false,
+            state.options.preserveComments ?? false
         );
 
         for (const node of hoisted) {
@@ -798,10 +823,10 @@ const templateVisitors = {
                     "$.child",
                     node.name === "template"
                         ? b.member(context.state.node, b.id("content"))
-                        : context.state.node,
+                        : context.state.node
                 ),
             true,
-            { ...context, state },
+            { ...context, state }
         );
 
         if (!VoidElements.includes(node.name)) {
@@ -830,7 +855,7 @@ const templateVisitors = {
             b.thunk(
                 /** @type {import('estree').Expression} */ (
                     visit(parseDirectiveName(node.name))
-                ),
+                )
             ),
         ];
 
@@ -839,8 +864,8 @@ const templateVisitors = {
                 b.thunk(
                     /** @type {import('estree').Expression} */ (
                         visit(node.expression)
-                    ),
-                ),
+                    )
+                )
             );
         }
 
@@ -881,10 +906,10 @@ const templateVisitors = {
                     ? b.call(
                           "$.scope",
                           b.id("$$scopes"),
-                          b.literal(member.object.name),
+                          b.literal(member.object.name)
                       )
                     : b.id("$$props"),
-                member,
+                member
             );
         }
 
@@ -901,7 +926,7 @@ const templateVisitors = {
                 context.state.options.hasJS
                     ? b.call("$.scope", b.id("$$scopes"), b.literal(id.name))
                     : b.id("$$props"),
-                id,
+                id
             );
         }
 
@@ -933,25 +958,39 @@ const templateVisitors = {
          */
         let operator;
 
+        let left = /** @type {import("estree").Expression} */ (
+            context.visit(node.left)
+        );
+
+        let right = /** @type {import("estree").Expression} */ (
+            context.visit(node.right)
+        );
+
         switch (node.operator) {
-            case "~":
+            case "~": {
+                if (node.left.type !== "StringLiteral")
+                    left = b.call("String", left);
+
+                if (node.right.type !== "StringLiteral")
+                    right = b.call("String", right);
+
                 operator = "+";
                 break;
+            }
 
+            case "+": {
+                if (node.left.type !== "NumericLiteral")
+                    left = b.call("Number", left);
+
+                if (node.right.type !== "NumericLiteral")
+                    right = b.call("Number", right);
+            }
             default:
                 operator = node.operator;
                 break;
         }
 
-        return b.binary(
-            /** @type {import("estree").Expression} */ (
-                context.visit(node.left)
-            ),
-            operator,
-            /** @type {import("estree").Expression} */ (
-                context.visit(node.right)
-            ),
-        );
+        return b.binary(left, operator, right);
     },
 
     // @ts-ignore
@@ -982,7 +1021,7 @@ const templateVisitors = {
             operator,
             /** @type {import("estree").Expression} */ (
                 context.visit(node.right)
-            ),
+            )
         );
     },
 };
@@ -1002,10 +1041,10 @@ function get_template_function(namespace, state) {
             ? "$.svg_template_with_script"
             : "$.svg_template"
         : namespace === "mathml"
-          ? "$.mathml_template"
-          : containsScriptTag
-            ? "$.template_with_script"
-            : "$.template";
+        ? "$.mathml_template"
+        : containsScriptTag
+        ? "$.template_with_script"
+        : "$.template";
 }
 
 /**
@@ -1048,10 +1087,10 @@ function getNodeId(expression, state, name) {
 }
 
 /**
- * @param {Array<import('#ast').Text | import('#ast').ExpressionTag>} values
+ * @param {Array<import('#ast').Text | import('#ast').ExpressionTag | import("#ast").VariableTag>} values
  * @param {(node: import('#ast').ZvelteNode) => any} visit
  * @param {import("./types.js").ComponentClientTransformState} state
- * @returns {[boolean, import('estree').TemplateLiteral]}
+ * @returns {[boolean, import('estree').TemplateLiteral, import('estree').AssignmentExpression[]]}
  */
 function serializeTemplateLiteral(values, visit, state) {
     /** @type {import('estree').TemplateElement[]} */
@@ -1059,6 +1098,10 @@ function serializeTemplateLiteral(values, visit, state) {
 
     /** @type {import('estree').Expression[]} */
     const expressions = [];
+
+    /** @type {import("estree").AssignmentExpression[]} */
+    const assignments = [];
+
     let contains_call_expression = false;
     let contains_multiple_call_expression = false;
     quasis.push(b.quasi(""));
@@ -1076,7 +1119,7 @@ function serializeTemplateLiteral(values, visit, state) {
                     FilterExpression: () => true,
                     // @ts-ignore
                     CallExpression: () => true,
-                },
+                }
             )
         ) {
             if (contains_call_expression) {
@@ -1094,6 +1137,10 @@ function serializeTemplateLiteral(values, visit, state) {
                 quasis.at(-1)
             );
             last.value.raw += sanitizeTemplateString(node.data);
+        } else if (node.type === "Variable") {
+            assignments.push(
+                b.assignment("=", visit(node.name), visit(node.value))
+            );
         } else if (
             node.type === "ExpressionTag" &&
             (node.expression.type === "NullLiteral" ||
@@ -1106,7 +1153,7 @@ function serializeTemplateLiteral(values, visit, state) {
             );
             if (node.expression.value != null) {
                 last.value.raw += sanitizeTemplateString(
-                    node.expression.value + "",
+                    node.expression.value + ""
                 );
             }
         } else {
@@ -1121,10 +1168,10 @@ function serializeTemplateLiteral(values, visit, state) {
                             b.thunk(
                                 /** @type {import('estree').Expression} */ (
                                     visit(node.expression)
-                                ),
-                            ),
-                        ),
-                    ),
+                                )
+                            )
+                        )
+                    )
                 );
                 expressions.push(b.call("$.get", id));
             } else {
@@ -1135,7 +1182,11 @@ function serializeTemplateLiteral(values, visit, state) {
     }
 
     // TODO instead of this tuple, return a `{ dynamic, complex, value }` object. will DRY stuff out
-    return [contains_call_expression, b.template(quasis, expressions)];
+    return [
+        contains_call_expression,
+        b.template(quasis, expressions),
+        assignments,
+    ];
 }
 
 /**
@@ -1163,7 +1214,7 @@ function serializeEventAttribute(node, context) {
             modifiers,
             delegated: node.metadata.delegated,
         },
-        context,
+        context
     );
 }
 
@@ -1193,7 +1244,7 @@ function serializeEvent(node, context) {
             if (delegated.type === "hoistable") {
                 if (delegated.function === node.expression) {
                     const func_name = context.state.scope.root.unique(
-                        "on_" + event_name,
+                        "on_" + event_name
                     );
                     state.hoisted.push(b.var(func_name, handler));
                     handler = func_name;
@@ -1221,9 +1272,9 @@ function serializeEvent(node, context) {
                     b.assignment(
                         "=",
                         b.member(context.state.node, b.id("__" + event_name)),
-                        delegated_assignment,
-                    ),
-                ),
+                        delegated_assignment
+                    )
+                )
             );
             return;
         }
@@ -1255,8 +1306,8 @@ function serializeEvent(node, context) {
                 "$.event",
                 b.literal(node.name),
                 state.node,
-                serializeEventHandler(node, context),
-            ),
+                serializeEventHandler(node, context)
+            )
         );
     }
 
@@ -1290,9 +1341,7 @@ function serializeEventHandler(node, { state, visit }) {
                 b.block([
                     b.const(
                         "$$callback",
-                        /** @type {import('estree').Expression} */ (
-                            visit(expr)
-                        ),
+                        /** @type {import('estree').Expression} */ (visit(expr))
                     ),
                     b.return(
                         b.call(
@@ -1300,13 +1349,13 @@ function serializeEventHandler(node, { state, visit }) {
                                 b.id("$$callback"),
                                 b.id("apply"),
                                 false,
-                                true,
+                                true
                             ),
                             b.this,
-                            b.id("$$args"),
-                        ),
+                            b.id("$$args")
+                        )
                     ),
-                ]),
+                ])
             );
 
         if (expr.type === "Identifier" || expr.type === "MemberExpression") {
@@ -1353,10 +1402,10 @@ function serializeEventHandler(node, { state, visit }) {
                         "$.bubble_event.call",
                         b.this,
                         b.id("$$props"),
-                        b.id("$$arg"),
-                    ),
+                        b.id("$$arg")
+                    )
                 ),
-            ]),
+            ])
         );
     }
 
@@ -1416,7 +1465,7 @@ function serializeAttributeValue(attribute_value, context) {
     return serializeTemplateLiteral(
         attribute_value,
         context.visit,
-        context.state,
+        context.state
     );
 }
 
@@ -1472,7 +1521,7 @@ function serialize_element_attribute_update_assignment(
     element,
     node_id,
     attribute,
-    context,
+    context
 ) {
     const state = context.state;
     const name = getAttributeName(element, attribute, context);
@@ -1480,13 +1529,13 @@ function serialize_element_attribute_update_assignment(
     const is_mathml = context.state.metadata.namespace === "mathml";
     let [contains_call_expression, value] = serializeAttributeValue(
         attribute.value,
-        context,
+        context
     );
 
     // The foreign namespace doesn't have any special handling, everything goes through the attr function
     if (context.state.metadata.namespace === "foreign") {
         const statement = b.stmt(
-            b.call("$.set_attribute", node_id, b.literal(name), value),
+            b.call("$.set_attribute", node_id, b.literal(name), value)
         );
 
         if (attribute.metadata?.dynamic) {
@@ -1513,15 +1562,15 @@ function serialize_element_attribute_update_assignment(
                 is_svg
                     ? "$.set_svg_class"
                     : is_mathml
-                      ? "$.set_mathml_class"
-                      : "$.set_class",
+                    ? "$.set_mathml_class"
+                    : "$.set_class",
                 node_id,
-                value,
-            ),
+                value
+            )
         );
     } else if (DOMProperties.includes(name)) {
         update = b.stmt(
-            b.assignment("=", b.member(node_id, b.id(name)), value),
+            b.assignment("=", b.member(node_id, b.id(name)), value)
         );
     } else {
         const callee = name.startsWith("xlink")
@@ -1555,7 +1604,7 @@ function serializeClassDirectives(
     class_directives,
     element_id,
     context,
-    is_attributes_reactive,
+    is_attributes_reactive
 ) {
     const state = context.state;
     for (const directive of class_directives) {
@@ -1567,8 +1616,8 @@ function serializeClassDirectives(
                 "$.toggle_class",
                 element_id,
                 b.literal(directive.name),
-                value,
-            ),
+                value
+            )
         );
         const contains_call_expression =
             directive.expression.type === "CallExpression";
@@ -1645,7 +1694,9 @@ function parseDirectiveName(name) {
  */
 function serializeFunction(node, context) {
     const name = /** @type {import("estree").MemberExpression} */ (
-        context.visit(node.callee)
+        context.visit(
+            node.type === "FilterExpression" ? node.name : node.callee
+        )
     );
 
     const args = [];
@@ -1659,7 +1710,7 @@ function serializeFunction(node, context) {
             args.push(arg);
         } else {
             args.push(
-                /** @type {import("estree").Expression} */ (context.visit(arg)),
+                /** @type {import("estree").Expression} */ (context.visit(arg))
             );
         }
     }

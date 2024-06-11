@@ -21,5 +21,3 @@ export default defineTest({
         expect(target.innerHTML).toBe("foo is ");
     },
 });
-
-export * as component from "./main.twig";

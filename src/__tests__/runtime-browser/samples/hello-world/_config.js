@@ -16,5 +16,3 @@ export default defineTest({
         expect(target.innerHTML).toEqual("<h1>Hello everybody!</h1>");
     },
 });
-
-export * as component from "./main.twig";
