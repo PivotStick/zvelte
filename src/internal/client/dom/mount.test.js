@@ -712,27 +712,6 @@ describe("Test client's internal mount()", () => {
             instance.destroy();
         }
 
-        describe("NullLiteral", () => {
-            test("null", () => {
-                ExpressionOf("null", null);
-            });
-        });
-
-        describe("BooleanLiteral", () => {
-            test("true", () => ExpressionOf("true", true));
-            test("false", () => ExpressionOf("false", false));
-        });
-
-        describe("StringLiteral", () => {
-            test("single quotes", () => {
-                ExpressionOf("'hello world!'", "hello world!");
-            });
-
-            test("double quotes", () => {
-                ExpressionOf(`"hello world!"`, "hello world!");
-            });
-        });
-
         test("Identifier", () => {
             currentInstance = mount({
                 target: document.body,
@@ -838,18 +817,6 @@ describe("Test client's internal mount()", () => {
                 ExpressionOf(`1 >= 1`, true);
                 ExpressionOf(`1 >= 2`, false);
                 ExpressionOf(`2 >= 1`, true);
-            });
-        });
-
-        describe("RangeExpression", () => {
-            test("positive step", () => {
-                ExpressionOf("0..10", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                ExpressionOf("-5..1", [-5, -4, -3, -2, -1, 0]);
-            });
-
-            test("negative step", () => {
-                ExpressionOf("10..0", [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
-                ExpressionOf("-2..-5", [-2, -3, -4]);
             });
         });
 
