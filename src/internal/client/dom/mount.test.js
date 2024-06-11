@@ -910,41 +910,6 @@ describe("Test client's internal mount()", () => {
             });
         });
 
-        describe("ObjectExpression", () => {
-            test("empty", () => {
-                ExpressionOf("{}", {});
-            });
-
-            test("one key", () => {
-                ExpressionOf("{ foo: bar }", { foo: undefined });
-                ExpressionOf(
-                    "{ foo: bar }",
-                    { foo: "hello!" },
-                    { bar: "hello!" }
-                );
-            });
-
-            test("string as key", () => {
-                ExpressionOf("{ 'foo': 2 * 3 }", { foo: 6 });
-                ExpressionOf(`{ "foo": 2 * 3 }`, { foo: 6 });
-            });
-
-            test("trailing ','", () => {
-                ExpressionOf("{ foo: 'stuff', }", { foo: "stuff" });
-            });
-
-            test("many properties with sub objects", () => {
-                ExpressionOf(
-                    `{foo: { bar: true, no: false }, 'yes': 'no', stuff: 3 * 0.5, }`,
-                    {
-                        foo: { bar: true, no: false },
-                        yes: "no",
-                        stuff: 1.5,
-                    }
-                );
-            });
-        });
-
         describe("ArrayExpression", () => {
             test("empty", () => {
                 ExpressionOf("[]", []);

@@ -1038,6 +1038,29 @@ const templateVisitors = {
 
         return array;
     },
+
+    // @ts-expect-error
+    ObjectExpression(node, context) {
+        /** @type {Array<import('estree').Property | import('estree').SpreadElement>} */
+        const properties = [];
+
+        for (const prop of node.properties) {
+            /** @type {import("estree").Expression} */
+            // @ts-ignore
+            const key =
+                prop.key.type === "Identifier"
+                    ? {
+                          type: "Identifier",
+                          name: prop.key.name,
+                      }
+                    : context.visit(prop.key);
+
+            // @ts-ignore
+            properties.push(b.prop("init", key, context.visit(prop.value)));
+        }
+
+        return b.object(properties);
+    },
 };
 
 /**

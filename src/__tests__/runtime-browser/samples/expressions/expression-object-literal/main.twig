@@ -1,0 +1,11 @@
+{% set empty = {} %}
+
+{% set oneKey1 = { foo: bar1 } %}
+{% set oneKey2 = { foo: bar2 } %}
+
+{% set stringKey1 = { 'foo': 2 * 3 } %}
+{% set stringKey2 = { "foo": 2 * 3 } %}
+
+{% set trailing = { foo: 'stuff', } %}
+
+{% set complex = {foo: { bar: true, no: false }, 'yes': 'no', stuff: 3 * 0.5, } %}
