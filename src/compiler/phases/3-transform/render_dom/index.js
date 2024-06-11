@@ -972,6 +972,20 @@ const templateVisitors = {
     },
 
     // @ts-expect-error
+    InExpression(node, { visit }) {
+        /**
+         * @type {import("estree").Expression}
+         */
+        let expression = b.call("$.in", visit(node.left), visit(node.right));
+
+        if (node.not) {
+            expression = b.unary("!", expression);
+        }
+
+        return expression;
+    },
+
+    // @ts-expect-error
     ArrowFunctionExpression(node, { state, visit }) {
         const vars = state.nonPropVars.slice();
         /** @type {import("estree").Pattern[]} */

@@ -13,3 +13,17 @@ export function scope(scopes, key, fallback = {}) {
 
     return fallback;
 }
+
+/**
+ * @param {any} left
+ * @param {any} right
+ */
+function in_expression(left, right) {
+    if (Array.isArray(right)) {
+        return right.includes(left);
+    } else if (typeof right === "object" && right !== null) {
+        return left in right;
+    }
+}
+
+export { in_expression as in };
