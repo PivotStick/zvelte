@@ -69,6 +69,7 @@ export function renderDom(ast, analysis, options, meta) {
         node: /** @type {any} */ (null), // populated by the root node
         nonPropVars: [],
         nonPropSources: [],
+        nonPropGetters: [],
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -829,35 +830,51 @@ const templateVisitors = {
         }
     },
 
-    SnippetBlock(node, context) {
+    SnippetBlock(node, { visit, state }) {
         const args = [b.id("$$anchor")];
+        const params = [];
 
-        context.state.init.push(
+        for (const param of node.parameters) {
+            params.push(param.name);
+            args.push(b.id(param.name));
+        }
+
+        state.init.push(
             b.assignment(
                 "=",
-                context.visit(node.expression),
+                visit(node.expression),
                 b.arrow(
                     args,
                     // @ts-expect-error
                     /** @type {import("estree").BlockStatement} */ (
-                        context.visit(node.body)
+                        visit(node.body, {
+                            ...state,
+                            nonPropGetters: [
+                                ...state.nonPropGetters,
+                                ...params,
+                            ],
+                        })
                     )
                 )
             )
         );
     },
 
-    RenderTag(node, context) {
-        const callee = context.visit(
+    RenderTag(node, { visit, state }) {
+        const callee = visit(
             node.expression.type === "CallExpression"
                 ? node.expression.callee
                 : node.expression.name
         );
 
-        context.state.template.push("<!>");
-        context.state.init.push(
-            b.stmt(b.call("$.snippet", b.arrow([], callee), context.state.node))
-        );
+        const call = b.call("$.snippet", b.arrow([], callee), state.node);
+
+        for (const arg of node.expression.arguments) {
+            call.arguments.push(b.arrow([], visit(arg)));
+        }
+
+        state.template.push("<!>");
+        state.init.push(b.stmt(call));
     },
 
     Attribute(node, context) {
@@ -938,6 +955,8 @@ const templateVisitors = {
         ) {
             if (state.nonPropSources.includes(member.object.name)) {
                 member = b.member(b.call("$.unwrap", member.object), property);
+            } else if (state.nonPropGetters.includes(member.object.name)) {
+                member = b.member(b.call(member.object), property);
             } else if (!state.nonPropVars.includes(member.object.name)) {
                 member = b.member(
                     state.options.hasJS
@@ -965,6 +984,8 @@ const templateVisitors = {
         if (parent.type !== "MemberExpression" || parent.computed) {
             if (state.nonPropSources.includes(id.name)) {
                 id = b.call("$.unwrap", id);
+            } else if (state.nonPropGetters.includes(id.name)) {
+                id = b.call(id);
             } else if (!state.nonPropVars.includes(id.name)) {
                 id = b.member(
                     state.options.hasJS

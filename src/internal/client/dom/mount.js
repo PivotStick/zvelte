@@ -1055,7 +1055,11 @@ const visitors = {
                 ? node.expression.name
                 : node.expression.callee;
 
-        $.snippet(() => /** @type {_} */ (visit(callee))._, anchor);
+        $.snippet(
+            () => /** @type {_} */ (visit(callee))._,
+            anchor,
+            ...node.expression.arguments.map((arg) => () => visit(arg))
+        );
     },
 
     SnippetBlock(node, { state, visit }) {
@@ -1064,10 +1068,14 @@ const visitors = {
         // @ts-ignore
         scope[node.expression.name] = ($$anchor, ...args) => {
             const fragment = getRoot(node.body);
-            const props = $.proxy({});
+            const props = {};
 
             node.parameters.forEach((param, i) => {
-                props[param.name] = args[i];
+                Object.defineProperty(props, param.name, {
+                    get() {
+                        return args[i]()._;
+                    },
+                });
             });
 
             visit(node.body, pushNewScope(state, props, fragment));

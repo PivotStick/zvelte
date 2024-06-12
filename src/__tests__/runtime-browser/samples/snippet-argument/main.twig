@@ -1,0 +1,9 @@
+{% snippet foo(n) %}
+	<p>clicks: {{ n }}</p>
+{% endsnippet %}
+
+{{ @render foo(count) }}
+
+<button on:click="{{ increment() }}">
+	click me
+</button>
