@@ -1,3 +1,5 @@
+import { getFilter } from "./filters.js";
+
 export { mount, hydrate } from "svelte";
 export * from "svelte/internal/client";
 
@@ -37,6 +39,15 @@ export function is_empty(value) {
     } else {
         return !value;
     }
+}
+
+/**
+ * @param {string} key
+ * @param {...*} args
+ */
+export function filter(key, ...args) {
+    const fn = getFilter(key);
+    return fn(...args);
 }
 
 export { in_expression as in };

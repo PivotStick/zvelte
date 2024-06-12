@@ -907,6 +907,13 @@ const templateVisitors = {
     // @ts-ignore
     FilterExpression(node, context) {
         if (node.name.name in filters) {
+            const args = [];
+
+            for (const arg of node.arguments) {
+                args.push(context.visit(arg));
+            }
+
+            return b.call("$.filter", b.literal(node.name.name), ...args);
         } else {
             return serializeFunction(node, context);
         }
