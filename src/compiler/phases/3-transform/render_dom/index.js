@@ -3,6 +3,9 @@ import * as b from "./builders.js";
 import { walk } from "zimmerframe";
 import { cleanNodes } from "../utils.js";
 import {
+    EACH_INDEX_REACTIVE,
+    EACH_ITEM_REACTIVE,
+    EACH_KEYED,
     TEMPLATE_FRAGMENT,
     TEMPLATE_USE_IMPORT_NODE,
     TRANSITION_GLOBAL,
@@ -65,6 +68,7 @@ export function renderDom(ast, analysis, options, meta) {
         hoisted: [b.importAll("$", "@pivotass/zvelte/internal/client")],
         node: /** @type {any} */ (null), // populated by the root node
         nonPropVars: [],
+        nonPropSources: [],
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -469,8 +473,12 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                 b.call(
                     "$.set_text",
                     text_id,
-                    /** @type {import('estree').Expression} */ (
-                        visit(node.expression)
+                    b.logical(
+                        /** @type {import('estree').Expression} */ (
+                            visit(node.expression)
+                        ),
+                        "??",
+                        b.literal("")
                     )
                 )
             );
@@ -485,11 +493,8 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                         b.assignment(
                             "=",
                             b.member(text_id, b.id("nodeValue")),
-                            b.call(
-                                "$.stringify",
-                                /** @type {import('estree').Expression} */ (
-                                    visit(node.expression)
-                                )
+                            /** @type {import('estree').Expression} */ (
+                                visit(node.expression)
                             )
                         )
                     )
@@ -923,33 +928,36 @@ const templateVisitors = {
     },
 
     // @ts-ignore
-    MemberExpression(node, context) {
+    MemberExpression(node, { visit, state, path }) {
         const object = /** @type {import("estree").Expression} */ (
-            context.visit(node.object)
+            visit(node.object)
         );
 
         const property = /** @type {import("estree").Expression} */ (
-            context.visit(node.property)
+            visit(node.property)
         );
 
         let member = b.member(object, property, node.computed);
 
         if (
-            context.path.at(-1)?.type !== "MemberExpression" &&
-            member.object.type === "Identifier" &&
-            !context.state.nonPropVars.includes(member.object.name)
+            path.at(-1)?.type !== "MemberExpression" &&
+            member.object.type === "Identifier"
         ) {
-            member = b.member(
-                context.state.options.hasJS
-                    ? b.call(
-                          "$.scope",
-                          b.id("$$scopes"),
-                          b.literal(member.object.name),
-                          b.id("$$scope")
-                      )
-                    : b.id("$$props"),
-                member
-            );
+            if (state.nonPropSources.includes(member.object.name)) {
+                member = b.member(b.call("$.unwrap", member.object), property);
+            } else if (!state.nonPropVars.includes(member.object.name)) {
+                member = b.member(
+                    state.options.hasJS
+                        ? b.call(
+                              "$.scope",
+                              b.id("$$scopes"),
+                              b.literal(member.object.name),
+                              b.id("$$scope")
+                          )
+                        : b.id("$$props"),
+                    member
+                );
+            }
         }
 
         return member;
@@ -961,21 +969,22 @@ const templateVisitors = {
         let id = b.id(node.name);
         const parent = path[path.length - 1];
 
-        if (
-            (parent.type !== "MemberExpression" || parent.computed) &&
-            !state.nonPropVars.includes(id.name)
-        ) {
-            id = b.member(
-                state.options.hasJS
-                    ? b.call(
-                          "$.scope",
-                          b.id("$$scopes"),
-                          b.literal(id.name),
-                          b.id("$$scope")
-                      )
-                    : b.id("$$props"),
-                id
-            );
+        if (parent.type !== "MemberExpression" || parent.computed) {
+            if (state.nonPropSources.includes(id.name)) {
+                id = b.call("$.unwrap", id);
+            } else if (!state.nonPropVars.includes(id.name)) {
+                id = b.member(
+                    state.options.hasJS
+                        ? b.call(
+                              "$.scope",
+                              b.id("$$scopes"),
+                              b.literal(id.name),
+                              b.id("$$scope")
+                          )
+                        : b.id("$$props"),
+                    id
+                );
+            }
         }
 
         return id;
@@ -1064,7 +1073,9 @@ const templateVisitors = {
 
         return b.arrow(
             params,
-            visit(node.body, { ...state, nonPropVars: vars })
+            /** @type {import('estree').Expression} */ (
+                visit(node.body, { ...state, nonPropVars: vars })
+            )
         );
     },
 
@@ -1266,6 +1277,124 @@ const templateVisitors = {
             );
         }
 
+        if (node.elseif) {
+            call.arguments.push(b.literal(true));
+        }
+
+        state.init.push(call);
+    },
+
+    ForBlock(node, { state, visit, path }) {
+        state.template.push("<!>");
+
+        const call = b.call("$.each", state.node);
+
+        let flags = EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE;
+        /**
+         * @type {import('estree').Expression}
+         */
+        let key = b.id("$.index");
+
+        if (node.key !== null) {
+            flags |= EACH_KEYED;
+
+            key = b.arrow(
+                [b.id("$$key"), b.id("$$index")],
+                b.call("$.unwrap", b.id("$$key"))
+            );
+        }
+
+        // @ts-ignore
+        const body = /** @type {import('estree').BlockStatement} */ (
+            visit(node.body, {
+                ...state,
+                nonPropVars: [...state.nonPropVars, "loop"],
+                nonPropSources: [...state.nonPropSources, node.context.name],
+            })
+        );
+
+        //                         get index() {
+        //                             return index() + 1;
+        //                         },
+        //                         get index0() {
+        //                             return index();
+        //                         },
+        //                         get revindex() {
+        //                             return array().length - index();
+        //                         },
+        //                         get revindex0() {
+        //                             return array().length - index() - 1;
+        //                         },
+        //                         get first() {
+        //                             return index() === 0;
+        //                         },
+        //                         get last() {
+        //                             return index() === array().length - 1;
+        //                         },
+        //                         get length() {
+        //                             return array().length;
+        //                         },
+        //                         get parent() {
+        //                             return searchInScope("loop", state.scope);
+        //                         },
+
+        const isInForBlock = path.some((node) => node.type === "ForBlock");
+
+        const unwrapIndex = b.call("$.unwrap", b.id("$$index"));
+        const length = b.member(visit(node.expression), b.id("length"));
+
+        const loop = {
+            index: b.binary(unwrapIndex, "+", b.literal(1)),
+            index0: unwrapIndex,
+            revindex: b.binary(visit(node.expression), "-", unwrapIndex),
+            revindex0: b.binary(
+                b.binary(length, "-", unwrapIndex),
+                "-",
+                b.literal(1)
+            ),
+            first: b.binary(unwrapIndex, "===", b.literal(0)),
+            last: b.binary(
+                unwrapIndex,
+                "===",
+                b.binary(length, "-", b.literal(1))
+            ),
+            length,
+            parent: isInForBlock ? b.id("parentLoop") : b.literal(null),
+        };
+
+        body.body.unshift(
+            b.const(
+                b.id("loop"),
+                b.object(
+                    Object.entries(loop).map(([key, expression]) =>
+                        b.prop(
+                            "get",
+                            b.id(key),
+                            b.function(
+                                null,
+                                [],
+                                b.block([b.return(expression)])
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        if (isInForBlock) {
+            body.body.unshift(b.const(b.id("parentLoop"), b.id("loop")));
+        }
+
+        call.arguments.push(
+            b.literal(flags),
+            b.arrow([], visit(node.expression)),
+            key,
+            b.arrow(
+                [b.id("$$anchor"), b.id(node.context.name), b.id("$$index")],
+                body
+            )
+        );
+
         state.init.push(call);
     },
 };
@@ -1410,8 +1539,12 @@ function serializeTemplateLiteral(values, visit, state) {
                         b.call(
                             "$.derived",
                             b.thunk(
-                                /** @type {import('estree').Expression} */ (
-                                    visit(node.expression)
+                                b.logical(
+                                    /** @type {import('estree').Expression} */ (
+                                        visit(node.expression)
+                                    ),
+                                    "??",
+                                    b.literal("")
                                 )
                             )
                         )
@@ -1419,7 +1552,15 @@ function serializeTemplateLiteral(values, visit, state) {
                 );
                 expressions.push(b.call("$.get", id));
             } else {
-                expressions.push(b.call("$.stringify", visit(node.expression)));
+                expressions.push(
+                    b.logical(
+                        /** @type {import('estree').Expression} */ (
+                            visit(node.expression)
+                        ),
+                        "??",
+                        b.literal("")
+                    )
+                );
             }
             quasis.push(b.quasi("", i + 1 === values.length));
         }

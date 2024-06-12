@@ -29,6 +29,7 @@ export type ComponentClientTransformState = {
     private_state: Map<any, any>;
     in_constructor: boolean;
     nonPropVars: string[];
+    nonPropSources: string[];
 };
 
 export type ComponentContext = import("zimmerframe").Context<
