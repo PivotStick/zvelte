@@ -123,11 +123,21 @@ export const filters = {
     round: notImplemented("round"),
     /**
      * @param {any} iterable
-     * @param {number} offset
-     * @param {number} length
+     * @param {number=} offset
+     * @param {number=} length
      */
-    slice: (iterable, offset, length) => {
-        return iterable.slice(offset, offset + length);
+    slice: (iterable, offset = 0, length) => {
+        let end;
+
+        if (length !== undefined) {
+            if (length < 0) {
+                end = iterable.length + length;
+            } else {
+                end = offset + length;
+            }
+        }
+
+        return iterable.slice(offset, end);
     },
     slug: notImplemented("slug"),
     sort: notImplemented("sort"),
