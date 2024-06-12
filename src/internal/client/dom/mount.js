@@ -779,10 +779,7 @@ function handle(node, currentNode, ctx, parent = null) {
             currentNode.replace(text);
 
             $.template_effect(() =>
-                $.set_text(
-                    text,
-                    $.stringify(handle(node.expression, currentNode, ctx))
-                )
+                $.set_text(text, handle(node.expression, currentNode, ctx))
             );
             break;
         }
