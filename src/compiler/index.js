@@ -1,5 +1,6 @@
 import { parse } from "./phases/1-parse/index.js";
 import { analyseComponent } from "./phases/2-analyze/index.js";
+import { renderStylesheet } from "./phases/3-transform/css/index.js";
 import { renderDom, renderPhpSSR } from "./phases/3-transform/index.js";
 
 const renderers = {
@@ -17,6 +18,7 @@ const renderers = {
  *  hasJS?: boolean;
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
+ *  dev?: boolean;
  * }=} options
  * @param {{ js?: string }} [meta]
  */
@@ -25,6 +27,10 @@ export function compile(source, options = {}, meta = {}) {
 
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;
+    options.dev ??= false;
+    options.namespace ??= "Zvelte\\components";
+    options.filename ??= "Component.twig";
+    options.hasJS ??= false;
 
     const render = renderers[options.generate];
 
@@ -32,16 +38,23 @@ export function compile(source, options = {}, meta = {}) {
 
     const analysis = analyseComponent(ast);
 
+    if (analysis.css) {
+        renderStylesheet(source, analysis, {
+            filename: options.filename,
+            dev: options.dev,
+        });
+    }
+
     return render(
         ast,
         analysis,
         {
             dir: options.dir ?? "",
-            namespace: options.namespace ?? "Zvelte\\components",
-            filename: options.filename ?? "Component.twig",
-            hasJS: options.hasJS ?? false,
+            namespace: options.namespace,
+            filename: options.filename,
+            hasJS: options.hasJS,
         },
-        meta,
+        meta
     );
 }
 

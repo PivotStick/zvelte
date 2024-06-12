@@ -42,48 +42,6 @@ function handle(node, template) {
             const analysis = analyseComponent(node);
             if (analysis.css) {
                 const { code, hash } = analysis.css;
-                walk(
-                    /** @type {import("#ast").ZvelteNode} */ (node.fragment),
-                    {},
-                    {
-                        RegularElement(node) {
-                            let classAttr = node.attributes.find(
-                                (attr) =>
-                                    attr.type === "Attribute" &&
-                                    attr.name === "class"
-                            );
-                            if (classAttr?.type !== "Attribute") {
-                                classAttr = {
-                                    type: "Attribute",
-                                    name: "class",
-                                    start: -1,
-                                    end: -1,
-                                    value: [],
-                                };
-                                node.attributes.push(classAttr);
-                            }
-
-                            if (classAttr.value !== true) {
-                                let text = classAttr.value[0];
-
-                                if (text?.type !== "Text") {
-                                    text = {
-                                        type: "Text",
-                                        end: -1,
-                                        start: -1,
-                                        data: hash,
-                                    };
-                                    if (classAttr.value.length > 0) {
-                                        text.data += " ";
-                                    }
-                                    classAttr.value.unshift(text);
-                                } else {
-                                    text.data = `${hash} ${text.data}`;
-                                }
-                            }
-                        },
-                    }
-                );
 
                 const result = renderStylesheet(code, analysis, {
                     dev: false,

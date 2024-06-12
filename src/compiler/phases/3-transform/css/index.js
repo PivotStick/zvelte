@@ -23,7 +23,6 @@ import { generate } from "css-tree";
  * @param {{
  *  dev: boolean;
  *  filename: string;
- *  cssOutputFilename?: string;
  * }} options
  */
 export function renderStylesheet(source, analysis, options) {
@@ -35,6 +34,49 @@ export function renderStylesheet(source, analysis, options) {
         hash: analysis.css.hash,
         selector: `.${analysis.css.hash}`,
     };
+
+    walk(
+        /** @type {import("#ast").ZvelteNode} */ (analysis.template.ast),
+        state,
+        {
+            RegularElement(node, { next, state }) {
+                let classAttr = node.attributes.find(
+                    (attr) => attr.type === "Attribute" && attr.name === "class"
+                );
+                if (classAttr?.type !== "Attribute") {
+                    classAttr = {
+                        type: "Attribute",
+                        name: "class",
+                        start: -1,
+                        end: -1,
+                        value: [],
+                    };
+                    node.attributes.push(classAttr);
+                }
+
+                if (classAttr.value !== true) {
+                    let text = classAttr.value[0];
+
+                    if (text?.type !== "Text") {
+                        text = {
+                            type: "Text",
+                            end: -1,
+                            start: -1,
+                            data: state.hash,
+                        };
+                        if (classAttr.value.length > 0) {
+                            text.data += " ";
+                        }
+                        classAttr.value.unshift(text);
+                    } else {
+                        text.data = `${state.hash} ${text.data}`;
+                    }
+                }
+
+                next();
+            },
+        }
+    );
 
     walk(analysis.css.ast, state, visitors);
 

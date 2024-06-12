@@ -864,6 +864,8 @@ const templateVisitors = {
     Attribute(node, context) {
         if (isEventAttribute(node)) {
             serializeEventAttribute(node, context);
+        } else {
+            console.log(node);
         }
     },
 
