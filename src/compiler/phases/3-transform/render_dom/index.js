@@ -1249,6 +1249,25 @@ const templateVisitors = {
         );
         state.init.push(b.call(id, anchor, b.object(properties)));
     },
+
+    IfBlock(node, { state, visit }) {
+        state.template.push("<!>");
+
+        const call = b.call(
+            "$.if",
+            state.node,
+            b.arrow([], visit(node.test)),
+            b.arrow([b.id("$$anchor")], visit(node.consequent))
+        );
+
+        if (node.alternate) {
+            call.arguments.push(
+                b.arrow([b.id("$$anchor")], visit(node.alternate))
+            );
+        }
+
+        state.init.push(call);
+    },
 };
 
 /**
