@@ -469,19 +469,14 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
 
             const text_id = getNodeId(expression(true), state, "text");
 
-            const update = b.stmt(
-                b.call(
-                    "$.set_text",
-                    text_id,
-                    b.logical(
-                        /** @type {import('estree').Expression} */ (
-                            visit(node.expression)
-                        ),
-                        "??",
-                        b.literal("")
-                    )
-                )
+            const value = b.logical(
+                /** @type {import('estree').Expression} */ (
+                    visit(node.expression)
+                ),
+                "??",
+                b.literal("")
             );
+            const update = b.stmt(b.call("$.set_text", text_id, value));
 
             if (node.expression && !within_bound_contenteditable) {
                 state.init.push(serialize_update(update));
@@ -493,9 +488,7 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                         b.assignment(
                             "=",
                             b.member(text_id, b.id("nodeValue")),
-                            /** @type {import('estree').Expression} */ (
-                                visit(node.expression)
-                            )
+                            value
                         )
                     )
                 );
@@ -1278,7 +1271,7 @@ const templateVisitors = {
         }
 
         if (node.elseif) {
-            call.arguments.push(b.literal(true));
+            call.arguments.push(b.true);
         }
 
         state.init.push(call);
@@ -1676,11 +1669,11 @@ function serializeEvent(node, context) {
         ];
 
         if (node.modifiers.includes("passive")) {
-            args.push(b.literal(true));
+            args.push(b.true);
         } else if (node.modifiers.includes("nonpassive")) {
-            args.push(b.literal(false));
+            args.push(b.false);
         } else if (PassiveEvents.includes(node.name)) {
-            args.push(b.literal(true));
+            args.push(b.true);
         }
 
         // Events need to run in order with bindings/actions
@@ -1822,7 +1815,7 @@ function serializeAttributeValue(attribute_value, context) {
     let contains_call_expression = false;
 
     if (attribute_value === true) {
-        return [contains_call_expression, b.literal(true)];
+        return [contains_call_expression, b.true];
     }
 
     if (attribute_value.length === 0) {
