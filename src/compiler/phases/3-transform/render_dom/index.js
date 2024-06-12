@@ -26,6 +26,7 @@ import {
 import { escapeHtml } from "../../../escaping.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
+import { hash } from "../../../utils/hash.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -1194,6 +1195,59 @@ const templateVisitors = {
         }
 
         return b.object(properties);
+    },
+
+    Component(node, { state, path, visit }) {
+        const parent = path[path.length - 1];
+        state.template.push(`<${node.name}> </${node.name}>`);
+
+        const { hoisted, trimmed } = cleanNodes(
+            parent,
+            node.fragment.nodes,
+            path,
+            undefined,
+            state.options.preserveWhitespace,
+            state.options.preserveComments
+        );
+
+        /**
+         * @type {Parameters<typeof b.object>[0]}
+         */
+        const properties = [];
+
+        for (const child of hoisted) {
+            visit(child);
+
+            if (child.type === "SnippetBlock") {
+                properties.push(
+                    b.prop(
+                        "init",
+                        b.id(child.expression.name),
+                        visit(child.expression)
+                    )
+                );
+            }
+        }
+
+        const id = b.id(hash(node.key.data));
+        const anchor = b.id(state.scope.generate(id.name + "_anchor"));
+
+        state.hoisted.unshift(
+            b.import(node.key.data, {
+                type: "ImportDefaultSpecifier",
+                local: id,
+            })
+        );
+
+        state.init.push(
+            b.var(anchor, b.call("$.first_child", state.node, b.literal(1)))
+        );
+        state.init.push(
+            b.stmt(
+                b.assignment("=", b.member(anchor, b.id("data")), b.literal(""))
+            )
+        );
+        state.init.push(b.call(id, anchor, b.object(properties)));
     },
 };
 

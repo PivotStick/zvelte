@@ -6,12 +6,25 @@ import * as $ from "svelte/internal/client";
 import { walk } from "zimmerframe";
 import { analyseComponent } from "../../../compiler/phases/2-analyze/index.js";
 import { renderStylesheet } from "../../../compiler/phases/3-transform/css/index.js";
+import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
+
+/**
+ * @typedef {{ template: { src: string } }} State
+ */
 
 /**
  * @param {import("#ast").ZvelteNode} ast
  */
 export function addTemplatesToAST(ast) {
-    newRoot(ast);
+    /**
+     * @type {State}
+     */
+    const state = {
+        template: { src: "" },
+    };
+
+    walk(ast, state, visitors);
+    addRoot(ast, state.template);
 }
 
 /**
@@ -25,144 +38,146 @@ function addRoot(node, template) {
 
 /**
  * @param {import("#ast").ZvelteNode} node
+ * @param {(node: import("#ast").ZvelteNode, state?: State) => import("#ast").ZvelteNode} visit
+ * @param {State} state
  */
-function newRoot(node) {
+function newRoot(node, visit, state) {
     const template = { src: "" };
-    handle(node, template);
+    visit(node, { ...state, template });
     addRoot(node, template);
 }
 
 /**
- * @param {import("#ast").ZvelteNode} node
- * @param {{ src: string }} template
+ * @type {import("zimmerframe").Visitors<import("#ast").ZvelteNode, State>}
  */
-function handle(node, template) {
-    switch (node.type) {
-        case "Root":
-            const analysis = analyseComponent(node);
-            if (analysis.css) {
-                const { code, hash } = analysis.css;
+const visitors = {
+    Root(node, { visit }) {
+        const analysis = analyseComponent(node);
+        if (analysis.css) {
+            const { code, hash } = analysis.css;
 
-                const result = renderStylesheet(code, analysis, {
-                    dev: false,
-                    filename: hash + ".css",
-                });
-
-                appendStyles(undefined, hash, result.code);
-            }
-
-            handle(node.fragment, template);
-            break;
-
-        case "Fragment":
-            node.nodes.forEach((childNode) => {
-                handle(childNode, template);
-            });
-            break;
-
-        case "Text":
-            if (node.data.trim() === "") {
-                template.src += " ";
-                break;
-            }
-
-            template.src += node.data;
-            break;
-
-        case "RegularElement":
-            template.src += `<${node.name}`;
-
-            node.attributes.forEach((attr) => {
-                handle(attr, template);
+            const result = renderStylesheet(code, analysis, {
+                dev: false,
+                filename: hash + ".css",
             });
 
-            if (isVoid(node.name)) {
-                template.src += "/>";
-            } else {
-                template.src += ">";
-                handle(node.fragment, template);
-                template.src += `</${node.name}>`;
-            }
-            break;
-
-        case "Attribute":
-            if (node.value === true) {
-                template.src += ` ${node.name}`;
-                break;
-            }
-
-            if (node.value.length === 1 && node.value[0].type === "Text") {
-                template.src += ` ${node.name}="`;
-                handle(node.value[0], template);
-                template.src += '"';
-            }
-
-            break;
-
-        case "ClassDirective":
-        case "TransitionDirective":
-        case "BindDirective":
-        case "OnDirective":
-            break;
-
-        case "IfBlock": {
-            template.src += "<!>";
-            newRoot(node.consequent);
-
-            if (node.alternate) {
-                newRoot(node.alternate);
-            }
-            break;
+            appendStyles(undefined, hash, result.code);
         }
 
-        case "ForBlock": {
-            template.src += "<!>";
-            newRoot(node.body);
+        visit(node.fragment);
+    },
 
-            if (node.fallback) {
-                newRoot(node.fallback);
-            }
-            break;
+    Fragment(node, { visit, path }) {
+        const parent = path[path.length - 1];
+        const { hoisted, trimmed } = cleanNodes(
+            parent,
+            node.nodes,
+            path,
+            undefined,
+            false,
+            true
+        );
+
+        hoisted.forEach((childNode) => {
+            visit(childNode);
+        });
+
+        trimmed.forEach((childNode) => {
+            visit(childNode);
+        });
+    },
+
+    Text(node, { state }) {
+        if (node.data.trim() === "") {
+            state.template.src += " ";
+            return;
         }
 
-        case "ZvelteComponent": {
-            template.src += "<!>";
-            newRoot(node.fragment);
-            break;
+        state.template.src += node.data;
+    },
+
+    RegularElement(node, { visit, state }) {
+        state.template.src += `<${node.name}`;
+
+        node.attributes.forEach((attr) => {
+            visit(attr);
+        });
+
+        if (isVoid(node.name)) {
+            state.template.src += "/>";
+        } else {
+            state.template.src += ">";
+            visit(node.fragment);
+            state.template.src += `</${node.name}>`;
+        }
+    },
+
+    Attribute(node, { visit, state }) {
+        if (node.value === true) {
+            state.template.src += ` ${node.name}`;
+            return;
         }
 
-        case "Component": {
-            template.src += `<${node.name}><!></${node.name}>`;
-            newRoot(node.fragment);
-            break;
+        if (node.value.length === 1 && node.value[0].type === "Text") {
+            state.template.src += ` ${node.name}="`;
+            visit(node.value[0]);
+            state.template.src += '"';
         }
+    },
 
-        case "SnippetBlock": {
-            template.src += `<!>`;
-            newRoot(node.body);
-            break;
+    IfBlock(node, { state, visit }) {
+        state.template.src += "<!>";
+        newRoot(node.consequent, visit, state);
+
+        if (node.alternate) {
+            newRoot(node.alternate, visit, state);
         }
+    },
 
-        case "KeyBlock": {
-            template.src += `<!>`;
-            newRoot(node.fragment);
-            break;
+    ForBlock(node, { state, visit }) {
+        state.template.src += "<!>";
+        newRoot(node.body, visit, state);
+
+        if (node.fallback) {
+            newRoot(node.fallback, visit, state);
         }
+    },
 
-        case "Comment":
-            template.src += `<!--${node.data}-->`;
-            break;
+    ZvelteComponent(node, { state, visit }) {
+        state.template.src += "<!>";
+        newRoot(node.fragment, visit, state);
+    },
 
-        case "RenderTag":
-        case "Variable":
-        case "HtmlTag":
-        case "ExpressionTag":
-            template.src += "<!>";
-            break;
+    Component(node, { state, visit }) {
+        state.template.src += `<${node.name}></${node.name}>`;
+        newRoot(node.fragment, visit, state);
+    },
 
-        default:
-            throw new Error(
-                `${node.type} node not handled in template rendering`
-            );
-    }
+    SnippetBlock(node, { state, visit }) {
+        newRoot(node.body, visit, state);
+    },
+
+    KeyBlock(node, { state, visit }) {
+        state.template.src += `<!>`;
+        newRoot(node.fragment, visit, state);
+    },
+
+    Comment(node, { state }) {
+        state.template.src += `<!--${node.data}-->`;
+    },
+
+    RenderTag(node, { state }) {
+        state.template.src += "<!>";
+    },
+
+    Variable: TagVisitor,
+    HtmlTag: TagVisitor,
+    ExpressionTag: TagVisitor,
+};
+
+/**
+ * @type {import("zimmerframe").Visitor<import("#ast").ZvelteNode, State, import("#ast").ZvelteNode>}
+ */
+function TagVisitor(node, { state }) {
+    state.template.src += "<!--$$-->";
 }

@@ -1,8 +1,11 @@
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/compiler/index";
 import { access } from "fs/promises";
-import { basename, dirname } from "path";
+import { basename, dirname, join } from "path";
 import { parse } from "./src/compiler/phases/1-parse";
+import { walk } from "zimmerframe";
+
+let root = "";
 
 export default defineConfig({
     test: {
@@ -19,6 +22,9 @@ export default defineConfig({
     plugins: [
         {
             name: "zvelte-vite-plugin",
+            configResolved(config) {
+                root = config.root;
+            },
             async transform(code, id, options) {
                 if (id.endsWith(".twig")) {
                     const hasJS = await access(id.replace(/\.twig$/, ".js"))
@@ -32,23 +38,49 @@ export default defineConfig({
                         generate: "dom",
                     };
 
+                    const imports = new Set([
+                        `import * as $legacy from "@pivotass/zvelte";`,
+                    ]);
+
+                    const ast = parse(code);
+
+                    walk(
+                        /** @type {import("./src/compiler/phases/1-parse/types").ZvelteNode} */ (
+                            ast
+                        ),
+                        {},
+                        {
+                            Component(node, { next }) {
+                                const key = join(
+                                    dirname(id),
+                                    node.key.data
+                                ).replace(root, "");
+
+                                imports.add(`import "${node.key.data}";`);
+                                node.key.data = key;
+                                next();
+                            },
+                        }
+                    );
+
                     const result = compile(code, options);
+                    const key = id.replace(root, "");
 
                     result.code += `
 
-import * as $legacy from "@pivotass/zvelte";
+${[...imports].join("\n")}
+
+const legacyMount = $legacy.createComponent({
+    ast: ${JSON.stringify(ast)},
+    key: "${key}",
+    init: ${hasJS} ? js.default : undefined,
+    initScope: ${hasJS} ? js.scope : undefined,
+});
 
 export function legacy() {
-    const ast = ${JSON.stringify(parse(code))};
-    const mount = $legacy.createComponent({
-        ast,
-        init: ${hasJS} ? js.default : undefined,
-        initScope: ${hasJS} ? js.scope : undefined,
-    });
-
     return {
-        default: mount.component,
-        mount,
+        default: legacyMount.component,
+        mount: legacyMount,
     }
 }`;
 

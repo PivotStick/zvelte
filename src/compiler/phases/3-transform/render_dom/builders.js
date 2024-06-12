@@ -138,10 +138,19 @@ export function quasi(cooked, tail = false) {
  * @returns {import('estree').ImportDeclaration}
  */
 export function importAll(as, source) {
+    return import_builder(source, importNamespace(as));
+}
+
+/**
+ * @param {string} source
+ * @param {import('estree').ImportDeclaration["specifiers"]} specifiers
+ * @returns {import('estree').ImportDeclaration}
+ */
+function import_builder(source, ...specifiers) {
     return {
         type: "ImportDeclaration",
         source: literal(source),
-        specifiers: [importNamespace(as)],
+        specifiers,
     };
 }
 
@@ -435,4 +444,5 @@ export {
     function_builder as function,
     return_builder as return,
     this_instance as this,
+    import_builder as import,
 };

@@ -71,6 +71,7 @@ function run(tests) {
         };
 
         if (config.todo) test.todo(name, exec);
+        else if (config.only) test.only(name, exec);
         else test(name, exec);
     }
 }

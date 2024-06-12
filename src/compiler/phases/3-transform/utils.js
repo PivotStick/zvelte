@@ -24,8 +24,7 @@ export function cleanNodes(
     path,
     namespace = "html",
     preserve_whitespace,
-    preserve_comments,
-    hoist = true
+    preserve_comments
 ) {
     /** @type {import('#ast').ZvelteNode[]} */
     const hoisted = [];
@@ -38,7 +37,7 @@ export function cleanNodes(
             continue;
         }
 
-        if (hoist && node.type === "SnippetBlock") {
+        if (node.type === "SnippetBlock") {
             // TODO others?
             hoisted.push(node);
         } else {

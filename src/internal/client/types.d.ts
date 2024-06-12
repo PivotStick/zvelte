@@ -1,7 +1,8 @@
-export type Ctx = {
+export type State = {
     scope: Record<string, any>[];
-    els: Record<string, HTMLElement | Record<string, any>>;
+    els: any;
     bindingGroups: Record<string, any[]>;
+    currentNode: Node;
 };
 
 export type ComponentInitArgs<
