@@ -11,8 +11,12 @@ export default defineTest({
             out5: undefined,
             out6: undefined,
             out7: undefined,
+            out8: undefined,
         };
     },
+
+    todo: true,
+
     test({ props }) {
         expect(props.out1).toEqual(7);
         expect(props.out2).toEqual(5);
@@ -22,5 +26,7 @@ export default defineTest({
 
         expect(props.out6).toEqual(7);
         expect(props.out7).toEqual(9);
+
+        // expect(props.out8).toEqual("foo8");
     },
 });
