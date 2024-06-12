@@ -114,14 +114,21 @@ export const filters = {
     number_format: notImplemented("number_format"),
     raw: () => {
         throw new Error(
-            `"raw" filter should not be used, please use {{ @html ... }} instead`,
+            `"raw" filter should not be used, please use {{ @html ... }} instead`
         );
     },
     reduce: notImplemented("reduce"),
     replace: notImplemented("replace"),
     reverse: notImplemented("reverse"),
     round: notImplemented("round"),
-    slice: notImplemented("slice"),
+    /**
+     * @param {any} iterable
+     * @param {number} offset
+     * @param {number} length
+     */
+    slice: (iterable, offset, length) => {
+        return iterable.slice(offset, offset + length);
+    },
     slug: notImplemented("slug"),
     sort: notImplemented("sort"),
     spaceless: notImplemented("spaceless"),
