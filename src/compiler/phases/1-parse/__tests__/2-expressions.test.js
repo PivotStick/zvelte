@@ -1155,4 +1155,42 @@ describe("Parser: will test expressions", () => {
             });
         });
     });
+
+    describe("Precedences", () => {
+        test("concatenation", () => {
+            ExpressionTagOf(`{{ "foo" ~ 3 + 5 }}`, {
+                type: "BinaryExpression",
+                operator: "~",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "StringLiteral",
+                    start: 3,
+                    end: 8,
+                    value: "foo",
+                    raw: '"foo"',
+                },
+                right: {
+                    type: "BinaryExpression",
+                    operator: "+",
+                    start: 11,
+                    end: 16,
+                    left: {
+                        type: "NumericLiteral",
+                        value: 3,
+                        raw: "3",
+                        start: 11,
+                        end: 12,
+                    },
+                    right: {
+                        type: "NumericLiteral",
+                        value: 5,
+                        raw: "5",
+                        start: 15,
+                        end: 16,
+                    },
+                },
+            });
+        });
+    });
 });

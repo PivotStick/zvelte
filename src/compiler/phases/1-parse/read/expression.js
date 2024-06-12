@@ -225,13 +225,13 @@ export function parseIsExpression(parser) {
  */
 export function parseInExpression(parser) {
     const start = parser.index;
-    let left = parseAdditive(parser);
+    let left = parseConcatenation(parser);
 
     let match;
     while ((match = parser.read(/^(not )?in/))) {
         const not = match.startsWith("not");
         parser.requireWhitespace();
-        const right = parseAdditive(parser);
+        const right = parseConcatenation(parser);
         const end = right.end;
         parser.allowWhitespace();
 
@@ -242,6 +242,34 @@ export function parseInExpression(parser) {
             start,
             end,
             not,
+        };
+    }
+
+    return left;
+}
+
+/**
+ * @param {Parser} parser
+ */
+export function parseConcatenation(parser) {
+    const start = parser.index;
+    let left = parseAdditive(parser);
+
+    parser.allowWhitespace();
+
+    while (parser.eat("~")) {
+        parser.allowWhitespace();
+        const right = parseAdditive(parser);
+        const end = right.end;
+        parser.allowWhitespace();
+
+        left = {
+            type: "BinaryExpression",
+            operator: "~",
+            left,
+            right,
+            start,
+            end,
         };
     }
 
@@ -286,7 +314,7 @@ export function parseAdditive(parser) {
  */
 export function parseMultiplicative(parser) {
     const start = parser.index;
-    let left = parseConcatenation(parser);
+    let left = parseChainableExpression(parser);
 
     parser.allowWhitespace();
     /**
@@ -297,41 +325,13 @@ export function parseMultiplicative(parser) {
     // @ts-ignore
     while ((operator = parser.read(/^(\*|\/)/))) {
         parser.allowWhitespace();
-        const right = parseConcatenation(parser);
-        const end = right.end;
-        parser.allowWhitespace();
-
-        left = {
-            type: "BinaryExpression",
-            operator,
-            left,
-            right,
-            start,
-            end,
-        };
-    }
-
-    return left;
-}
-
-/**
- * @param {Parser} parser
- */
-export function parseConcatenation(parser) {
-    const start = parser.index;
-    let left = parseChainableExpression(parser);
-
-    parser.allowWhitespace();
-
-    while (parser.eat("~")) {
-        parser.allowWhitespace();
         const right = parseChainableExpression(parser);
         const end = right.end;
         parser.allowWhitespace();
 
         left = {
             type: "BinaryExpression",
-            operator: "~",
+            operator,
             left,
             right,
             start,

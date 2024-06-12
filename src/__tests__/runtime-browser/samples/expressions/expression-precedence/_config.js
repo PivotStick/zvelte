@@ -15,7 +15,7 @@ export default defineTest({
         };
     },
 
-    todo: true,
+    // todo: true,
 
     test({ props }) {
         expect(props.out1).toEqual(7);
@@ -27,6 +27,6 @@ export default defineTest({
         expect(props.out6).toEqual(7);
         expect(props.out7).toEqual(9);
 
-        // expect(props.out8).toEqual("foo8");
+        expect(props.out8).toEqual("foo8");
     },
 });
