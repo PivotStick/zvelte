@@ -15,8 +15,6 @@ export default defineTest({
         };
     },
 
-    // todo: true,
-
     test({ props }) {
         expect(props.out1).toEqual(7);
         expect(props.out2).toEqual(5);
