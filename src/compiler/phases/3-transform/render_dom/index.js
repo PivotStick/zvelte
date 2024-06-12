@@ -1390,6 +1390,18 @@ const templateVisitors = {
 
         state.init.push(call);
     },
+
+    KeyBlock(node, { visit, state }) {
+        const call = b.call(
+            "$.key",
+            state.node,
+            b.arrow([], visit(node.expression)),
+            b.arrow([b.id("$$anchor")], visit(node.fragment))
+        );
+
+        state.template.push("<!>");
+        state.init.push(call);
+    },
 };
 
 /**
