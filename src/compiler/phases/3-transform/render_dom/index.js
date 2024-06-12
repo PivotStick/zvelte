@@ -1254,15 +1254,37 @@ const templateVisitors = {
             }
         }
 
-        const id = b.id(hash(node.key.data));
+        let alreadyImported;
+
+        for (const hoist of state.hoisted) {
+            if (
+                hoist.type === "ImportDeclaration" &&
+                hoist.source.value === node.key.data &&
+                hoist.specifiers[0].type === "ImportDefaultSpecifier"
+            ) {
+                console.log(hoist.source.value, node.key.data);
+                alreadyImported = hoist.specifiers[0].local;
+            }
+        }
+
+        const id =
+            alreadyImported ??
+            state.scope.root.unique(
+                (/([^/]+)$/.exec(node.key.data)?.[1] ?? "component").replace(
+                    /\.\w+$/,
+                    ""
+                )
+            );
         const anchor = b.id(state.scope.generate(id.name + "_anchor"));
 
-        state.hoisted.unshift(
-            b.import(node.key.data, {
-                type: "ImportDefaultSpecifier",
-                local: id,
-            })
-        );
+        if (!alreadyImported) {
+            state.hoisted.unshift(
+                b.import(node.key.data, {
+                    type: "ImportDefaultSpecifier",
+                    local: id,
+                })
+            );
+        }
 
         state.init.push(
             b.var(anchor, b.call("$.first_child", state.node, b.literal(1)))
