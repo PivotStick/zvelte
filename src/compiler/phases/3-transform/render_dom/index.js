@@ -729,11 +729,6 @@ const templateVisitors = {
             for (const attribute of /** @type {import('#ast').Attribute[]} */ (
                 attributes
             )) {
-                if (isEventAttribute(attribute)) {
-                    serializeEventAttribute(attribute, context);
-                    continue;
-                }
-
                 if (
                     needs_special_value_handling &&
                     attribute.name === "value"
@@ -886,11 +881,7 @@ const templateVisitors = {
     },
 
     Attribute(node, context) {
-        if (isEventAttribute(node)) {
-            serializeEventAttribute(node, context);
-        } else {
-            console.log(node);
-        }
+        console.log(node);
     },
 
     OnDirective(node, context) {
@@ -1736,242 +1727,47 @@ function serializeTemplateLiteral(values, visit, state) {
 }
 
 /**
- * @param {import('#ast').Attribute & { value: [import('#ast').ExpressionTag] }} node
- * @param {import('./types.js').ComponentContext} context
- */
-function serializeEventAttribute(node, context) {
-    /** @type {string[]} */
-    const modifiers = [];
-
-    let event_name = node.name.slice(2);
-    if (
-        event_name.endsWith("capture") &&
-        event_name !== "ongotpointercapture" &&
-        event_name !== "onlostpointercapture"
-    ) {
-        event_name = event_name.slice(0, -7);
-        modifiers.push("capture");
-    }
-
-    serializeEvent(
-        {
-            name: event_name,
-            expression: node.value[0].expression,
-            modifiers,
-            delegated: node.metadata.delegated,
-        },
-        context
-    );
-}
-
-/**
  * Serializes an event handler function of the `on:` directive or an attribute starting with `on`
  * @param {{name: string; modifiers: string[]; expression: import('estree').Expression | null; delegated?: import('#compiler').DelegatedEvent | null; }} node
  * @param {import('./types.js').ComponentContext} context
  */
-function serializeEvent(node, context) {
-    const state = context.state;
+function serializeEvent(node, { visit, state }) {
+    const expression = node.expression ?? {
+        type: "Identifier",
+        name: node.name,
+        start: -1,
+        end: -1,
+    };
 
-    /** @type {import('estree').Statement} */
-    let statement;
+    let listener;
 
-    if (node.expression) {
-        let handler = serializeEventHandler(node, context);
-        const event_name = node.name;
-        const delegated = node.delegated;
-
-        if (delegated != null) {
-            let delegated_assignment;
-
-            if (!state.events.has(event_name)) {
-                state.events.add(event_name);
-            }
-            // Hoist function if we can, otherwise we leave the function as is
-            if (delegated.type === "hoistable") {
-                if (delegated.function === node.expression) {
-                    const func_name = context.state.scope.root.unique(
-                        "on_" + event_name
-                    );
-                    state.hoisted.push(b.var(func_name, handler));
-                    handler = func_name;
-                }
-                if (node.modifiers.includes("once")) {
-                    handler = b.call("$.once", handler);
-                }
-                const hoistable_params =
-                    /** @type {import('estree').Expression[]} */ (
-                        delegated.function.metadata.hoistable_params
-                    );
-                // When we hoist a function we assign an array with the function and all
-                // hoisted closure params.
-                const args = [handler, ...hoistable_params];
-                delegated_assignment = b.array(args);
-            } else {
-                if (node.modifiers.includes("once")) {
-                    handler = b.call("$.once", handler);
-                }
-                delegated_assignment = handler;
-            }
-
-            state.init.push(
-                b.stmt(
-                    b.assignment(
-                        "=",
-                        b.member(context.state.node, b.id("__" + event_name)),
-                        delegated_assignment
-                    )
-                )
-            );
-            return;
-        }
-
-        if (node.modifiers.includes("once")) {
-            handler = b.call("$.once", handler);
-        }
-
-        const args = [
-            b.literal(event_name),
-            context.state.node,
-            handler,
-            b.literal(node.modifiers.includes("capture")),
-        ];
-
-        if (node.modifiers.includes("passive")) {
-            args.push(b.true);
-        } else if (node.modifiers.includes("nonpassive")) {
-            args.push(b.false);
-        } else if (PassiveEvents.includes(node.name)) {
-            args.push(b.true);
-        }
-
-        // Events need to run in order with bindings/actions
-        statement = b.stmt(b.call("$.event", ...args));
+    if (expression.type === "ArrowFunctionExpression") {
+        listener = visit(expression);
     } else {
-        statement = b.stmt(
-            b.call(
-                "$.event",
-                b.literal(node.name),
-                state.node,
-                serializeEventHandler(node, context)
-            )
-        );
-    }
-
-    const parent = /** @type {import('#ast').ZvelteNode} */ (
-        context.path.at(-1)
-    );
-    if (parent.type === "ZvelteDocument" || parent.type === "ZvelteWindow") {
-        state.before_init.push(statement);
-    } else {
-        state.after_update.push(statement);
-    }
-}
-
-/**
- * Serializes the event handler function of the `on:` directive
- * @param {Pick<import('#ast').OnDirective, 'name' | 'modifiers' | 'expression'>} node
- * @param {import('./types.js').ComponentContext} context
- */
-function serializeEventHandler(node, { state, visit }) {
-    /** @type {import('estree').Expression} */
-    let handler;
-
-    if (node.expression) {
-        const expr = node.expression;
-
-        // Event handlers can be dynamic (source/store/prop/conditional etc)
-        const dynamic_handler = () =>
-            b.function(
-                null,
-                [b.rest(b.id("$$args"))],
-                b.block([
-                    b.const(
-                        "$$callback",
-                        /** @type {import('estree').Expression} */ (visit(expr))
-                    ),
-                    b.return(
-                        b.call(
-                            b.member(
-                                b.id("$$callback"),
-                                b.id("apply"),
-                                false,
-                                true
-                            ),
-                            b.this,
-                            b.id("$$args")
-                        )
-                    ),
-                ])
-            );
-
-        if (expr.type === "Identifier" || expr.type === "MemberExpression") {
-            const id = object(expr);
-
-            /** @type {any} */
-            const binding = id === null ? null : state.scope.get(id.name);
-
-            if (
-                binding !== null &&
-                (binding.kind === "state" ||
-                    binding.kind === "frozen_state" ||
-                    binding.declaration_kind === "import" ||
-                    binding.kind === "legacy_reactive" ||
-                    binding.kind === "derived" ||
-                    binding.kind === "prop" ||
-                    binding.kind === "bindable_prop" ||
-                    binding.kind === "store_sub")
-            ) {
-                handler = dynamic_handler();
-            } else {
-                handler = /** @type {import('estree').Expression} */ (
-                    visit(expr)
-                );
-            }
-        } else if (
-            expr.type === "ConditionalExpression" ||
-            expr.type === "LogicalExpression"
-        ) {
-            handler = dynamic_handler();
-        } else {
-            handler = /** @type {import('estree').Expression} */ (visit(expr));
-        }
-    } else {
-        state.analysis.needs_props = true;
-
-        // Function + .call to preserve "this" context as much as possible
-        handler = b.function(
+        listener = b.function(
             null,
-            [b.id("$$arg")],
+            [b.rest(b.id("$$args"))],
             b.block([
-                b.stmt(
+                b.const("$$callback", visit(expression)),
+                b.return(
                     b.call(
-                        "$.bubble_event.call",
-                        b.this,
-                        b.id("$$props"),
-                        b.id("$$arg")
+                        b.member(
+                            b.id("$$callback"),
+                            b.id("apply"),
+                            false,
+                            true
+                        ),
+                        b.id("this"),
+                        b.id("$$args")
                     )
                 ),
             ])
         );
     }
 
-    if (node.modifiers.includes("stopPropagation")) {
-        handler = b.call("$.stopPropagation", handler);
-    }
-    if (node.modifiers.includes("stopImmediatePropagation")) {
-        handler = b.call("$.stopImmediatePropagation", handler);
-    }
-    if (node.modifiers.includes("preventDefault")) {
-        handler = b.call("$.preventDefault", handler);
-    }
-    if (node.modifiers.includes("self")) {
-        handler = b.call("$.self", handler);
-    }
-    if (node.modifiers.includes("trusted")) {
-        handler = b.call("$.trusted", handler);
-    }
-
-    return handler;
+    state.init.push(
+        b.call("$.event", b.literal(node.name), state.node, listener)
+    );
 }
 
 /**
@@ -2239,35 +2035,15 @@ function parseDirectiveName(name) {
  * @param {import("./types.js").ComponentContext} context
  */
 function serializeFunction(node, context) {
-    const name = /** @type {import("estree").MemberExpression} */ (
+    const name = /** @type {import("estree").Expression} */ (
         context.visit(
             node.type === "FilterExpression" ? node.name : node.callee
         )
     );
 
-    const args = [];
-    let hasEvent = false;
+    const args = node.arguments.map(
+        (arg) => /** @type {import("estree").Expression} */ (context.visit(arg))
+    );
 
-    const inOnDirective = context.path.at(-1)?.type === "OnDirective";
-
-    for (const arg of node.arguments) {
-        if (inOnDirective && object(arg)?.name === "_event") {
-            hasEvent = true;
-            args.push(arg);
-        } else {
-            args.push(
-                /** @type {import("estree").Expression} */ (context.visit(arg))
-            );
-        }
-    }
-
-    const call = b.call(name, ...args);
-
-    if (inOnDirective) {
-        const patterns = [];
-        if (hasEvent) patterns.push(b.id("_event"));
-        return b.arrow(patterns, call);
-    }
-
-    return call;
+    return b.call(name, ...args);
 }

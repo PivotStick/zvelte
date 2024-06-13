@@ -473,54 +473,94 @@ describe("Parser: will test template nodes", () => {
         });
 
         test("on directive", () => {
-            AttributeOf(`<div on:click="{{ handler() }}" />`, [
+            AttributeOf(`<div on:click="{{ handler }}" />`, [
                 {
                     type: "OnDirective",
                     name: "click",
                     modifiers: [],
                     expression: {
-                        type: "FilterExpression",
-                        name: {
-                            type: "Identifier",
-                            name: "handler",
-                            start: 18,
-                            end: 25,
-                        },
-                        arguments: [],
+                        type: "Identifier",
+                        name: "handler",
                         start: 18,
-                        end: 27,
+                        end: 25,
                     },
                     start: 5,
-                    end: 31,
+                    end: 29,
                 },
             ]);
         });
 
         test("on directive with modifiers", () => {
             AttributeOf(
-                `<div on:click|preventDefault|once="{{ handler() }}" />`,
+                `<div on:click|preventDefault|once="{{ handler }}" />`,
                 [
                     {
                         type: "OnDirective",
                         name: "click",
                         modifiers: ["preventDefault", "once"],
                         expression: {
-                            type: "FilterExpression",
-                            name: {
-                                type: "Identifier",
-                                name: "handler",
-                                start: 38,
-                                end: 45,
-                            },
-                            arguments: [],
+                            type: "Identifier",
+                            name: "handler",
                             start: 38,
-                            end: 47,
+                            end: 45,
                         },
                         start: 5,
-                        end: 51,
+                        end: 49,
                     },
                 ]
             );
+        });
+
+        test("on directive with arrow function", () => {
+            AttributeOf(`<div on:click="{{ (e) => foo("bar", e) }}" />`, [
+                {
+                    type: "OnDirective",
+                    name: "click",
+                    modifiers: [],
+                    expression: {
+                        type: "ArrowFunctionExpression",
+                        start: 18,
+                        end: 38,
+                        expression: true,
+                        params: [
+                            {
+                                type: "Identifier",
+                                name: "e",
+                                start: 19,
+                                end: 20,
+                            },
+                        ],
+                        body: {
+                            type: "FilterExpression",
+                            name: {
+                                type: "Identifier",
+                                name: "foo",
+                                start: 25,
+                                end: 28,
+                            },
+                            arguments: [
+                                {
+                                    type: "StringLiteral",
+                                    value: "bar",
+                                    raw: '"bar"',
+                                    start: 29,
+                                    end: 34,
+                                },
+                                {
+                                    type: "Identifier",
+                                    name: "e",
+                                    start: 36,
+                                    end: 37,
+                                },
+                            ],
+                            start: 25,
+                            end: 38,
+                        },
+                    },
+                    start: 5,
+                    end: 42,
+                },
+            ]);
         });
 
         test("class directive", () => {

@@ -465,14 +465,21 @@ const visitors = {
         const ex = node.expression;
 
         if (ex) {
-            $.event(
-                node.name,
-                element,
-                (_event) => {
-                    visit(ex, pushNewScope(state, { _event }));
-                },
-                false
-            );
+            let handler;
+            if (ex.type === "ArrowFunctionExpression") {
+                handler = /** @type {_} */ (visit(ex))._;
+            } else {
+                /**
+                 * @this {any}
+                 * @param {...*} $$args
+                 */
+                handler = function (...$$args) {
+                    const $$callback = /** @type {_} */ (visit(ex))._;
+                    return $$callback?.apply(this, $$args);
+                };
+            }
+
+            $.event(node.name, element, handler, false);
         } else {
             // @ts-ignore
             $.event(node.name, element, function ($$arg) {

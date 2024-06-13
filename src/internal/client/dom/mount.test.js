@@ -35,7 +35,7 @@ describe("Test client's internal mount()", () => {
                     currentInstance = mount({
                         target: document.body,
                         scope: { listener },
-                        source: `<button on:click="{{ listener() }}" />`,
+                        source: `<button on:click="{{ listener }}" />`,
                     });
 
                     const button = /** @type {HTMLButtonElement} */ (
@@ -48,6 +48,10 @@ describe("Test client's internal mount()", () => {
                     expect(listener).not.toHaveBeenCalledOnce();
                     button.click();
                     expect(listener).toHaveBeenCalledOnce();
+                    expect(listener.mock.calls[0]).toHaveLength(1);
+                    expect(listener.mock.calls[0][0]).toBeInstanceOf(
+                        MouseEvent
+                    );
                 });
             });
 
@@ -202,7 +206,7 @@ describe("Test client's internal mount()", () => {
                 source: `
                 {% for section in sections %}
                     <section>
-                        <h1 on:click="{{ open(section) }}">{{ section.name }} {{ section.selected|length }} / {{ section.roles|length }} <div class="bar" /></h1>
+                        <h1 on:click="{{ () => open(section) }}">{{ section.name }} {{ section.selected|length }} / {{ section.roles|length }} <div class="bar" /></h1>
                         {% if section.open %}
                             <ul>
                                 {% for role in section.roles %}
