@@ -1293,7 +1293,6 @@ const templateVisitors = {
         const block = b.block([]);
         const call = b.call(
             "$.component",
-            state.node,
             b.thunk(visit(node.expression)),
             b.arrow([b.id("$$component")], block)
         );

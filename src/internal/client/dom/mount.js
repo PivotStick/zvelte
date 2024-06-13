@@ -1170,7 +1170,6 @@ const visitors = {
         }
 
         $.component(
-            anchor,
             () => /** @type {_} */ (visit(node.expression))._,
             // @ts-ignore
             ($$component) => $$component(anchor, props)
