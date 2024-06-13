@@ -145,7 +145,40 @@ export const filters = {
     slug: notImplemented("slug"),
     sort: notImplemented("sort"),
     spaceless: notImplemented("spaceless"),
-    split: (arr, ...args) => arr.split(...args),
+    /**
+     * @param {string} str
+     * @param {string} delimiter
+     * @param {number=} limit
+     */
+    split: (str, delimiter, limit) => {
+        if (limit === undefined) {
+            return str.split(delimiter);
+        }
+
+        const out = [""];
+
+        if (delimiter) {
+            for (let i = 0; i < str.length; i++) {
+                const c = str[i];
+                if (c === delimiter && out.length < limit) {
+                    out.push("");
+                } else {
+                    out[out.length - 1] += c;
+                }
+            }
+        } else {
+            for (let i = 0; i < str.length; i++) {
+                const c = str[i];
+                if (out[out.length - 1].length >= limit) {
+                    out.push("");
+                }
+
+                out[out.length - 1] += c;
+            }
+        }
+
+        return out;
+    },
     striptags: notImplemented("striptags"),
     timezone_name: notImplemented("timezone_name"),
     title: notImplemented("title"),
