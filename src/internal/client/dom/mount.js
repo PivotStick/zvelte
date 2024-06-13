@@ -16,6 +16,7 @@ import {
 import { walk } from "zimmerframe";
 import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 import { hash } from "../../../compiler/index.js";
+import { iterable } from "../runtime/index.js";
 
 /**
  * @typedef {import("#ast").ZvelteNode} ZvelteNode
@@ -830,7 +831,8 @@ const visitors = {
 
         const key = node.key;
 
-        const array = () => /** @type {_} */ (visit(node.expression))._;
+        const array = () =>
+            iterable(/** @type {_} */ (visit(node.expression))._);
 
         let flags = EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE;
 
@@ -847,50 +849,52 @@ const visitors = {
                 const fragment = getRoot(node.body);
                 const index = () => $.unwrap($$index);
 
-                visit(
-                    node.body,
-                    pushNewScope(
-                        state,
-                        {
-                            get [node.context.name]() {
-                                return $.unwrap(item);
-                            },
-                            set [node.context.name](/** @type {any} */ value) {
-                                $.set(item, value);
-                            },
-                            loop: {
-                                get index() {
-                                    return index() + 1;
-                                },
-                                get index0() {
-                                    return index();
-                                },
-                                get revindex() {
-                                    return array().length - index();
-                                },
-                                get revindex0() {
-                                    return array().length - index() - 1;
-                                },
-                                get first() {
-                                    return index() === 0;
-                                },
-                                get last() {
-                                    return index() === array().length - 1;
-                                },
-                                get length() {
-                                    return array().length;
-                                },
-                                get parent() {
-                                    return (
-                                        searchInScope("loop", state.scope) ??
-                                        null
-                                    );
-                                },
-                            },
+                const scope = {
+                    get [node.context.name]() {
+                        return $.unwrap(item);
+                    },
+                    set [node.context.name](/** @type {any} */ value) {
+                        $.set(item, value);
+                    },
+                    loop: {
+                        get index() {
+                            return index() + 1;
                         },
-                        fragment
-                    )
-                );
+                        get index0() {
+                            return index();
+                        },
+                        get revindex() {
+                            return array().length - index();
+                        },
+                        get revindex0() {
+                            return array().length - index() - 1;
+                        },
+                        get first() {
+                            return index() === 0;
+                        },
+                        get last() {
+                            return index() === array().length - 1;
+                        },
+                        get length() {
+                            return array().length;
+                        },
+                        get parent() {
+                            return searchInScope("loop", state.scope) ?? null;
+                        },
+                    },
+                };
+
+                if (node.index) {
+                    Object.defineProperty(scope, node.index.name, {
+                        get() {
+                            return Object.keys(
+                                /** @type {_} */ (visit(node.expression))._
+                            )[index()];
+                        },
+                    });
+                }
+
+                visit(node.body, pushNewScope(state, scope, fragment));
 
                 // @ts-ignore
                 $.append($$anchor, fragment);

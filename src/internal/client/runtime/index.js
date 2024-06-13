@@ -50,4 +50,15 @@ export function filter(key, ...args) {
     return fn(...args);
 }
 
+/**
+ * @param {*} value
+ */
+export function iterable(value) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        return Object.values(value);
+    }
+
+    return value;
+}
+
 export { in_expression as in };

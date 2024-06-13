@@ -954,7 +954,7 @@ const templateVisitors = {
             member.object.type === "Identifier"
         ) {
             if (state.nonPropSources.includes(member.object.name)) {
-                member = b.member(b.call("$.unwrap", member.object), property);
+                member = b.member(b.call("$.get", member.object), property);
             } else if (state.nonPropGetters.includes(member.object.name)) {
                 member = b.member(b.call(member.object), property);
             } else if (!state.nonPropVars.includes(member.object.name)) {
@@ -983,7 +983,7 @@ const templateVisitors = {
 
         if (parent.type !== "MemberExpression" || parent.computed) {
             if (state.nonPropSources.includes(id.name)) {
-                id = b.call("$.unwrap", id);
+                id = b.call("$.get", id);
             } else if (state.nonPropGetters.includes(id.name)) {
                 id = b.call(id);
             } else if (!state.nonPropVars.includes(id.name)) {
@@ -1461,12 +1461,18 @@ const templateVisitors = {
             );
         }
 
+        const nonPropSources = [...state.nonPropSources, node.context.name];
+
+        if (node.index) {
+            nonPropSources.push(node.index.name);
+        }
+
         // @ts-ignore
         const body = /** @type {import('estree').BlockStatement} */ (
             visit(node.body, {
                 ...state,
                 nonPropVars: [...state.nonPropVars, "loop"],
-                nonPropSources: [...state.nonPropSources, node.context.name],
+                nonPropSources,
             })
         );
 
@@ -1494,7 +1500,13 @@ const templateVisitors = {
             parent: isInForBlock ? b.id("parentLoop") : b.literal(null),
         };
 
-        body.body.unshift(
+        const loopInit = [];
+
+        if (isInForBlock) {
+            loopInit.push(b.const(b.id("parentLoop"), b.id("loop")));
+        }
+
+        loopInit.push(
             b.const(
                 b.id("loop"),
                 b.object(
@@ -1513,13 +1525,26 @@ const templateVisitors = {
             )
         );
 
-        if (isInForBlock) {
-            body.body.unshift(b.const(b.id("parentLoop"), b.id("loop")));
+        if (node.index) {
+            const expression = b.member(
+                b.call("Object.keys", visit(node.expression)),
+                unwrapIndex,
+                true
+            );
+
+            loopInit.push(
+                b.const(
+                    node.index.name,
+                    b.call("$.derived", b.thunk(expression))
+                )
+            );
         }
+
+        body.body.unshift(...loopInit);
 
         call.arguments.push(
             b.literal(flags),
-            b.thunk(visit(node.expression)),
+            b.thunk(b.call("$.iterable", visit(node.expression))),
             key,
             b.arrow(
                 [b.id("$$anchor"), b.id(node.context.name), b.id("$$index")],
