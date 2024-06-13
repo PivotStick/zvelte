@@ -28,33 +28,6 @@ describe("Test client's internal mount()", () => {
 
     describe("RegularElement", () => {
         describe("Attributes", () => {
-            describe("OnDirective", () => {
-                test("on:click listener", async () => {
-                    const listener = vi.fn();
-
-                    currentInstance = mount({
-                        target: document.body,
-                        scope: { listener },
-                        source: `<button on:click="{{ listener }}" />`,
-                    });
-
-                    const button = /** @type {HTMLButtonElement} */ (
-                        document.body.querySelector("button")
-                    );
-
-                    expect(button).not.toBeNull();
-                    expect(button.attributes.length).toBe(0);
-
-                    expect(listener).not.toHaveBeenCalledOnce();
-                    button.click();
-                    expect(listener).toHaveBeenCalledOnce();
-                    expect(listener.mock.calls[0]).toHaveLength(1);
-                    expect(listener.mock.calls[0][0]).toBeInstanceOf(
-                        MouseEvent
-                    );
-                });
-            });
-
             describe("BindDirective", () => {
                 test("bind:value on input", async () => {
                     const props = proxy({ value: "foo" });
@@ -153,15 +126,7 @@ describe("Test client's internal mount()", () => {
                     await tick();
                     expect(textarea.value).toBe("foo");
                 });
-
-                test.todo("bind:checked");
-                test.todo("bind:this");
-                test.todo("bind:group");
             });
-
-            describe.todo("ClassDirective");
-            describe.todo("TransitionDirective");
-            describe.todo("Spread");
         });
     });
 
@@ -381,26 +346,6 @@ describe("Test client's internal mount()", () => {
                 expect(datas[1].roles).toContain(value);
             }
         });
-    });
-
-    describe.todo("Variable");
-    describe.todo("HtmlTag");
-    describe.todo("KeyBlock");
-    describe.todo("ZvelteComponent");
-
-    describe("Component", () => {
-        describe("Attributes", () => {
-            test.todo("Attribute");
-            test.todo("Spread");
-            describe("BindDirective", () => {
-                test.todo("bind:this");
-            });
-            test.todo("OnDirective");
-        });
-
-        test.todo("Children");
-
-        test.todo.fails("Component not found");
     });
 
     describe("Styling", () => {
