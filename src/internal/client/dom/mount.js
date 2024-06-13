@@ -756,7 +756,8 @@ const visitors = {
     },
 
     HtmlTag(node, { visit, state }) {
-        const anchor = /** @type {Text} */ (state.currentNode);
+        const anchor = /** @type {Comment} */ (state.currentNode);
+
         $.html(
             anchor,
             () => /** @type {_} */ (visit(node.expression))._,

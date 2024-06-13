@@ -1,5 +1,5 @@
 import { defineTest } from "../../../defineTest.js";
 
 export default defineTest({
-    todo: true,
+    html: "I like Zvelte.<br>You will like it too.<!---->",
 });

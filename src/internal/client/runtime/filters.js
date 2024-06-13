@@ -112,6 +112,7 @@ export const filters = {
         return Array.isArray(a) ? [...a, ...b] : { ...a, ...b };
     },
     nl2br: (value) => {
+        console.log({ value });
         return value.replace(/\n/g, "<br />");
     },
     number_format: notImplemented("number_format"),

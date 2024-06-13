@@ -867,10 +867,10 @@ const templateVisitors = {
                 : node.expression.name
         );
 
-        const call = b.call("$.snippet", b.arrow([], callee), state.node);
+        const call = b.call("$.snippet", b.thunk(callee), state.node);
 
         for (const arg of node.expression.arguments) {
-            call.arguments.push(b.arrow([], visit(arg)));
+            call.arguments.push(b.thunk(visit(arg)));
         }
 
         state.template.push("<!>");
@@ -1297,13 +1297,27 @@ const templateVisitors = {
         state.init.push(b.call(id, anchor, b.object(properties)));
     },
 
+    HtmlTag(node, { state, visit }) {
+        state.template.push("<!>");
+
+        state.init.push(
+            b.call(
+                "$.html",
+                state.node,
+                b.thunk(visit(node.expression)),
+                b.false,
+                b.false
+            )
+        );
+    },
+
     IfBlock(node, { state, visit }) {
         state.template.push("<!>");
 
         const call = b.call(
             "$.if",
             state.node,
-            b.arrow([], visit(node.test)),
+            b.thunk(visit(node.test)),
             b.arrow([b.id("$$anchor")], visit(node.consequent))
         );
 
@@ -1398,7 +1412,7 @@ const templateVisitors = {
 
         call.arguments.push(
             b.literal(flags),
-            b.arrow([], visit(node.expression)),
+            b.thunk(visit(node.expression)),
             key,
             b.arrow(
                 [b.id("$$anchor"), b.id(node.context.name), b.id("$$index")],
@@ -1413,7 +1427,7 @@ const templateVisitors = {
         const call = b.call(
             "$.key",
             state.node,
-            b.arrow([], visit(node.expression)),
+            b.thunk(visit(node.expression)),
             b.arrow([b.id("$$anchor")], visit(node.fragment))
         );
 

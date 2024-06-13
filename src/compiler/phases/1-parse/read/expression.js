@@ -719,7 +719,10 @@ export function parseStringLiteral(parser) {
         return /** @type {import("../types.js").StringLiteral} */ ({
             type: "StringLiteral",
             raw,
-            value: raw.slice(1, -1),
+            value: raw
+                .slice(1, -1)
+                .replace(/(?<!\\)\\n/g, "\n")
+                .replace(/\\\\n/g, "\\n"),
             start,
             end,
         });

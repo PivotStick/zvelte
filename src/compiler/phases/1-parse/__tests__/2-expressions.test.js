@@ -290,6 +290,26 @@ describe("Parser: will test expressions", () => {
                 raw: "'Hello World!'",
             });
         });
+
+        test("New Line", () => {
+            ExpressionTagOf(`{{ 'Hello\\nWorld!' }}`, {
+                type: "StringLiteral",
+                start: 3,
+                end: 18,
+                value: "Hello\nWorld!",
+                raw: "'Hello\\nWorld!'",
+            });
+        });
+
+        test("Espaced New Line", () => {
+            ExpressionTagOf(`{{ 'Hello\\\\nWorld!' }}`, {
+                type: "StringLiteral",
+                start: 3,
+                end: 19,
+                value: "Hello\\nWorld!",
+                raw: "'Hello\\\\nWorld!'",
+            });
+        });
     });
 
     describe("BooleanLiteral", () => {

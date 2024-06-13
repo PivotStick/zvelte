@@ -167,8 +167,11 @@ const visitors = {
         state.template.src += "<!>";
     },
 
+    HtmlTag(_, { state }) {
+        state.template.src += "<!>";
+    },
+
     Variable: TagVisitor,
-    HtmlTag: TagVisitor,
     ExpressionTag: TagVisitor,
 };
 
