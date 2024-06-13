@@ -881,7 +881,10 @@ const visitors = {
                                     return array().length;
                                 },
                                 get parent() {
-                                    return searchInScope("loop", state.scope);
+                                    return (
+                                        searchInScope("loop", state.scope) ??
+                                        null
+                                    );
                                 },
                             },
                         },
