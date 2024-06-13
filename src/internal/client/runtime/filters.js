@@ -111,10 +111,7 @@ export const filters = {
     merge: (a, b) => {
         return Array.isArray(a) ? [...a, ...b] : { ...a, ...b };
     },
-    nl2br: (value) => {
-        console.log({ value });
-        return value.replace(/\n/g, "<br />");
-    },
+    nl2br: (value) => value.replace(/\n/g, "<br />"),
     number_format: notImplemented("number_format"),
     raw: () => {
         throw new Error(

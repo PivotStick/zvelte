@@ -1262,7 +1262,6 @@ const templateVisitors = {
                 hoist.source.value === node.key.data &&
                 hoist.specifiers[0].type === "ImportDefaultSpecifier"
             ) {
-                console.log(hoist.source.value, node.key.data);
                 alreadyImported = hoist.specifiers[0].local;
             }
         }
@@ -1295,6 +1294,114 @@ const templateVisitors = {
             )
         );
         state.init.push(b.call(id, anchor, b.object(properties)));
+    },
+
+    ZvelteComponent(node, { visit, state }) {
+        state.template.push("<!>");
+
+        const block = b.block([]);
+        const call = b.call(
+            "$.component",
+            state.node,
+            b.thunk(visit(node.expression)),
+            b.arrow([b.id("$$component")], block)
+        );
+
+        /**
+         * @type {import('estree').Property[]}
+         */
+        const props = [];
+
+        walk(/** @type {import("#ast").ZvelteNode} */ (node), null, {
+            Attribute(attr) {
+                /**
+                 * @type {import('estree').Expression}
+                 */
+                let expression = b.true;
+                let canSet = false;
+
+                if (attr.value !== true) {
+                    if (attr.value.length === 1) {
+                        const n = attr.value[0];
+                        if (n.type === "Text") {
+                            expression = b.literal(n.data);
+                        } else {
+                            expression = visit(n.expression);
+                            canSet =
+                                n.expression.type === "Identifier" ||
+                                n.expression.type === "MemberExpression";
+                        }
+                    } else {
+                        /** @type {import('estree').TemplateElement[]} */
+                        const elements = [];
+                        /** @type {import('estree').Expression[]} */
+                        const expressions = [];
+
+                        for (let i = 0; i < attr.value.length; i++) {
+                            const n = attr.value[i];
+                            const tail = i === attr.value.length - 1;
+
+                            if (n.type === "Text") {
+                                const el = b.templateElement();
+                                el.value.raw = n.data;
+                                el.tail = tail;
+                                elements.push(el);
+                            } else {
+                                if (i === 0) {
+                                    elements.push(b.templateElement());
+                                }
+
+                                expressions.push(visit(n.expression));
+                                if (tail) {
+                                    const el = b.templateElement();
+                                    el.tail = tail;
+                                    elements.push(el);
+                                }
+                            }
+                        }
+
+                        expression = b.template(elements, expressions);
+                    }
+                }
+
+                props.push(
+                    b.prop(
+                        "get",
+                        b.id(attr.name),
+                        b.function(null, [], b.block([b.return(expression)]))
+                    )
+                );
+
+                if (canSet) {
+                    props.push(
+                        b.prop(
+                            "set",
+                            b.id(attr.name),
+                            b.function(
+                                null,
+                                [b.id("$$value")],
+                                b.block([
+                                    b.stmt(
+                                        b.assignment(
+                                            "=",
+                                            // @ts-ignore
+                                            expression,
+                                            b.id("$$value")
+                                        )
+                                    ),
+                                ])
+                            )
+                        )
+                    );
+                }
+            },
+        });
+
+        block.body.push(
+            b.stmt(b.call("$$component", state.node, b.object(props)))
+        );
+
+        state.init.push(b.stmt(call));
     },
 
     HtmlTag(node, { state, visit }) {
