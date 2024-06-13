@@ -146,7 +146,45 @@ export const filters = {
     striptags: notImplemented("striptags"),
     timezone_name: notImplemented("timezone_name"),
     title: notImplemented("title"),
-    trim: (str) => str.trim(),
+    /**
+     * @param {string} str
+     */
+    trim: (str, characterMask = "", side = "both") => {
+        if (characterMask === "") {
+            switch (side) {
+                case "left":
+                    return str.trimStart();
+
+                case "right":
+                    return str.trimEnd();
+
+                case "both":
+                default:
+                    return str.trim();
+            }
+        }
+
+        // espace regex characyers
+        characterMask = characterMask.replace(
+            /[-[\]{}()*+?.,\\^$|#\s]/g,
+            "\\$&"
+        );
+
+        const start = new RegExp(`$${characterMask}+`);
+        const end = new RegExp(`${characterMask}+$`);
+
+        switch (side) {
+            case "left":
+                return str.replace(start, "");
+
+            case "right":
+                return str.replace(end, "");
+
+            case "both":
+            default:
+                return str.replace(start, "").replace(end, "");
+        }
+    },
     u: notImplemented("u:"),
     upper: (str) => str.toUpperCase(),
     url_encode: notImplemented("url_encode"),
