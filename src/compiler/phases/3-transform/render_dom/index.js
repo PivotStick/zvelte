@@ -1349,31 +1349,6 @@ const templateVisitors = {
             })
         );
 
-        //                         get index() {
-        //                             return index() + 1;
-        //                         },
-        //                         get index0() {
-        //                             return index();
-        //                         },
-        //                         get revindex() {
-        //                             return array().length - index();
-        //                         },
-        //                         get revindex0() {
-        //                             return array().length - index() - 1;
-        //                         },
-        //                         get first() {
-        //                             return index() === 0;
-        //                         },
-        //                         get last() {
-        //                             return index() === array().length - 1;
-        //                         },
-        //                         get length() {
-        //                             return array().length;
-        //                         },
-        //                         get parent() {
-        //                             return searchInScope("loop", state.scope);
-        //                         },
-
         const isInForBlock = path.some((node) => node.type === "ForBlock");
 
         const unwrapIndex = b.call("$.unwrap", b.id("$$index"));
@@ -1382,7 +1357,7 @@ const templateVisitors = {
         const loop = {
             index: b.binary(unwrapIndex, "+", b.literal(1)),
             index0: unwrapIndex,
-            revindex: b.binary(visit(node.expression), "-", unwrapIndex),
+            revindex: b.binary(length, "-", unwrapIndex),
             revindex0: b.binary(
                 b.binary(length, "-", unwrapIndex),
                 "-",

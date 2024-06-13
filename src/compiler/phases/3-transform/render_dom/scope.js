@@ -92,7 +92,7 @@ export class Scope {
                     node,
                     kind,
                     declaration_kind,
-                    initial,
+                    initial
                 );
             }
         }
@@ -275,6 +275,11 @@ export function createScopes(ast, root, allow_reactive_declarations, parent) {
     const possible_implicit_declarations = [];
 
     walk(ast, state, {
+        _(node, { next }) {
+            node.metadata ??= {};
+            next();
+        },
+
         // references
         Identifier(node, { path, state }) {
             references.push([
@@ -331,7 +336,7 @@ export function setScope(scopes) {
             next(
                 scope !== undefined && scope !== state.scope
                     ? { ...state, scope }
-                    : state,
+                    : state
             );
         },
     };
