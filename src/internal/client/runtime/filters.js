@@ -97,7 +97,10 @@ export const filters = {
         return value[keys[keys.length - 1]];
     },
     length: (value) => {
-        if (typeof value === "object" && value !== null) {
+        if (
+            (typeof value === "object" && value !== null) ||
+            typeof value === "string"
+        ) {
             return value.length;
         }
     },

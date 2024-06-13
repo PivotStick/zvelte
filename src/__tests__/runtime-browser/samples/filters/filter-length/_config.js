@@ -1,5 +1,5 @@
 import { defineTest } from "../../../defineTest.js";
 
 export default defineTest({
-    todo: true,
+    html: "3\n\n5",
 });
