@@ -1,4 +1,4 @@
-import { getFilter } from "./filters.js";
+import { filters } from "./filters.js";
 
 export { mount, hydrate } from "svelte";
 export * from "svelte/internal/client";
@@ -42,12 +42,11 @@ export function is_empty(value) {
 }
 
 /**
+ * @param {Record<string, any>[]} scopes
  * @param {string} key
- * @param {...*} args
  */
-export function filter(key, ...args) {
-    const fn = getFilter(key);
-    return fn(...args);
+export function filter(scopes, key) {
+    return scope([filters, ...scopes], key);
 }
 
 /**

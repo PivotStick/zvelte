@@ -922,7 +922,15 @@ const templateVisitors = {
                 args.push(context.visit(arg));
             }
 
-            return b.call("$.filter", b.literal(node.name.name), ...args);
+            const call = b.call(
+                "$.filter",
+                context.state.options.hasJS
+                    ? b.id("$$scopes")
+                    : b.array([b.id("$$props")]),
+                b.literal(node.name.name)
+            );
+
+            return b.call(b.member(call, b.id(node.name.name)), ...args);
         } else {
             return serializeFunction(node, context);
         }
