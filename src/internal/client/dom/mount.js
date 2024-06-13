@@ -5,8 +5,6 @@ import { getFilter } from "../runtime/filters.js";
 import { findScopeFrom, searchInScope } from "../shared.js";
 import { getComponentByKey, registerComponent } from "../runtime/components.js";
 
-// @ts-ignore
-import * as $ from "svelte/internal/client";
 import {
     EACH_INDEX_REACTIVE,
     EACH_ITEM_REACTIVE,
@@ -16,7 +14,7 @@ import {
 import { walk } from "zimmerframe";
 import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 import { hash } from "../../../compiler/index.js";
-import { iterable } from "../runtime/index.js";
+import * as $ from "../runtime/index.js";
 
 /**
  * @typedef {import("#ast").ZvelteNode} ZvelteNode
@@ -832,7 +830,7 @@ const visitors = {
         const key = node.key;
 
         const array = () =>
-            iterable(/** @type {_} */ (visit(node.expression))._);
+            $.iterable(/** @type {_} */ (visit(node.expression))._);
 
         let flags = EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE;
 
@@ -856,32 +854,11 @@ const visitors = {
                     set [node.context.name](/** @type {any} */ value) {
                         $.set(item, value);
                     },
-                    loop: {
-                        get index() {
-                            return index() + 1;
-                        },
-                        get index0() {
-                            return index();
-                        },
-                        get revindex() {
-                            return array().length - index();
-                        },
-                        get revindex0() {
-                            return array().length - index() - 1;
-                        },
-                        get first() {
-                            return index() === 0;
-                        },
-                        get last() {
-                            return index() === array().length - 1;
-                        },
-                        get length() {
-                            return array().length;
-                        },
-                        get parent() {
-                            return searchInScope("loop", state.scope) ?? null;
-                        },
-                    },
+                    loop: $.loop(
+                        index,
+                        array,
+                        searchInScope("loop", state.scope) ?? null
+                    ),
                 };
 
                 if (node.index) {

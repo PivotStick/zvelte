@@ -54,11 +54,55 @@ export function filter(key, ...args) {
  * @param {*} value
  */
 export function iterable(value) {
-    if (value && typeof value === "object" && !Array.isArray(value)) {
+    if (value && typeof value === "object") {
+        if (Array.isArray(value)) {
+            const out = [];
+            for (const key in value) {
+                if (value.hasOwnProperty(key)) {
+                    out.push(value[key]);
+                }
+            }
+            return out;
+        }
+
         return Object.values(value);
     }
 
     return value;
+}
+
+/**
+ * @param {() => number} index
+ * @param {() => unknown[]} array
+ * @param {any} parent
+ */
+export function loop(index, array, parent) {
+    return {
+        get index() {
+            return index() + 1;
+        },
+        get index0() {
+            return index();
+        },
+        get revindex() {
+            return array().length - index();
+        },
+        get revindex0() {
+            return array().length - index() - 1;
+        },
+        get first() {
+            return index() === 0;
+        },
+        get last() {
+            return index() === array().length - 1;
+        },
+        get length() {
+            return array().length;
+        },
+        get parent() {
+            return parent;
+        },
+    };
 }
 
 export { in_expression as in };

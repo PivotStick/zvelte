@@ -562,30 +562,21 @@ function processChildren(nodes, expression, is_element, { visit, state }) {
                 // get hoisted inside clean_nodes?
                 visit(node, state);
             } else {
-                if (
-                    node.type === "ForBlock" &&
-                    nodes.length === 1 &&
-                    is_element
-                ) {
-                    node.metadata.is_controlled = true;
-                    visit(node, state);
-                } else {
-                    const id = getNodeId(
-                        expression(false),
-                        state,
-                        node.type === "RegularElement" ? node.name : "node"
-                    );
+                const id = getNodeId(
+                    expression(false),
+                    state,
+                    node.type === "RegularElement" ? node.name : "node"
+                );
 
-                    expression = (is_text) =>
-                        is_text
-                            ? b.call("$.sibling", id, b.true)
-                            : b.call("$.sibling", id);
+                expression = (is_text) =>
+                    is_text
+                        ? b.call("$.sibling", id, b.true)
+                        : b.call("$.sibling", id);
 
-                    visit(node, {
-                        ...state,
-                        node: id,
-                    });
-                }
+                visit(node, {
+                    ...state,
+                    node: id,
+                });
             }
         }
     }
@@ -1478,49 +1469,22 @@ const templateVisitors = {
 
         const isInForBlock = path.some((node) => node.type === "ForBlock");
 
+        const array = b.call("$.iterable", visit(node.expression));
         const unwrapIndex = b.call("$.unwrap", b.id("$$index"));
-        const length = b.member(visit(node.expression), b.id("length"));
-
-        const loop = {
-            index: b.binary(unwrapIndex, "+", b.literal(1)),
-            index0: unwrapIndex,
-            revindex: b.binary(length, "-", unwrapIndex),
-            revindex0: b.binary(
-                b.binary(length, "-", unwrapIndex),
-                "-",
-                b.literal(1)
-            ),
-            first: b.binary(unwrapIndex, "===", b.literal(0)),
-            last: b.binary(
-                unwrapIndex,
-                "===",
-                b.binary(length, "-", b.literal(1))
-            ),
-            length,
-            parent: isInForBlock ? b.id("parentLoop") : b.literal(null),
-        };
-
         const loopInit = [];
 
         if (isInForBlock) {
-            loopInit.push(b.const(b.id("parentLoop"), b.id("loop")));
+            state.init.push(b.const(b.id("parentLoop"), b.id("loop")));
         }
 
         loopInit.push(
             b.const(
                 b.id("loop"),
-                b.object(
-                    Object.entries(loop).map(([key, expression]) =>
-                        b.prop(
-                            "get",
-                            b.id(key),
-                            b.function(
-                                null,
-                                [],
-                                b.block([b.return(expression)])
-                            )
-                        )
-                    )
+                b.call(
+                    "$.loop",
+                    b.thunk(unwrapIndex),
+                    b.thunk(array),
+                    isInForBlock ? b.id("parentLoop") : b.literal(null)
                 )
             )
         );
@@ -1544,7 +1508,7 @@ const templateVisitors = {
 
         call.arguments.push(
             b.literal(flags),
-            b.thunk(b.call("$.iterable", visit(node.expression))),
+            b.thunk(array),
             key,
             b.arrow(
                 [b.id("$$anchor"), b.id(node.context.name), b.id("$$index")],
