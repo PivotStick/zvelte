@@ -6,6 +6,7 @@
  *  props?: Props;
  *  todo?: boolean;
  *  only?: boolean;
+ *  fails?: boolean;
  *  test?: (args: { props: Props; target: HTMLElement }) => Promise<void> | void;
  * }} object
  */
