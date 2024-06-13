@@ -57,7 +57,15 @@ export function contextualizeComponent(callback, props) {
  * }} args
  */
 export function createComponent({ init, ast, key, initScope }) {
-    addTemplatesToAST(ast);
+    /**
+     * @type {State["options"]}
+     */
+    const options = {
+        preserveWhitespaces: false,
+        preserveComments: true,
+    };
+
+    addTemplatesToAST(ast, options);
 
     /**
      * @type {Methods}
@@ -81,6 +89,7 @@ export function createComponent({ init, ast, key, initScope }) {
             els: {},
             bindingGroups: {},
             currentNode: fragment,
+            options,
         };
 
         if (init) {
@@ -229,8 +238,8 @@ const visitors = {
             node.nodes,
             /** @type {ZvelteNode[]} */ (path),
             undefined,
-            false,
-            true
+            state.options.preserveWhitespaces,
+            state.options.preserveComments
         );
 
         hoisted.forEach((node) => {
@@ -1178,6 +1187,7 @@ const visitors = {
         $.component(
             anchor,
             () => /** @type {_} */ (visit(node.expression))._,
+            // @ts-ignore
             ($$component) => $$component(anchor, props)
         );
     },

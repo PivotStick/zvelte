@@ -60,7 +60,7 @@ function run(tests) {
                 props,
             });
 
-            if (config.html) {
+            if (typeof config.html === "string") {
                 expect(document.body.innerHTML).toEqual(config.html);
             }
 

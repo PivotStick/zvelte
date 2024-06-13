@@ -3,6 +3,10 @@ export type State = {
     els: any;
     bindingGroups: Record<string, any[]>;
     currentNode: Node;
+    options: {
+        preserveWhitespaces: boolean;
+        preserveComments: boolean;
+    };
 };
 
 export type ComponentInitArgs<

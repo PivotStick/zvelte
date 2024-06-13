@@ -9,18 +9,20 @@ import { renderStylesheet } from "../../../compiler/phases/3-transform/css/index
 import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 
 /**
- * @typedef {{ template: { src: string } }} State
+ * @typedef {Pick<import("../types.js").State, "options"> & { template: { src: string } }} State
  */
 
 /**
  * @param {import("#ast").ZvelteNode} ast
+ * @param {import("../types.js").State["options"]} options
  */
-export function addTemplatesToAST(ast) {
+export function addTemplatesToAST(ast, options) {
     /**
      * @type {State}
      */
     const state = {
         template: { src: "" },
+        options,
     };
 
     walk(ast, state, visitors);
@@ -67,15 +69,15 @@ const visitors = {
         visit(node.fragment);
     },
 
-    Fragment(node, { visit, path }) {
+    Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
         const { hoisted, trimmed } = cleanNodes(
             parent,
             node.nodes,
             path,
             undefined,
-            false,
-            true
+            state.options.preserveWhitespaces,
+            state.options.preserveComments
         );
 
         hoisted.forEach((childNode) => {
@@ -88,11 +90,6 @@ const visitors = {
     },
 
     Text(node, { state }) {
-        if (node.data.trim() === "") {
-            state.template.src += " ";
-            return;
-        }
-
         state.template.src += node.data;
     },
 
@@ -166,7 +163,7 @@ const visitors = {
         state.template.src += `<!--${node.data}-->`;
     },
 
-    RenderTag(node, { state }) {
+    RenderTag(_, { state }) {
         state.template.src += "<!>";
     },
 
@@ -178,6 +175,6 @@ const visitors = {
 /**
  * @type {import("zimmerframe").Visitor<import("#ast").ZvelteNode, State, import("#ast").ZvelteNode>}
  */
-function TagVisitor(node, { state }) {
+function TagVisitor(_, { state }) {
     state.template.src += "<!--$$-->";
 }
