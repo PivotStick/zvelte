@@ -70,6 +70,7 @@ export function renderDom(ast, analysis, options, meta) {
         nonPropVars: [],
         nonPropSources: [],
         nonPropGetters: [],
+        ignoreScope: false,
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -662,6 +663,22 @@ const templateVisitors = {
                         attribute.name === "textContent"
                     ) {
                         has_content_editable_binding = true;
+                    } else if (attribute.name === "this") {
+                        context.state.init.push(
+                            b.stmt(
+                                b.assignment(
+                                    "=",
+                                    b.member(
+                                        b.id("$$els"),
+                                        context.visit(attribute.expression, {
+                                            ...context.state,
+                                            ignoreScope: true,
+                                        })
+                                    ),
+                                    context.state.node
+                                )
+                            )
+                        );
                     }
                 }
                 context.visit(attribute);
@@ -949,6 +966,7 @@ const templateVisitors = {
         let member = b.member(object, property, node.computed);
 
         if (
+            !state.ignoreScope &&
             path.at(-1)?.type !== "MemberExpression" &&
             member.object.type === "Identifier"
         ) {
@@ -980,7 +998,10 @@ const templateVisitors = {
         let id = b.id(node.name);
         const parent = path[path.length - 1];
 
-        if (parent.type !== "MemberExpression" || parent.computed) {
+        if (
+            !state.ignoreScope &&
+            (parent.type !== "MemberExpression" || parent.computed)
+        ) {
             if (state.nonPropSources.includes(id.name)) {
                 id = b.call("$.get", id);
             } else if (state.nonPropGetters.includes(id.name)) {

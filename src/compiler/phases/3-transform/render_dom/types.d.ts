@@ -31,6 +31,7 @@ export type ComponentClientTransformState = {
     nonPropVars: string[];
     nonPropSources: string[];
     nonPropGetters: string[];
+    ignoreScope: boolean;
 };
 
 export type ComponentContext = import("zimmerframe").Context<
