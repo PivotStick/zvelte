@@ -1,5 +1,11 @@
-import { defineTest } from "../../defineTest.js";
+import { expect } from "vitest";
+import { defineTest, ok } from "../../defineTest.js";
 
 export default defineTest({
-    todo: true,
+    html: "<textarea></textarea>",
+    test({ target }) {
+        const textarea = target.querySelector("textarea");
+        ok(textarea);
+        expect(textarea.readOnly).toBe(false);
+    },
 });
