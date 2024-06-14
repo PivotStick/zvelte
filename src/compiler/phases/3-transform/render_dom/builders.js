@@ -261,12 +261,12 @@ export function string(value) {
 /**
  * @returns {import("estree").TemplateElement}
  */
-export function templateElement() {
+export function templateElement(raw = "", tail = true) {
     return {
         type: "TemplateElement",
-        tail: true,
+        tail,
         value: {
-            raw: "",
+            raw,
         },
     };
 }

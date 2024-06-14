@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { proxy } from "../../internal/client/index.js";
+import { proxy, tick } from "../../internal/client/index.js";
 
 // @ts-ignore
 const modulePaths = await import.meta.glob("./samples/**/_config.js");
@@ -11,6 +11,7 @@ const modulePaths = await import.meta.glob("./samples/**/_config.js");
  *      mount: any;
  *      default: any;
  *  };
+ *  legacy: boolean;
  *  config: ReturnType<typeof import("./defineTest.js")["defineTest"]>
  * }>}
  */
@@ -36,12 +37,14 @@ for (const path in modulePaths) {
             default: component.default,
         },
         config: module.default,
+        legacy: false,
     });
 
     legacyTests.push({
         name,
-        component: component.legacy(),
+        component: component.legacy,
         config: module.default,
+        legacy: true,
     });
 }
 
@@ -49,26 +52,29 @@ for (const path in modulePaths) {
  * @param {typeof tests} tests
  */
 function run(tests) {
-    for (const { name, config, component } of tests) {
+    for (const { name, config, component, legacy } of tests) {
+        const target = document.body;
         const exec = async () => {
             config.before?.();
 
-            document.body.innerHTML = "";
+            target.innerHTML = "";
 
-            const props = proxy(config.props);
+            const props = proxy(
+                legacy ? config.legacyProps ?? config.props : config.props
+            );
 
             component.mount({
-                target: document.body,
+                target,
                 props,
             });
 
             if (typeof config.html === "string") {
-                expect(document.body.innerHTML).toEqual(config.html);
+                expect(target.innerHTML).toEqual(config.html);
             }
 
             await config.test?.({
                 props,
-                target: document.body,
+                target,
             });
         };
 

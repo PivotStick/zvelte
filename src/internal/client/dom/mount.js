@@ -130,10 +130,9 @@ export function createComponent({ init, ast, key, initScope }) {
 
     if (key) {
         registerComponent(key, component);
-    } else {
-        mount.component = component;
     }
 
+    mount.component = component;
     return mount;
 }
 

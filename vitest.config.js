@@ -40,6 +40,7 @@ export default defineConfig({
 
                     const imports = new Set([
                         `import * as $legacy from "@pivotass/zvelte";`,
+                        `import "@pivotass/zvelte/compiler";`,
                     ]);
 
                     const ast = parse(code);
@@ -77,11 +78,9 @@ const legacyMount = $legacy.createComponent({
     initScope: ${hasJS} ? js.scope : undefined,
 });
 
-export function legacy() {
-    return {
-        default: legacyMount.component,
-        mount: legacyMount,
-    }
+export const legacy = {
+    default: legacyMount.component,
+    mount: legacyMount,
 }`;
 
                     return result;

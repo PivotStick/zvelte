@@ -53,6 +53,8 @@ export function compile(source, options = {}, meta = {}) {
             namespace: options.namespace,
             filename: options.filename,
             hasJS: options.hasJS,
+            preserveWhitespace: false,
+            preserveComments: true,
         },
         meta
     );

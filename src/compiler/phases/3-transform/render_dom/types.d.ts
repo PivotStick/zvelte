@@ -6,7 +6,10 @@ export type ComponentClientTransformState = {
     readonly scope: Scope;
     readonly scopes: Map<ZvelteNode, Scope>;
     options: Parameters<Transformer>[2];
-    hoisted: import("estree").ImportDeclaration[];
+    hoisted: (
+        | import("estree").ImportDeclaration
+        | import("estree").VariableDeclaration
+    )[];
     node: any;
     readonly before_init: any[];
     readonly init: any[];
