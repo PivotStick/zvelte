@@ -426,5 +426,35 @@ describe("Test client's internal mount()", () => {
 
             expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
         });
+
+        test("ignores keyframes for now", () => {
+            currentInstance = mount({
+                target: document.body,
+                source: `
+                    <style>
+                        @keyframes foo {
+                            from 0% { color: red; }
+                            to 100% { color: blue; }
+                        }
+                    </style>
+                `,
+            });
+
+            let styleContent;
+
+            for (const style of document.styleSheets) {
+                if (
+                    style.ownerNode instanceof HTMLStyleElement &&
+                    style.ownerNode.id === "zvelte-qe9aa3"
+                ) {
+                    styleContent = style.ownerNode.textContent;
+                    break;
+                }
+            }
+
+            expect(styleContent).toBe(
+                `@keyframes foo{from 0%{color:red}to 100%{color:blue}}`
+            );
+        });
     });
 });

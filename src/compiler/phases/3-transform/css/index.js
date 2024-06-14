@@ -88,6 +88,11 @@ export function renderStylesheet(source, analysis, options) {
 
 /** @type {import('zimmerframe').Visitors<import('css-tree').CssNodePlain, State>} */
 const visitors = {
+    _(node, { next }) {
+        if (node.type !== "Atrule") {
+            next();
+        }
+    },
     SelectorList(node, { state, path }) {
         for (const selector of node.children) {
             if (selector.type === "Selector") {
