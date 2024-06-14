@@ -116,7 +116,11 @@ const visitors = {
             return;
         }
 
-        if (node.value.length === 1 && node.value[0].type === "Text") {
+        if (
+            node.value.length === 1 &&
+            node.value[0].type === "Text" &&
+            node.value[0].data
+        ) {
             state.template.src += ` ${node.name}="`;
             state.template.src += escapeHtml(node.value[0].data, true);
             state.template.src += '"';
