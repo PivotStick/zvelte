@@ -8,6 +8,7 @@
  *  only?: boolean;
  *  fails?: boolean;
  *  test?: (args: { props: Props; target: HTMLElement }) => Promise<void> | void;
+ *  before?: () => void;
  * }} object
  */
 export function defineTest(object) {

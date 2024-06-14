@@ -51,6 +51,8 @@ for (const path in modulePaths) {
 function run(tests) {
     for (const { name, config, component } of tests) {
         const exec = async () => {
+            config.before?.();
+
             document.body.innerHTML = "";
 
             const props = proxy(config.props);

@@ -264,8 +264,9 @@ const visitors = {
                 );
 
             if (currentNode instanceof Comment && currentNode.data === "$$") {
-                const empty = document.createTextNode("");
-                currentNode.replaceWith(empty);
+                const empty = $.text(currentNode);
+                currentNode.before(empty);
+                currentNode.remove();
                 currentNode = empty;
             }
 
