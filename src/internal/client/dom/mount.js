@@ -15,6 +15,10 @@ import { walk } from "zimmerframe";
 import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 import { hash } from "../../../compiler/index.js";
 import * as $ from "../runtime/index.js";
+import {
+    AttributeAliases,
+    DOMBooleanAttributes,
+} from "../../../compiler/phases/3-transform/render_dom/constants.js";
 
 /**
  * @typedef {import("#ast").ZvelteNode} ZvelteNode
@@ -305,21 +309,11 @@ const visitors = {
                 return;
             }
 
-            if (
-                (element instanceof HTMLButtonElement &&
-                    node.name === "disabled") ||
-                (element instanceof HTMLInputElement &&
-                    (node.name === "value" ||
-                        node.name === "checked" ||
-                        node.name === "disabled"))
-            ) {
+            if (DOMBooleanAttributes.includes(node.name)) {
+                const name = AttributeAliases[node.name] ?? node.name;
                 $.render_effect(() => {
                     // @ts-ignore
-                    element[node.name] = computeAttributeValue(
-                        node,
-                        visit,
-                        state
-                    );
+                    element[name] = computeAttributeValue(node, visit, state);
                 });
             } else {
                 $.render_effect(() => {

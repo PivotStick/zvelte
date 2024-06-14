@@ -544,7 +544,8 @@ const templateVisitors = {
                             ? b.template(elements, expressions)
                             : expressions[0];
 
-                        const setter =
+                        /** @type {import("estree").Expression} */
+                        let setter =
                             attr.name === "class"
                                 ? b.call(
                                       "$.set_class",
@@ -557,6 +558,16 @@ const templateVisitors = {
                                       b.literal(attr.name),
                                       expression
                                   );
+
+                        if (DOMBooleanAttributes.includes(attr.name)) {
+                            const name =
+                                AttributeAliases[attr.name] ?? attr.name;
+                            setter = b.assignment(
+                                "=",
+                                b.member(context.state.node, b.id(name)),
+                                expression
+                            );
+                        }
 
                         const statement =
                             expression.type === "Literal"
