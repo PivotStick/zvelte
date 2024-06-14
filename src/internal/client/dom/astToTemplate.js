@@ -146,7 +146,7 @@ const visitors = {
     },
 
     Component(node, { state, visit }) {
-        state.template.src += `<${node.name}></${node.name}>`;
+        state.template.src += "<!>";
         newRoot(node.fragment, visit, state);
     },
 

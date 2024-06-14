@@ -360,25 +360,13 @@ describe("Test client's internal mount()", () => {
                 source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>p { color: red; }</style>`,
             });
 
-            expect(document.body.children).toHaveLength(2);
+            expect(document.body.innerHTML).toEqual(
+                `<p class="zvelte-14l9336">Paragraph</p> <p>Sub paragraph</p><!---->`
+            );
 
-            const p = document.body.children[0];
-            const zvelte = document.body.children[1];
-
-            expect(p.nodeName).toBe("P");
-            expect(p.attributes).toHaveLength(1);
-            expect(p.hasAttribute("class")).toBe(true);
+            const [p, subP] = document.body.querySelectorAll("p");
 
             expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
-
-            expect(zvelte.nodeName).toBe("ZVELTE");
-            expect(zvelte.children).toHaveLength(1);
-
-            const subP = zvelte.children[0];
-
-            expect(subP.nodeName).toBe("P");
-            expect(subP.attributes).toHaveLength(0);
-
             expect(window.getComputedStyle(subP).color).toBe("rgb(0, 0, 0)");
         });
 
@@ -393,23 +381,13 @@ describe("Test client's internal mount()", () => {
                 source: `<p>Paragraph</p> <zvelte key="Sub" /> <style>:global(p) { color: red; }</style>`,
             });
 
-            expect(document.body.children).toHaveLength(2);
+            expect(document.body.innerHTML).toEqual(
+                `<p class="zvelte-xms5ti">Paragraph</p> <p>Sub paragraph</p><!---->`
+            );
 
-            const p = document.body.children[0];
-            const zvelte = document.body.children[1];
-
-            expect(p.nodeName).toBe("P");
+            const [p, subP] = document.body.querySelectorAll("p");
 
             expect(window.getComputedStyle(p).color).toBe("rgb(255, 0, 0)");
-
-            expect(zvelte.nodeName).toBe("ZVELTE");
-            expect(zvelte.children).toHaveLength(1);
-
-            const subP = zvelte.children[0];
-
-            expect(subP.nodeName).toBe("P");
-            expect(subP.attributes).toHaveLength(0);
-
             expect(window.getComputedStyle(subP).color).toBe("rgb(255, 0, 0)");
         });
 

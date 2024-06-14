@@ -897,11 +897,8 @@ const visitors = {
     },
 
     Component(node, { state, visit }) {
-        const container = /** @type {HTMLElement} */ (state.currentNode);
-        const anchor = document.createTextNode("");
+        const anchor = /** @type {Comment} */ (state.currentNode);
         const component = getComponentByKey(node.key.data);
-
-        container.appendChild(anchor);
 
         if (!component)
             throw new Error(`Component "${node.key.data}" not found`);

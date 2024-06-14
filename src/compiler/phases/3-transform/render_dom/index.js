@@ -1235,7 +1235,7 @@ const templateVisitors = {
 
     Component(node, { state, path, visit }) {
         const parent = path[path.length - 1];
-        state.template.push(`<${node.name}> </${node.name}>`);
+        state.template.push("<!>");
 
         const { hoisted, trimmed } = cleanNodes(
             parent,
@@ -1285,7 +1285,6 @@ const templateVisitors = {
                     ""
                 )
             );
-        const anchor = b.id(state.scope.generate(id.name + "_anchor"));
 
         if (!alreadyImported) {
             state.hoisted.unshift(
@@ -1296,15 +1295,7 @@ const templateVisitors = {
             );
         }
 
-        state.init.push(
-            b.var(anchor, b.call("$.first_child", state.node, b.literal(1)))
-        );
-        state.init.push(
-            b.stmt(
-                b.assignment("=", b.member(anchor, b.id("data")), b.literal(""))
-            )
-        );
-        state.init.push(b.call(id, anchor, b.object(properties)));
+        state.init.push(b.call(id, state.node, b.object(properties)));
     },
 
     ZvelteComponent(node, { visit, state }) {
