@@ -7,6 +7,7 @@ import { walk } from "zimmerframe";
 import { analyseComponent } from "../../../compiler/phases/2-analyze/index.js";
 import { renderStylesheet } from "../../../compiler/phases/3-transform/css/index.js";
 import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
+import { escapeHtml } from "../../../compiler/escaping.js";
 
 /**
  * @typedef {Pick<import("../types.js").State, "options"> & { template: { src: string } }} State
@@ -117,7 +118,7 @@ const visitors = {
 
         if (node.value.length === 1 && node.value[0].type === "Text") {
             state.template.src += ` ${node.name}="`;
-            visit(node.value[0]);
+            state.template.src += escapeHtml(node.value[0].data, true);
             state.template.src += '"';
         }
     },
