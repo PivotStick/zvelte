@@ -675,10 +675,13 @@ const templateVisitors = {
                         attr.value,
                         context
                     );
+
+                    const name = AttributeAliases[attr.name] ?? attr.name;
+
                     properties.push(
                         b.prop(
                             "init",
-                            b.id(AttributeAliases[attr.name] ?? attr.name),
+                            name.includes("-") ? b.literal(name) : b.id(name),
                             expression
                         )
                     );
@@ -1656,7 +1659,11 @@ function serializeAttributeValue(attributeValue, { visit, state }) {
         }
     }
 
-    return elements.length ? b.template(elements, expressions) : expressions[0];
+    return elements.length
+        ? elements.length === 1
+            ? b.literal(elements[0].value.raw)
+            : b.template(elements, expressions)
+        : expressions[0];
 }
 
 /**

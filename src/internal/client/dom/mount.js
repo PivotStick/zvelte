@@ -278,9 +278,54 @@ const visitors = {
         });
     },
 
-    RegularElement(node, { visit }) {
+    RegularElement(node, { visit, state }) {
+        const element = /** @type {HTMLElement} */ (state.currentNode);
+        const hasSpread = node.attributes.some(
+            (a) => a.type === "SpreadAttribute"
+        );
+        /**
+         * @type {Array<import("#ast").Attribute | import("#ast").SpreadAttribute>}
+         */
+        const attributesToSpread = [];
+
         for (const attr of node.attributes) {
-            visit(attr);
+            if (
+                hasSpread &&
+                (attr.type === "Attribute" || attr.type === "SpreadAttribute")
+            ) {
+                attributesToSpread.push(attr);
+            } else {
+                visit(attr);
+            }
+        }
+
+        if (attributesToSpread.length) {
+            /** @type {Record<string, any>} */
+            let attributes;
+
+            $.template_effect(() => {
+                /** @type {typeof attributes} */
+                let next = {};
+                for (const attr of attributesToSpread) {
+                    if (attr.type === "SpreadAttribute") {
+                        Object.assign(
+                            next,
+                            /**  @type {_} */ (visit(attr.expression))._
+                        );
+                    } else {
+                        const name = AttributeAliases[attr.name] ?? attr.name;
+                        next[name] = computeAttributeValue(attr, visit, state);
+                    }
+                }
+
+                attributes = $.set_attributes(
+                    element,
+                    attributes,
+                    next,
+                    true,
+                    ""
+                );
+            });
         }
 
         visit(node.fragment);

@@ -97,8 +97,20 @@ const visitors = {
     RegularElement(node, { visit, state }) {
         state.template.src += `<${node.name}`;
 
+        const hasSpread = node.attributes.some(
+            (a) => a.type === "SpreadAttribute"
+        );
+
         node.attributes.forEach((attr) => {
-            visit(attr);
+            if (
+                !(
+                    hasSpread &&
+                    (attr.type === "Attribute" ||
+                        attr.type === "SpreadAttribute")
+                )
+            ) {
+                visit(attr);
+            }
         });
 
         if (isVoid(node.name)) {
