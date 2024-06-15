@@ -306,7 +306,8 @@ const visitors = {
             ) {
                 attributesToSpread.push(attr);
             } else if (
-                (attr.type === "Attribute" && attr.name === "class") ||
+                (attr.type === "Attribute" &&
+                    attr.name.toLowerCase() === "class") ||
                 attr.type === "ClassDirective"
             ) {
                 classAttributes.push(attr);
@@ -398,16 +399,18 @@ const visitors = {
                     (a) => a.type === "BindDirective" && a.name === "group"
                 );
 
+            const lowerName = node.name.toLowerCase();
+
             if (
                 element instanceof HTMLInputElement &&
-                node.name === "value" &&
+                lowerName === "value" &&
                 hasBindGroup
             ) {
                 return;
             }
 
-            if (DOMProperties.includes(node.name)) {
-                const name = AttributeAliases[node.name] ?? node.name;
+            if (DOMProperties.includes(lowerName)) {
+                const name = AttributeAliases[lowerName] ?? lowerName;
                 $.render_effect(() => {
                     // @ts-ignore
                     element[name] = computeAttributeValue(node, visit, state);
@@ -416,7 +419,7 @@ const visitors = {
                 $.render_effect(() => {
                     $.set_attribute(
                         element,
-                        node.name,
+                        lowerName,
                         computeAttributeValue(node, visit, state)
                     );
                 });

@@ -479,7 +479,7 @@ const templateVisitors = {
                         break;
                     }
 
-                    if (attr.name === "class") {
+                    if (attr.name.toLowerCase() === "class") {
                         classAttributes.push(attr);
                         break;
                     }
@@ -498,7 +498,8 @@ const templateVisitors = {
                             )}"`
                         );
                     } else {
-                        const isProp = DOMProperties.includes(attr.name);
+                        const lowerName = attr.name.toLowerCase();
+                        const isProp = DOMProperties.includes(lowerName);
                         const expression = serializeAttributeValue(
                             attr.value,
                             !isProp,
@@ -509,13 +510,13 @@ const templateVisitors = {
                         let setter = b.call(
                             "$.set_attribute",
                             context.state.node,
-                            b.literal(attr.name),
+                            b.literal(lowerName),
                             expression
                         );
 
                         if (isProp) {
                             const name =
-                                AttributeAliases[attr.name] ?? attr.name;
+                                AttributeAliases[lowerName] ?? lowerName;
                             setter = b.assignment(
                                 "=",
                                 b.member(context.state.node, b.id(name)),
