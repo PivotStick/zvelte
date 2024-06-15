@@ -1,5 +1,9 @@
 import { defineTest } from "../../../defineTest.js";
 
 export default defineTest({
-    todo: true,
+    props: {
+        foo: "foo",
+    },
+
+    html: "I like foo and bar.",
 });
