@@ -378,7 +378,10 @@ function processChildren(nodes, expression, { visit, state }) {
             state.template.push(" ");
             state.init.push(b.const(id, expression(true)));
 
-            const value = serializeAttributeValue(sequence, { visit, state });
+            const value = serializeAttributeValue(sequence, true, {
+                visit,
+                state,
+            });
 
             state.init.push(
                 b.call(
@@ -503,6 +506,7 @@ const templateVisitors = {
                     } else {
                         const expression = serializeAttributeValue(
                             attr.value,
+                            true,
                             context
                         );
 
@@ -759,6 +763,7 @@ const templateVisitors = {
                 } else if (attr.type === "Attribute") {
                     const expression = serializeAttributeValue(
                         attr.value,
+                        true,
                         context
                     );
 
@@ -839,6 +844,7 @@ const templateVisitors = {
                 } else {
                     const expression = serializeAttributeValue(
                         attr.value,
+                        true,
                         context
                     );
 
@@ -1325,9 +1331,80 @@ const templateVisitors = {
                     b.prop(
                         "init",
                         b.id(child.expression.name),
-                        visit(child.expression)
+                        /** @type {import("estree").Expression} */ (
+                            visit(child.expression)
+                        )
                     )
                 );
+            }
+        }
+
+        for (const attr of node.attributes) {
+            /**
+             * @param {string} key
+             * @param {import("estree").Expression} expression
+             */
+            const get = (key, expression) =>
+                properties.push(
+                    b.prop(
+                        "get",
+                        b.id(key),
+                        b.function(null, [], b.block([b.return(expression)]))
+                    )
+                );
+
+            /**
+             * @param {string} key
+             * @param {import("estree").Pattern} expression
+             */
+            const set = (key, expression) =>
+                properties.push(
+                    b.prop(
+                        "set",
+                        b.id(key),
+                        b.function(
+                            null,
+                            [b.id("$$value")],
+                            b.block([
+                                b.stmt(
+                                    b.assignment(
+                                        "=",
+                                        expression,
+                                        b.id("$$value")
+                                    )
+                                ),
+                            ])
+                        )
+                    )
+                );
+
+            switch (attr.type) {
+                case "Attribute": {
+                    get(
+                        attr.name,
+                        serializeAttributeValue(attr.value, false, {
+                            visit,
+                            state,
+                        })
+                    );
+                    break;
+                }
+
+                case "BindDirective": {
+                    const pattern = /** @type {import('estree').Pattern} */ (
+                        visit(attr.expression)
+                    );
+
+                    // @ts-ignore
+                    get(attr.name, pattern);
+                    set(attr.name, pattern);
+                    break;
+                }
+
+                default:
+                    throw new Error(
+                        `Component attributes: "${attr.type}" is not handled yet`
+                    );
             }
         }
 
@@ -1478,7 +1555,11 @@ const templateVisitors = {
             b.call(
                 "$.html",
                 state.node,
-                b.thunk(visit(node.expression)),
+                b.thunk(
+                    /** @type {import("estree").Expression} */ (
+                        visit(node.expression)
+                    )
+                ),
                 b.false,
                 b.false
             )
@@ -1491,8 +1572,15 @@ const templateVisitors = {
         const call = b.call(
             "$.if",
             state.node,
-            b.thunk(visit(node.test)),
-            b.arrow([b.id("$$anchor")], visit(node.consequent))
+            b.thunk(
+                /** @type {import("estree").Expression} */ (visit(node.test))
+            ),
+            b.arrow(
+                [b.id("$$anchor")],
+                /** @type {import("estree").Expression} */ (
+                    visit(node.consequent)
+                )
+            )
         );
 
         if (node.alternate) {
@@ -1785,10 +1873,11 @@ function serializeEvent(node, { visit, state }) {
 
 /**
  * @param {import("#ast").Attribute["value"]} attributeValue
+ * @param {boolean} isElement
  * @param {Pick<import('./types.js').ComponentContext, "visit" | "state">} context
  * @returns {import("estree").Expression}
  */
-function serializeAttributeValue(attributeValue, { visit, state }) {
+function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
     if (attributeValue === true) return b.true;
 
     /** @type {import("estree").TemplateElement[]} */
@@ -1811,7 +1900,7 @@ function serializeAttributeValue(attributeValue, { visit, state }) {
                 visit(node.expression, state)
             );
 
-            if (expression.type !== "Literal") {
+            if (expression.type !== "Literal" && isElement) {
                 expression = b.logical(expression, "??", b.literal(""));
             }
 
