@@ -1,0 +1,25 @@
+<zvelte:component this="{{ x ? Foo : Bar }}" x='{{x}}'>
+	<p>element</p>
+
+	{{ tag }}
+
+	{%if foo %}
+		<p>foo</p>
+	{% elseif bar %}
+		<p>bar</p>
+	{% else %}
+		<p>neither foo nor bar</p>
+	{% endif %}
+
+	text
+
+	{% for thing in things %}
+		<span>{{ thing }}</span>
+	{% endfor %}
+
+	<zvelte key="./Baz.twig" />
+
+    {% snippet other() %}
+        <div>what goes up must come down</div>
+    {% endsnippet %}
+</zvelte:component>

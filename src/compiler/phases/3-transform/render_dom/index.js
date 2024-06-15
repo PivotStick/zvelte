@@ -375,6 +375,8 @@ function processChildren(nodes, expression, { visit, state }) {
             state.template.push(" ");
             state.init.push(b.const(id, expression(true)));
 
+            expression = () => b.call("$.sibling", id);
+
             const value = serializeAttributeValue(sequence, true, {
                 visit,
                 state,
@@ -906,7 +908,7 @@ const templateVisitors = {
         }
     },
 
-    SnippetBlock(node, { visit, state }) {
+    SnippetBlock(node, { visit, state, path }) {
         const args = [b.id("$$anchor")];
         const params = [];
 
@@ -915,26 +917,24 @@ const templateVisitors = {
             args.push(b.id(param.name));
         }
 
-        state.init.push(
-            b.assignment(
-                "=",
-                /** @type {import("estree").Pattern} */ (
-                    visit(node.expression)
-                ),
-                b.arrow(
-                    args,
-                    // @ts-expect-error
-                    /** @type {import("estree").BlockStatement} */ (
-                        visit(node.body, {
-                            ...state,
-                            nonPropGetters: [
-                                ...state.nonPropGetters,
-                                ...params,
-                            ],
-                        })
-                    )
-                )
+        const privateScope = state.nonPropVars.includes(node.expression.name);
+        const id = /** @type {import("estree").Pattern} */ (
+            visit(node.expression, state)
+        );
+
+        const value = b.arrow(
+            args,
+            // @ts-expect-error
+            /** @type {import("estree").BlockStatement} */ (
+                visit(node.body, {
+                    ...state,
+                    nonPropGetters: [...state.nonPropGetters, ...params],
+                })
             )
+        );
+
+        state.init.push(
+            privateScope ? b.var(id, value) : b.assignment("=", id, value)
         );
     },
 
@@ -1302,8 +1302,13 @@ const templateVisitors = {
     },
 
     Component(node, { state, path, visit }) {
-        const parent = path[path.length - 1];
         state.template.push("<!>");
+
+        const parent = path[path.length - 1];
+        const properties = serializeAttibutesForComponent(node.attributes, {
+            visit,
+            state,
+        });
 
         const { hoisted, trimmed } = cleanNodes(
             parent,
@@ -1313,14 +1318,6 @@ const templateVisitors = {
             state.options.preserveWhitespace,
             state.options.preserveComments
         );
-
-        /**
-         * @type {Parameters<typeof b.object>[0]}
-         */
-        const properties = serializeAttibutesForComponent(node.attributes, {
-            visit,
-            state,
-        });
 
         for (const child of hoisted) {
             visit(child);
@@ -1371,15 +1368,16 @@ const templateVisitors = {
         state.init.push(b.call(id, state.node, b.object(properties)));
     },
 
-    ZvelteComponent(node, { visit, state }) {
-        state.template.push("<!>");
+    ZvelteComponent(node, context) {
+        context.state.template.push("<!>");
 
+        const parent = context.path[context.path.length - 1];
         const block = b.block([]);
         const call = b.call(
             "$.component",
             b.thunk(
                 /** @type {import('estree').Expression} */ (
-                    visit(node.expression)
+                    context.visit(node.expression)
                 )
             ),
             b.arrow([b.id("$$component")], block)
@@ -1388,16 +1386,72 @@ const templateVisitors = {
         /**
          * @type {import('estree').Property[]}
          */
-        const properties = serializeAttibutesForComponent(node.attributes, {
-            visit,
-            state,
-        });
-
-        block.body.push(
-            b.stmt(b.call("$$component", state.node, b.object(properties)))
+        const properties = serializeAttibutesForComponent(
+            node.attributes,
+            context
         );
 
-        state.init.push(b.stmt(call));
+        const { hoisted, trimmed } = cleanNodes(
+            parent,
+            node.fragment.nodes,
+            context.path,
+            undefined,
+            context.state.options.preserveWhitespace,
+            context.state.options.preserveComments
+        );
+
+        const nodeId = context.state.node;
+        /** @type {any[]} */
+        const privateScope = [];
+
+        for (const child of hoisted) {
+            if (child.type === "SnippetBlock") {
+                properties.push(
+                    b.prop(
+                        "init",
+                        b.id(child.expression.name),
+                        b.id(child.expression.name)
+                    )
+                );
+                context.visit(child, {
+                    ...context.state,
+                    init: privateScope,
+                    nonPropVars: [
+                        ...context.state.nonPropVars,
+                        child.expression.name,
+                    ],
+                });
+            } else {
+                context.visit(child);
+            }
+        }
+
+        if (trimmed.length) {
+            const block = createBlock(parent, "root", trimmed, context);
+            properties.push(
+                b.prop(
+                    "init",
+                    b.id("children"),
+                    b.arrow([b.id("$$anchor")], b.block(block))
+                ),
+                b.prop(
+                    "init",
+                    b.id("$$slots"),
+                    b.object([b.prop("init", b.id("default"), b.true)])
+                )
+            );
+        }
+
+        block.body.push(
+            b.stmt(b.call("$$component", nodeId, b.object(properties)))
+        );
+
+        if (privateScope.length) {
+            privateScope.push(b.stmt(call));
+            context.state.init.push(b.block(privateScope));
+        } else {
+            context.state.init.push(b.stmt(call));
+        }
     },
 
     HtmlTag(node, { state, visit }) {
