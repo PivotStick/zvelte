@@ -29,6 +29,14 @@ export function rest(argument) {
 }
 
 /**
+ * @param {import('estree').SpreadElement["argument"]} argument
+ * @returns {import('estree').SpreadElement}
+ */
+export function spread(argument) {
+    return { type: "SpreadElement", argument };
+}
+
+/**
  * @param {import('estree').AssignmentOperator} operator
  * @param {import('estree').Pattern} left
  * @param {import('estree').Expression} right

@@ -257,6 +257,13 @@ const visitors = {
                       $.first_child(state.currentNode, isText)
                     : $.sibling(state.currentNode, isText);
 
+            if (currentNode instanceof Comment && currentNode.data === "$$") {
+                const empty = $.text(currentNode);
+                currentNode.before(empty);
+                currentNode.remove();
+                currentNode = empty;
+            }
+
             if (!currentNode)
                 throw new Error(
                     `Expected a node "${child.type}" ${
@@ -265,13 +272,6 @@ const visitors = {
                             : ""
                     }`
                 );
-
-            if (currentNode instanceof Comment && currentNode.data === "$$") {
-                const empty = $.text(currentNode);
-                currentNode.before(empty);
-                currentNode.remove();
-                currentNode = empty;
-            }
 
             state.currentNode = currentNode;
             visit(child, { ...state, currentNode: state.currentNode });
@@ -926,7 +926,7 @@ const visitors = {
                     break;
                 }
 
-                case "Spread": {
+                case "SpreadAttribute": {
                     $.render_effect(() => {
                         Object.assign(
                             props,
@@ -1123,7 +1123,7 @@ const visitors = {
                     break;
                 }
 
-                case "Spread": {
+                case "SpreadAttribute": {
                     $.render_effect(() => {
                         Object.assign(
                             props,

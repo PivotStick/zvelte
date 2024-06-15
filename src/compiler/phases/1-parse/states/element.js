@@ -344,17 +344,7 @@ const readAttribute = (parser, uniqueNames) => {
         uniqueNames.add(name);
     };
 
-    const name = parser.readUntil(regexTokenEndingCharacter);
-    const tagBlockMatch = /\{%\s*(\w+)?/.exec(name);
-
-    if (tagBlockMatch) {
-        throw parser.error(
-            `"{% ${tagBlockMatch[1]} %} blocks cannot be used inside element's attributes"`,
-            start
-        );
-    }
-
-    if (/\{\{/.test(name)) {
+    if (parser.eat("{{")) {
         parser.allowWhitespace();
 
         if (parser.eat("...")) {
@@ -365,7 +355,7 @@ const readAttribute = (parser, uniqueNames) => {
             parser.eat("}}", true);
 
             return {
-                type: "Spread",
+                type: "SpreadAttribute",
                 start,
                 end: parser.index,
                 expression,
@@ -398,6 +388,16 @@ const readAttribute = (parser, uniqueNames) => {
             start,
             end: parser.index,
         };
+    }
+
+    const name = parser.readUntil(regexTokenEndingCharacter);
+    const tagBlockMatch = /\{%\s*(\w+)?/.exec(name);
+
+    if (tagBlockMatch) {
+        throw parser.error(
+            `"{% ${tagBlockMatch[1]} %} blocks cannot be used inside element's attributes"`,
+            start
+        );
     }
 
     if (!name) return null;

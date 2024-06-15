@@ -330,20 +330,38 @@ describe("Parser: will test template nodes", () => {
             ]);
         });
 
-        test("spread", () => {
-            AttributeOf(`<div {{ ...foo }} />`, [
-                {
-                    type: "Spread",
-                    start: 5,
-                    end: 17,
-                    expression: {
-                        type: "Identifier",
-                        name: "foo",
-                        start: 11,
-                        end: 14,
+        describe("SpreadAttribute", () => {
+            test("with spaces", () => {
+                AttributeOf(`<div {{ ...foo }} />`, [
+                    {
+                        type: "SpreadAttribute",
+                        start: 5,
+                        end: 17,
+                        expression: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 11,
+                            end: 14,
+                        },
                     },
-                },
-            ]);
+                ]);
+            });
+
+            test("without spaces", () => {
+                AttributeOf(`<div {{...foo}} />`, [
+                    {
+                        type: "SpreadAttribute",
+                        start: 5,
+                        end: 15,
+                        expression: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 10,
+                            end: 13,
+                        },
+                    },
+                ]);
+            });
         });
 
         describe("BindDirective", () => {

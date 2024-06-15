@@ -341,27 +341,10 @@ function createBlock(parent, name, nodes, context) {
  * @param {import('./types.js').ComponentContext} context
  */
 function processChildren(nodes, expression, { visit, state }) {
-    /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag | import("#ast").VariableTag>} Sequence */
+    /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag>} Sequence */
 
     /** @type {Sequence} */
     let sequence = [];
-
-    /**
-     * @param {import("#ast").VariableTag} node
-     */
-    function addSetBlock(node) {
-        const name = /** @type {import("estree").Pattern} */ (
-            visit(node.name, state)
-        );
-
-        const value = /** @type {import("estree").Expression} */ (
-            visit(node.value, state)
-        );
-
-        const assign = b.assignment("=", name, value);
-
-        state.init.push(b.stmt(assign));
-    }
 
     /**
      * @param {Sequence} sequence
@@ -376,42 +359,7 @@ function processChildren(nodes, expression, { visit, state }) {
             state.template.push(" ");
             state.init.push(b.const(id, expression(true)));
 
-            /** @type {import("estree").TemplateElement[]} */
-            const elements = [];
-            /** @type {import("estree").Expression[]} */
-            const expressions = [];
-
-            for (let i = 0; i < sequence.length; i++) {
-                const node = sequence[i];
-                const tail = i === sequence.length - 1;
-
-                if (node.type === "Text") {
-                    elements.push(b.templateElement(node.data, tail));
-                } else if (node.type === "ExpressionTag") {
-                    if (i === 0 && sequence.length > 1) {
-                        elements.push(b.templateElement("", false));
-                    }
-
-                    const expression =
-                        /** @type {import("estree").Expression} */ (
-                            visit(node.expression, state)
-                        );
-
-                    expressions.push(
-                        b.logical(expression, "??", b.literal(""))
-                    );
-
-                    if (tail && elements.length) {
-                        elements.push(b.templateElement());
-                    }
-                } else if (node.type === "Variable") {
-                    addSetBlock(node);
-                }
-            }
-
-            const value = elements.length
-                ? b.template(elements, expressions)
-                : expressions[0];
+            const value = serializeAttributeValue(sequence, { visit, state });
 
             state.init.push(
                 b.call(
@@ -425,13 +373,23 @@ function processChildren(nodes, expression, { visit, state }) {
     for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
 
-        if (
-            node.type === "Text" ||
-            node.type === "ExpressionTag" ||
-            node.type === "Variable"
-        ) {
+        if (node.type === "Text" || node.type === "ExpressionTag") {
             sequence.push(node);
         } else {
+            if (node.type === "Variable") {
+                const name = /** @type {import("estree").Pattern} */ (
+                    visit(node.name, state)
+                );
+
+                const value = /** @type {import("estree").Expression} */ (
+                    visit(node.value, state)
+                );
+
+                const assign = b.assignment("=", name, value);
+
+                state.init.push(b.stmt(assign));
+            }
+
             if (sequence.length > 0) {
                 flushSequence(sequence);
                 sequence = [];
@@ -442,7 +400,7 @@ function processChildren(nodes, expression, { visit, state }) {
                 // TODO what about e.g. ConstTag and all the other things that
                 // get hoisted inside clean_nodes?
                 visit(node, state);
-            } else {
+            } else if (node.type !== "Variable") {
                 const id = getNodeId(
                     expression(false),
                     state,
@@ -484,9 +442,24 @@ const templateVisitors = {
     RegularElement(node, context) {
         context.state.template.push(`<${node.name}`);
 
+        /** @type {(import("#ast").SpreadAttribute | import("#ast").Attribute)[]} */
+        const spreadAttributes = [];
+        const hasSpread = node.attributes.some(
+            (a) => a.type === "SpreadAttribute"
+        );
+
         for (const attr of node.attributes) {
             switch (attr.type) {
+                case "SpreadAttribute":
+                    spreadAttributes.push(attr);
+                    break;
+
                 case "Attribute": {
+                    if (hasSpread) {
+                        spreadAttributes.push(attr);
+                        break;
+                    }
+
                     if (attr.value === true) {
                         context.state.template.push(` ${attr.name}`);
                     } else if (
@@ -501,48 +474,10 @@ const templateVisitors = {
                             )}"`
                         );
                     } else {
-                        /** @type {import("estree").TemplateElement[]} */
-                        const elements = [];
-                        /** @type {import("estree").Expression[]} */
-                        const expressions = [];
-
-                        for (let i = 0; i < attr.value.length; i++) {
-                            const part = attr.value[i];
-                            const tail = i === attr.value.length - 1;
-
-                            if (part.type === "Text") {
-                                elements.push(
-                                    b.templateElement(part.data, tail)
-                                );
-                            } else {
-                                if (i === 0 && attr.value.length > 1) {
-                                    elements.push(b.templateElement("", false));
-                                }
-
-                                let expression =
-                                    /** @type {import("estree").Expression} */ (
-                                        context.visit(part.expression)
-                                    );
-
-                                if (attr.value.length !== 1) {
-                                    expression = b.logical(
-                                        expression,
-                                        "??",
-                                        b.literal("")
-                                    );
-                                }
-
-                                expressions.push(expression);
-
-                                if (tail && elements.length) {
-                                    elements.push(b.templateElement());
-                                }
-                            }
-                        }
-
-                        const expression = elements.length
-                            ? b.template(elements, expressions)
-                            : expressions[0];
+                        const expression = serializeAttributeValue(
+                            attr.value,
+                            context
+                        );
 
                         /** @type {import("estree").Expression} */
                         let setter =
@@ -717,6 +652,54 @@ const templateVisitors = {
                 default:
                     throw new Error(`${attr.type} not handled yet`);
             }
+        }
+
+        if (spreadAttributes.length) {
+            const cacheId = b.id(context.state.scope.generate("attributes"));
+            context.state.init.push(b.declaration("let", cacheId));
+
+            /**
+             * @type {(import("estree").SpreadElement | import("estree").Property)[]}
+             */
+            const properties = [];
+
+            for (const attr of spreadAttributes) {
+                if (attr.type === "SpreadAttribute") {
+                    const expression =
+                        /** @type {import("estree").Expression} */ (
+                            context.visit(attr.expression)
+                        );
+                    properties.push(b.spread(expression));
+                } else {
+                    const expression = serializeAttributeValue(
+                        attr.value,
+                        context
+                    );
+                    properties.push(
+                        b.prop(
+                            "init",
+                            b.id(AttributeAliases[attr.name] ?? attr.name),
+                            expression
+                        )
+                    );
+                }
+            }
+
+            const call = b.call(
+                "$.set_attributes",
+                context.state.node,
+                cacheId,
+                b.object(properties),
+                b.true,
+                b.literal("")
+            );
+
+            const effect = b.call(
+                "$.template_effect",
+                b.thunk(b.assignment("=", cacheId, call))
+            );
+
+            context.state.init.push(effect);
         }
 
         context.state.template.push(">");
@@ -1634,64 +1617,46 @@ function serializeEvent(node, { visit, state }) {
 }
 
 /**
- * @param {true | Array<import('#ast').Text | import('#ast').ExpressionTag>} attribute_value
- * @param {import('./types.js').ComponentContext} context
- * @returns {[boolean, import('estree').Expression]}
+ * @param {import("#ast").Attribute["value"]} attributeValue
+ * @param {Pick<import('./types.js').ComponentContext, "visit" | "state">} context
+ * @returns {import("estree").Expression}
  */
-function serializeAttributeValue(attribute_value, context) {
-    let contains_call_expression = false;
+function serializeAttributeValue(attributeValue, { visit, state }) {
+    if (attributeValue === true) return b.true;
 
-    if (attribute_value === true) {
-        return [contains_call_expression, b.true];
-    }
+    /** @type {import("estree").TemplateElement[]} */
+    const elements = [];
+    /** @type {import("estree").Expression[]} */
+    const expressions = [];
 
-    if (attribute_value.length === 0) {
-        return [contains_call_expression, b.literal("")]; // is this even possible?
-    }
+    for (let i = 0; i < attributeValue.length; i++) {
+        const node = attributeValue[i];
+        const tail = i === attributeValue.length - 1;
 
-    if (attribute_value.length === 1) {
-        const value = attribute_value[0];
-        if (value.type === "Text") {
-            return [contains_call_expression, b.literal(value.data)];
-        } else {
-            if (value.type === "ExpressionTag") {
-                contains_call_expression =
-                    value.metadata?.contains_call_expression;
+        if (node.type === "Text") {
+            elements.push(b.templateElement(node.data, tail));
+        } else if (node.type === "ExpressionTag") {
+            if (i === 0 && attributeValue.length > 1) {
+                elements.push(b.templateElement("", false));
             }
-            return [
-                contains_call_expression,
-                /** @type {import('estree').Expression} */ (
-                    context.visit(value.expression)
-                ),
-            ];
+
+            let expression = /** @type {import("estree").Expression} */ (
+                visit(node.expression, state)
+            );
+
+            if (expression.type !== "Literal") {
+                expression = b.logical(expression, "??", b.literal(""));
+            }
+
+            expressions.push(expression);
+
+            if (tail && elements.length) {
+                elements.push(b.templateElement());
+            }
         }
     }
 
-    return serializeTemplateLiteral(
-        attribute_value,
-        context.visit,
-        context.state
-    );
-}
-
-/**
- * @param {import('#ast').RegularElement} element
- * @param {import('#ast').Attribute} attribute
- * @param {{ state: { metadata: { namespace: import('#ast').Namespace }}}} context
- */
-function getAttributeName(element, attribute, context) {
-    let name = attribute.name;
-    if (
-        !element.metadata?.svg &&
-        !element.metadata?.mathml &&
-        context.state.metadata.namespace !== "foreign"
-    ) {
-        name = name.toLowerCase();
-        if (name in AttributeAliases) {
-            name = AttributeAliases[name];
-        }
-    }
-    return name;
+    return elements.length ? b.template(elements, expressions) : expressions[0];
 }
 
 /**
