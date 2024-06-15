@@ -13,13 +13,7 @@ import {
     TRANSITION_OUT,
 } from "../../constants.js";
 import { Scope, setScope } from "./scope.js";
-import {
-    AttributeAliases,
-    DOMBooleanAttributes,
-    DOMProperties,
-    PassiveEvents,
-    VoidElements,
-} from "./constants.js";
+import { AttributeAliases, DOMProperties, VoidElements } from "./constants.js";
 import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
@@ -504,9 +498,10 @@ const templateVisitors = {
                             )}"`
                         );
                     } else {
+                        const isProp = DOMProperties.includes(attr.name);
                         const expression = serializeAttributeValue(
                             attr.value,
-                            true,
+                            !isProp,
                             context
                         );
 
@@ -518,7 +513,7 @@ const templateVisitors = {
                             expression
                         );
 
-                        if (DOMBooleanAttributes.includes(attr.name)) {
+                        if (isProp) {
                             const name =
                                 AttributeAliases[attr.name] ?? attr.name;
                             setter = b.assignment(

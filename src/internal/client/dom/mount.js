@@ -21,6 +21,7 @@ import * as $ from "../runtime/index.js";
 import {
     AttributeAliases,
     DOMBooleanAttributes,
+    DOMProperties,
 } from "../../../compiler/phases/3-transform/render_dom/constants.js";
 
 /**
@@ -405,7 +406,7 @@ const visitors = {
                 return;
             }
 
-            if (DOMBooleanAttributes.includes(node.name)) {
+            if (DOMProperties.includes(node.name)) {
                 const name = AttributeAliases[node.name] ?? node.name;
                 $.render_effect(() => {
                     // @ts-ignore
