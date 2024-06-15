@@ -8,7 +8,7 @@
  *  todo?: boolean;
  *  only?: boolean;
  *  fails?: boolean;
- *  test?: (args: { props: Props; target: HTMLElement }) => Promise<void> | void;
+ *  test?: (args: { props: Props; target: HTMLElement; raf: typeof import("../animation-helpers.js")["raf"] }) => Promise<void> | void;
  *  before?: () => void;
  * }} object
  */

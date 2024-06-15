@@ -9,6 +9,9 @@ import {
     EACH_INDEX_REACTIVE,
     EACH_ITEM_REACTIVE,
     EACH_KEYED,
+    TRANSITION_GLOBAL,
+    TRANSITION_IN,
+    TRANSITION_OUT,
     UNINITIALIZED,
 } from "../../../compiler/phases/constants.js";
 import { walk } from "zimmerframe";
@@ -284,16 +287,28 @@ const visitors = {
             (a) => a.type === "SpreadAttribute"
         );
         /**
-         * @type {Array<import("#ast").Attribute | import("#ast").SpreadAttribute>}
+         * @type {Array<import("#ast").Attribute | import("#ast").SpreadAttribute | import("#ast").ClassDirective>}
          */
         const attributesToSpread = [];
+
+        /**
+         * @type {Array<import("#ast").Attribute | import("#ast").ClassDirective>}
+         */
+        const classAttributes = [];
 
         for (const attr of node.attributes) {
             if (
                 hasSpread &&
-                (attr.type === "Attribute" || attr.type === "SpreadAttribute")
+                (attr.type === "Attribute" ||
+                    attr.type === "SpreadAttribute" ||
+                    attr.type === "ClassDirective")
             ) {
                 attributesToSpread.push(attr);
+            } else if (
+                (attr.type === "Attribute" && attr.name === "class") ||
+                attr.type === "ClassDirective"
+            ) {
+                classAttributes.push(attr);
             } else {
                 visit(attr);
             }
@@ -306,13 +321,23 @@ const visitors = {
             $.template_effect(() => {
                 /** @type {typeof attributes} */
                 let next = {};
+
+                /** @type {(() => void)[]} */
+                const afters = [];
+
                 for (const attr of attributesToSpread) {
                     if (attr.type === "SpreadAttribute") {
                         Object.assign(
                             next,
                             /**  @type {_} */ (visit(attr.expression))._
                         );
-                    } else {
+                    } else if (attr.type === "ClassDirective") {
+                        const value = /**  @type {_} */ (visit(attr.expression))
+                            ._;
+                        afters.push(() => {
+                            $.toggle_class(element, attr.name, value);
+                        });
+                    } else if (attr.type === "Attribute") {
                         const name = AttributeAliases[attr.name] ?? attr.name;
                         next[name] = computeAttributeValue(attr, visit, state);
                     }
@@ -325,6 +350,32 @@ const visitors = {
                     true,
                     ""
                 );
+
+                afters.forEach((a) => a());
+            });
+        }
+
+        if (classAttributes.length) {
+            const element = /** @type {HTMLElement} */ (state.currentNode);
+
+            $.template_effect(() => {
+                for (const attr of classAttributes) {
+                    if (attr.type === "ClassDirective") {
+                        const name = attr.name;
+                        const ex = attr.expression;
+
+                        $.toggle_class(
+                            element,
+                            name,
+                            /** @type {_} */ (visit(ex))._
+                        );
+                    } else {
+                        $.set_class(
+                            element,
+                            computeAttributeValue(attr, visit, state)
+                        );
+                    }
+                }
             });
         }
 
@@ -475,20 +526,19 @@ const visitors = {
         const element = /** @type {HTMLElement} */ (state.currentNode);
         const args = node.expression;
 
-        const INTRO = 1;
-        const OUTRO = 2;
-        const BOTH = 3;
-        const GLOBAL = 4;
-
         let getParams = null;
-        let flag = node.intro && node.outro ? BOTH : node.intro ? INTRO : OUTRO;
 
         if (args) {
             getParams = () => /** @type {_} */ (visit(args))._;
         }
 
+        let flag = 0;
+
+        if (node.intro) flag += TRANSITION_IN;
+        if (node.outro) flag += TRANSITION_OUT;
+
         if (node.modifiers.includes("global")) {
-            flag += GLOBAL;
+            flag += TRANSITION_GLOBAL;
         }
 
         $.transition(
@@ -526,16 +576,6 @@ const visitors = {
                 $.bubble_event.call(this, ctx.scope.at(1), $$arg);
             });
         }
-    },
-
-    ClassDirective(node, { visit, state }) {
-        const element = /** @type {HTMLElement} */ (state.currentNode);
-        const name = node.name;
-        const ex = node.expression;
-
-        $.render_effect(() => {
-            $.toggle_class(element, name, /** @type {_} */ (visit(ex))._);
-        });
     },
 
     CallExpression(node, { visit }) {

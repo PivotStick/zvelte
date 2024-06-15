@@ -442,11 +442,14 @@ const templateVisitors = {
     RegularElement(node, context) {
         context.state.template.push(`<${node.name}`);
 
-        /** @type {(import("#ast").SpreadAttribute | import("#ast").Attribute)[]} */
+        /** @type {(import("#ast").SpreadAttribute | import("#ast").Attribute | import("#ast").ClassDirective)[]} */
         const spreadAttributes = [];
         const hasSpread = node.attributes.some(
             (a) => a.type === "SpreadAttribute"
         );
+
+        /** @type {(import("#ast").ClassDirective | import("#ast").Attribute)[]} */
+        const classAttributes = [];
 
         for (const attr of node.attributes) {
             switch (attr.type) {
@@ -457,6 +460,11 @@ const templateVisitors = {
                 case "Attribute": {
                     if (hasSpread) {
                         spreadAttributes.push(attr);
+                        break;
+                    }
+
+                    if (attr.name === "class") {
+                        classAttributes.push(attr);
                         break;
                     }
 
@@ -480,19 +488,12 @@ const templateVisitors = {
                         );
 
                         /** @type {import("estree").Expression} */
-                        let setter =
-                            attr.name === "class"
-                                ? b.call(
-                                      "$.set_class",
-                                      context.state.node,
-                                      expression
-                                  )
-                                : b.call(
-                                      "$.set_attribute",
-                                      context.state.node,
-                                      b.literal(attr.name),
-                                      expression
-                                  );
+                        let setter = b.call(
+                            "$.set_attribute",
+                            context.state.node,
+                            b.literal(attr.name),
+                            expression
+                        );
 
                         if (DOMBooleanAttributes.includes(attr.name)) {
                             const name =
@@ -649,8 +650,54 @@ const templateVisitors = {
                     break;
                 }
 
-                default:
-                    throw new Error(`${attr.type} not handled yet`);
+                case "ClassDirective": {
+                    if (hasSpread) {
+                        spreadAttributes.push(attr);
+                    } else {
+                        classAttributes.push(attr);
+                    }
+                    break;
+                }
+
+                case "TransitionDirective": {
+                    let flag = 0;
+
+                    if (attr.intro) flag += TRANSITION_IN;
+                    if (attr.outro) flag += TRANSITION_OUT;
+
+                    if (attr.modifiers.includes("global")) {
+                        flag += TRANSITION_GLOBAL;
+                    }
+
+                    const transition =
+                        /** @type {import("estree").Expression} */ (
+                            context.visit({
+                                type: "Identifier",
+                                name: attr.name,
+                                start: attr.start + 3,
+                                end: attr.start + 3 + attr.name.length,
+                            })
+                        );
+
+                    const call = b.call(
+                        "$.transition",
+                        b.literal(flag),
+                        context.state.node,
+                        b.thunk(transition)
+                    );
+
+                    if (attr.expression) {
+                        const expression =
+                            /** @type {import("estree").Expression} */ (
+                                context.visit(attr.expression)
+                            );
+
+                        call.arguments.push(b.thunk(expression));
+                    }
+
+                    context.state.init.push(call);
+                    break;
+                }
             }
         }
 
@@ -662,6 +709,10 @@ const templateVisitors = {
              * @type {(import("estree").SpreadElement | import("estree").Property)[]}
              */
             const properties = [];
+            /**
+             * @type {import("estree").ExpressionStatement[]}
+             */
+            const statements = [];
 
             for (const attr of spreadAttributes) {
                 if (attr.type === "SpreadAttribute") {
@@ -670,7 +721,23 @@ const templateVisitors = {
                             context.visit(attr.expression)
                         );
                     properties.push(b.spread(expression));
-                } else {
+                } else if (attr.type === "ClassDirective") {
+                    const expression =
+                        /** @type {import("estree").Expression} */ (
+                            context.visit(attr.expression)
+                        );
+
+                    statements.push(
+                        b.stmt(
+                            b.call(
+                                "$.toggle_class",
+                                context.state.node,
+                                b.literal(attr.name),
+                                expression
+                            )
+                        )
+                    );
+                } else if (attr.type === "Attribute") {
                     const expression = serializeAttributeValue(
                         attr.value,
                         context
@@ -697,12 +764,90 @@ const templateVisitors = {
                 b.literal("")
             );
 
+            statements.unshift(b.stmt(b.assignment("=", cacheId, call)));
+
             const effect = b.call(
                 "$.template_effect",
-                b.thunk(b.assignment("=", cacheId, call))
+                b.thunk(
+                    statements.length === 1
+                        ? statements[0].expression
+                        : b.block(statements)
+                )
             );
 
             context.state.init.push(effect);
+        }
+
+        if (classAttributes.length) {
+            /**
+             * @type {import("estree").ExpressionStatement[]}
+             */
+            const statements = [];
+            let isDynamic = false;
+
+            /**
+             * @param {import("estree").Expression} expression
+             */
+            function checkIsDynamic(expression) {
+                walk(
+                    expression,
+                    {},
+                    {
+                        Identifier() {
+                            isDynamic = true;
+                        },
+                    }
+                );
+            }
+
+            for (const attr of classAttributes) {
+                if (attr.type === "ClassDirective") {
+                    const expression =
+                        /** @type {import("estree").Expression} */ (
+                            context.visit(attr.expression)
+                        );
+
+                    checkIsDynamic(expression);
+
+                    const call = b.call(
+                        "$.toggle_class",
+                        context.state.node,
+                        b.literal(attr.name),
+                        expression
+                    );
+
+                    statements.push(b.stmt(call));
+                } else {
+                    const expression = serializeAttributeValue(
+                        attr.value,
+                        context
+                    );
+
+                    checkIsDynamic(expression);
+
+                    const call = b.call(
+                        "$.set_class",
+                        context.state.node,
+                        expression
+                    );
+
+                    statements.push(b.stmt(call));
+                }
+            }
+
+            if (isDynamic) {
+                const call = b.call(
+                    "$.template_effect",
+                    b.thunk(
+                        statements.length === 1
+                            ? statements[0].expression
+                            : b.block(statements)
+                    )
+                );
+                context.state.init.push(call);
+            } else {
+                context.state.init.push(...statements);
+            }
         }
 
         context.state.template.push(">");

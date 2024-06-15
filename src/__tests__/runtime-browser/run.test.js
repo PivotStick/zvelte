@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { proxy, tick } from "../../internal/client/index.js";
+import { raf } from "../animation-helpers.js";
 
 // @ts-ignore
 const modulePaths = await import.meta.glob("./samples/**/_config.js");
@@ -72,9 +73,12 @@ function run(tests) {
                 expect(target.innerHTML).toEqual(config.html);
             }
 
+            raf.reset();
+
             await config.test?.({
                 props,
                 target,
+                raf,
             });
         };
 
