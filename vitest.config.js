@@ -26,7 +26,12 @@ export default defineConfig({
                 root = config.root;
             },
             async transform(code, id, options) {
+                let query = "";
+                [id, query] = id.split("?");
+
                 if (id.endsWith(".twig")) {
+                    const params = new URLSearchParams(query);
+
                     const hasJS = await access(id.replace(/\.twig$/, ".js"))
                         .then(() => true)
                         .catch(() => false);
@@ -38,11 +43,7 @@ export default defineConfig({
                         generate: "dom",
                     };
 
-                    const imports = new Set([
-                        `import * as $legacy from "@pivotass/zvelte";`,
-                        `import "@pivotass/zvelte/compiler";`,
-                    ]);
-
+                    const imports = new Set([]);
                     const ast = parse(code);
 
                     walk(
@@ -57,33 +58,55 @@ export default defineConfig({
                                     node.key.data
                                 ).replace(root, "");
 
-                                imports.add(`import "${node.key.data}";`);
+                                imports.add(
+                                    `import "${node.key.data}${
+                                        query ? `?${query}` : ""
+                                    }";`
+                                );
                                 node.key.data = key;
                                 next();
                             },
                         }
                     );
 
-                    const result = compile(code, options);
-                    const key = id.replace(root, "");
+                    if (params.get("legacy") === "true") {
+                        const key = id.replace(root, "");
 
-                    result.code += `
+                        if (hasJS) {
+                            imports.add(
+                                `import * as js from "./${basename(id).replace(
+                                    ".twig",
+                                    ".js"
+                                )}";`
+                            );
+                        }
 
+                        const output = `
+import { createComponent } from "@pivotass/zvelte";
 ${[...imports].join("\n")}
 
-const legacyMount = $legacy.createComponent({
+export const mount = createComponent({
     ast: ${JSON.stringify(ast)},
     key: "${key}",
     init: ${hasJS} ? js.default : undefined,
     initScope: ${hasJS} ? js.scope : undefined,
 });
 
-export const legacy = {
-    default: legacyMount.component,
-    mount: legacyMount,
-}`;
+export default mount.component;
+`;
 
-                    return result;
+                        return output;
+                    } else {
+                        const result = compile(code, options);
+
+                        if (imports.size) {
+                            result.code = `${[...imports].join("\n")}\n${
+                                result.code
+                            }`;
+                        }
+
+                        return result;
+                    }
                 }
             },
         },

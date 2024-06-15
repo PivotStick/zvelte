@@ -38,7 +38,7 @@ export function pushNewScope(scope, newScope = {}) {
  * @param {string} styleSheetId
  * @param {string} styles
  */
-export async function appendStyles(target, styleSheetId, styles) {
+export async function append_styles(target, styleSheetId, styles) {
     const appendStylesTo = getRootForStyle(target);
 
     if (!appendStylesTo.getElementById(styleSheetId)) {

@@ -40,6 +40,20 @@ export function renderStylesheet(source, analysis, options) {
         state,
         {
             RegularElement(node, { next, state }) {
+                if (
+                    node.attributes.some(
+                        (a) =>
+                            a.type === "Attribute" &&
+                            a.value !== true &&
+                            a.value.some(
+                                (v) =>
+                                    v.type === "Text" &&
+                                    v.data.includes(state.hash)
+                            )
+                    )
+                )
+                    return;
+
                 let classAttr = node.attributes.find(
                     (attr) => attr.type === "Attribute" && attr.name === "class"
                 );
@@ -95,7 +109,12 @@ const visitors = {
     },
     SelectorList(node, { state, path }) {
         for (const selector of node.children) {
-            if (selector.type === "Selector") {
+            if (
+                selector.type === "Selector" &&
+                !selector.children.some(
+                    (c) => c.type === "ClassSelector" && c.name === state.hash
+                )
+            ) {
                 let indexToAdd = -1;
 
                 for (let i = selector.children.length - 1; i >= 0; i--) {

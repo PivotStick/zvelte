@@ -4,7 +4,6 @@
  * @param {{
  *  html?: string;
  *  props?: Props;
- *  legacyProps?: Props;
  *  todo?: boolean;
  *  only?: boolean;
  *  fails?: boolean;

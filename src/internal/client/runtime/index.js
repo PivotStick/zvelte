@@ -1,6 +1,7 @@
 import { filters } from "./filters.js";
 
 export { mount, hydrate } from "svelte";
+export { append_styles } from "../shared.js";
 export * from "svelte/internal/client";
 
 /**

@@ -24,6 +24,7 @@ import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
+import { renderStylesheet } from "../css/index.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -141,6 +142,24 @@ export function renderDom(ast, analysis, options, meta) {
         private_state: new Map(),
         in_constructor: false,
     };
+
+    if (analysis.css) {
+        const result = renderStylesheet(analysis.css.code, analysis, {
+            dev: false,
+            filename: options.filename + ".css",
+        });
+
+        state.hoisted.push(
+            b.stmt(
+                b.call(
+                    "$.append_styles",
+                    b.literal(null),
+                    b.literal(analysis.css.hash),
+                    b.literal(result.code)
+                )
+            )
+        );
+    }
 
     // @ts-ignore
     const template = /** @type {import('estree').Program} */ (

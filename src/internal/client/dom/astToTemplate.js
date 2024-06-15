@@ -1,8 +1,7 @@
-import { appendStyles } from "../shared.js";
 import { isVoid } from "../../../compiler/shared/utils/names.js";
 
 // @ts-ignore
-import * as $ from "svelte/internal/client";
+import * as $ from "../runtime/index.js";
 import { walk } from "zimmerframe";
 import { analyseComponent } from "../../../compiler/phases/2-analyze/index.js";
 import { renderStylesheet } from "../../../compiler/phases/3-transform/css/index.js";
@@ -64,7 +63,7 @@ const visitors = {
                 filename: hash + ".css",
             });
 
-            appendStyles(undefined, hash, result.code);
+            $.append_styles(undefined, hash, result.code);
         }
 
         visit(node.fragment);

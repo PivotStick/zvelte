@@ -8,7 +8,7 @@ export type ComponentClientTransformState = {
     options: Parameters<Transformer>[2];
     hoisted: (
         | import("estree").ImportDeclaration
-        | import("estree").VariableDeclaration
+        | import("estree").ExpressionStatement
     )[];
     node: any;
     readonly before_init: any[];

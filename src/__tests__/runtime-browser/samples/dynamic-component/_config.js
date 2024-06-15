@@ -16,14 +16,6 @@ export default defineTest({
         };
     },
 
-    get legacyProps() {
-        return {
-            Foo: Foo.legacy.default,
-            Bar: Bar.legacy.default,
-            x: true,
-        };
-    },
-
     html: "<p>true, therefore Foo</p><!---->",
 
     async test({ props, target }) {

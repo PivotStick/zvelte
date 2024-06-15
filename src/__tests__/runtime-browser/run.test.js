@@ -8,11 +8,10 @@ const modulePaths = await import.meta.glob("./samples/**/_config.js");
 /**
  * @type {Array<{
  *  name: string;
- *  component: {
+ *  get(): Promise<{
  *      mount: any;
  *      default: any;
- *  };
- *  legacy: boolean;
+ *  }>;
  *  config: ReturnType<typeof import("./defineTest.js")["defineTest"]>
  * }>}
  */
@@ -29,23 +28,27 @@ for (const path in modulePaths) {
     const name = path.split("/").at(-2);
     // @ts-ignore
     const module = await modulePaths[path]();
-    const component = await import(path.replace(/[^/]+$/, "main.twig"));
+
+    /**
+     * @param {*} o
+     */
+    function payload(o) {
+        const params = new URLSearchParams(o);
+        return params.size ? "?" + params : "";
+    }
+
+    const main = path.replace(/[^/]+$/, "main.twig");
 
     tests.push({
         name,
-        component: {
-            mount: component.mount,
-            default: component.default,
-        },
+        get: () => import(main + payload({})),
         config: module.default,
-        legacy: false,
     });
 
     legacyTests.push({
         name,
-        component: component.legacy,
+        get: () => import(main + payload({ legacy: true })),
         config: module.default,
-        legacy: true,
     });
 }
 
@@ -53,16 +56,21 @@ for (const path in modulePaths) {
  * @param {typeof tests} tests
  */
 function run(tests) {
-    for (const { name, config, component, legacy } of tests) {
+    for (const { name, config, get } of tests) {
         const target = document.body;
         const exec = async () => {
             config.before?.();
 
             target.innerHTML = "";
+            raf.reset();
+            for (const style of document.styleSheets) {
+                if (style.ownerNode) {
+                    style.ownerNode.remove();
+                }
+            }
 
-            const props = proxy(
-                legacy ? config.legacyProps ?? config.props : config.props
-            );
+            const component = await get();
+            const props = proxy(config.props);
 
             component.mount({
                 target,
@@ -72,8 +80,6 @@ function run(tests) {
             if (typeof config.html === "string") {
                 expect(target.innerHTML).toEqual(config.html);
             }
-
-            raf.reset();
 
             await config.test?.({
                 props,
