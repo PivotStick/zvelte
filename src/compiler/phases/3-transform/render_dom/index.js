@@ -208,7 +208,10 @@ export function renderDom(ast, analysis, options, meta) {
                     b.object([])
                 )
             ),
-            b.const("$$scopes", b.array([b.id("$$scope"), b.id("$$props")]))
+            b.const(
+                "$$prop",
+                b.call("$.scope", b.array([b.id("$$scope"), b.id("$$props")]))
+            )
         );
 
         componentBlock.body.push(b.return(b.call("$.pop", b.id("$$methods"))));
@@ -995,14 +998,16 @@ const templateVisitors = {
             const args = [];
 
             for (const arg of node.arguments) {
-                args.push(context.visit(arg));
+                args.push(
+                    /** @type {import("estree").Expression} */ (
+                        context.visit(arg)
+                    )
+                );
             }
 
             const call = b.call(
                 "$.filter",
-                context.state.options.hasJS
-                    ? b.id("$$scopes")
-                    : b.array([b.id("$$props")]),
+                context.state.options.hasJS ? b.id("$$prop") : b.id("$$props"),
                 b.literal(node.name.name)
             );
 
@@ -1036,12 +1041,7 @@ const templateVisitors = {
             } else if (!state.nonPropVars.includes(member.object.name)) {
                 member = b.member(
                     state.options.hasJS
-                        ? b.call(
-                              "$.scope",
-                              b.id("$$scopes"),
-                              b.literal(member.object.name),
-                              b.id("$$scope")
-                          )
+                        ? b.call("$$prop", b.literal(member.object.name))
                         : b.id("$$props"),
                     member
                 );
@@ -1068,12 +1068,7 @@ const templateVisitors = {
             } else if (!state.nonPropVars.includes(id.name)) {
                 id = b.member(
                     state.options.hasJS
-                        ? b.call(
-                              "$.scope",
-                              b.id("$$scopes"),
-                              b.literal(id.name),
-                              b.id("$$scope")
-                          )
+                        ? b.call("$$prop", b.literal(id.name))
                         : b.id("$$props"),
                     id
                 );
@@ -1088,7 +1083,11 @@ const templateVisitors = {
         /**
          * @type {import("estree").Expression}
          */
-        let expression = b.call("$.in", visit(node.left), visit(node.right));
+        let expression = b.call(
+            "$.in",
+            /** @type {import("estree").Expression} */ (visit(node.left)),
+            /** @type {import("estree").Expression} */ (visit(node.right))
+        );
 
         if (node.not) {
             expression = b.unary("!", expression);
@@ -1102,7 +1101,12 @@ const templateVisitors = {
         if (node.right.type === "Identifier") {
             switch (node.right.name) {
                 case "empty": {
-                    const test = b.call("$.is_empty", visit(node.left));
+                    const test = b.call(
+                        "$.is_empty",
+                        /** @type {import("estree").Expression} */ (
+                            visit(node.left)
+                        )
+                    );
                     if (node.not) return b.unary("!", test);
                     return test;
                 }
@@ -1120,11 +1124,7 @@ const templateVisitors = {
 
                     if (state.options.hasJS) {
                         return b.binary(
-                            b.call(
-                                "$.scope",
-                                b.id("$$scopes"),
-                                b.literal(node.left.name)
-                            ),
+                            b.call("$$prop", b.literal(node.left.name)),
                             node.not ? "===" : "!==",
                             b.id("undefined")
                         );
@@ -1141,7 +1141,7 @@ const templateVisitors = {
             }
         } else if (node.right.type === "NullLiteral") {
             return b.binary(
-                visit(node.left),
+                /** @type {import("estree").Expression} */ (visit(node.left)),
                 node.not ? "!==" : "===",
                 b.literal(null)
             );
@@ -1317,7 +1317,10 @@ const templateVisitors = {
         /**
          * @type {Parameters<typeof b.object>[0]}
          */
-        const properties = [];
+        const properties = serializeAttibutesForComponent(node.attributes, {
+            visit,
+            state,
+        });
 
         for (const child of hoisted) {
             visit(child);
@@ -1332,75 +1335,6 @@ const templateVisitors = {
                         )
                     )
                 );
-            }
-        }
-
-        for (const attr of node.attributes) {
-            /**
-             * @param {string} key
-             * @param {import("estree").Expression} expression
-             */
-            const get = (key, expression) =>
-                properties.push(
-                    b.prop(
-                        "get",
-                        b.id(key),
-                        b.function(null, [], b.block([b.return(expression)]))
-                    )
-                );
-
-            /**
-             * @param {string} key
-             * @param {import("estree").Pattern} expression
-             */
-            const set = (key, expression) =>
-                properties.push(
-                    b.prop(
-                        "set",
-                        b.id(key),
-                        b.function(
-                            null,
-                            [b.id("$$value")],
-                            b.block([
-                                b.stmt(
-                                    b.assignment(
-                                        "=",
-                                        expression,
-                                        b.id("$$value")
-                                    )
-                                ),
-                            ])
-                        )
-                    )
-                );
-
-            switch (attr.type) {
-                case "Attribute": {
-                    get(
-                        attr.name,
-                        serializeAttributeValue(attr.value, false, {
-                            visit,
-                            state,
-                        })
-                    );
-                    break;
-                }
-
-                case "BindDirective": {
-                    const pattern = /** @type {import('estree').Pattern} */ (
-                        visit(attr.expression)
-                    );
-
-                    // @ts-ignore
-                    get(attr.name, pattern);
-                    set(attr.name, pattern);
-                    break;
-                }
-
-                default:
-                    throw new Error(
-                        `Component attributes: "${attr.type}" is not handled yet`
-                    );
             }
         }
 
@@ -1443,102 +1377,24 @@ const templateVisitors = {
         const block = b.block([]);
         const call = b.call(
             "$.component",
-            b.thunk(visit(node.expression)),
+            b.thunk(
+                /** @type {import('estree').Expression} */ (
+                    visit(node.expression)
+                )
+            ),
             b.arrow([b.id("$$component")], block)
         );
 
         /**
          * @type {import('estree').Property[]}
          */
-        const props = [];
-
-        walk(/** @type {import("#ast").ZvelteNode} */ (node), null, {
-            Attribute(attr) {
-                /**
-                 * @type {import('estree').Expression}
-                 */
-                let expression = b.true;
-                let canSet = false;
-
-                if (attr.value !== true) {
-                    if (attr.value.length === 1) {
-                        const n = attr.value[0];
-                        if (n.type === "Text") {
-                            expression = b.literal(n.data);
-                        } else {
-                            expression = visit(n.expression);
-                            canSet =
-                                n.expression.type === "Identifier" ||
-                                n.expression.type === "MemberExpression";
-                        }
-                    } else {
-                        /** @type {import('estree').TemplateElement[]} */
-                        const elements = [];
-                        /** @type {import('estree').Expression[]} */
-                        const expressions = [];
-
-                        for (let i = 0; i < attr.value.length; i++) {
-                            const n = attr.value[i];
-                            const tail = i === attr.value.length - 1;
-
-                            if (n.type === "Text") {
-                                const el = b.templateElement();
-                                el.value.raw = n.data;
-                                el.tail = tail;
-                                elements.push(el);
-                            } else {
-                                if (i === 0) {
-                                    elements.push(b.templateElement());
-                                }
-
-                                expressions.push(visit(n.expression));
-                                if (tail) {
-                                    const el = b.templateElement();
-                                    el.tail = tail;
-                                    elements.push(el);
-                                }
-                            }
-                        }
-
-                        expression = b.template(elements, expressions);
-                    }
-                }
-
-                props.push(
-                    b.prop(
-                        "get",
-                        b.id(attr.name),
-                        b.function(null, [], b.block([b.return(expression)]))
-                    )
-                );
-
-                if (canSet) {
-                    props.push(
-                        b.prop(
-                            "set",
-                            b.id(attr.name),
-                            b.function(
-                                null,
-                                [b.id("$$value")],
-                                b.block([
-                                    b.stmt(
-                                        b.assignment(
-                                            "=",
-                                            // @ts-ignore
-                                            expression,
-                                            b.id("$$value")
-                                        )
-                                    ),
-                                ])
-                            )
-                        )
-                    );
-                }
-            },
+        const properties = serializeAttibutesForComponent(node.attributes, {
+            visit,
+            state,
         });
 
         block.body.push(
-            b.stmt(b.call("$$component", state.node, b.object(props)))
+            b.stmt(b.call("$$component", state.node, b.object(properties)))
         );
 
         state.init.push(b.stmt(call));
@@ -1581,7 +1437,12 @@ const templateVisitors = {
 
         if (node.alternate) {
             call.arguments.push(
-                b.arrow([b.id("$$anchor")], visit(node.alternate))
+                b.arrow(
+                    [b.id("$$anchor")],
+                    /** @type {import("estree").Expression} */ (
+                        visit(node.alternate)
+                    )
+                )
             );
         }
 
@@ -1629,7 +1490,10 @@ const templateVisitors = {
 
         const isInForBlock = path.some((node) => node.type === "ForBlock");
 
-        const array = b.call("$.iterable", visit(node.expression));
+        const array = b.call(
+            "$.iterable",
+            /** @type {import("estree").Expression} */ (visit(node.expression))
+        );
         const unwrapIndex = b.call("$.unwrap", b.id("$$index"));
         const loopInit = [];
 
@@ -1651,7 +1515,12 @@ const templateVisitors = {
 
         if (node.index) {
             const expression = b.member(
-                b.call("Object.keys", visit(node.expression)),
+                b.call(
+                    "Object.keys",
+                    /** @type {import("estree").Expression} */ (
+                        visit(node.expression)
+                    )
+                ),
                 unwrapIndex,
                 true
             );
@@ -1683,14 +1552,120 @@ const templateVisitors = {
         const call = b.call(
             "$.key",
             state.node,
-            b.thunk(visit(node.expression)),
-            b.arrow([b.id("$$anchor")], visit(node.fragment))
+            b.thunk(
+                /** @type {import("estree").Expression} */ (
+                    visit(node.expression)
+                )
+            ),
+            b.arrow(
+                [b.id("$$anchor")],
+                /** @type {import("estree").Expression} */ (
+                    visit(node.fragment)
+                )
+            )
         );
 
         state.template.push("<!>");
         state.init.push(call);
     },
 };
+
+/**
+ * @param {Array<import("#ast").ZvelteComponent["attributes"][number] | import("#ast").Component["attributes"][number]>} attributes
+ * @param {Pick<import('./types.js').ComponentContext, "visit" | "state">} context
+ */
+function serializeAttibutesForComponent(attributes, { visit, state }) {
+    /** @type {import('estree').Property[]} */
+    const properties = [];
+
+    /**
+     * @param {import("estree").Expression} expression
+     */
+    function checkIsDynamic(expression) {
+        let isDynamic = false;
+        walk(
+            expression,
+            {},
+            {
+                Identifier(_, { stop }) {
+                    isDynamic = true;
+                    stop();
+                },
+            }
+        );
+
+        return isDynamic;
+    }
+
+    for (const attr of attributes) {
+        /**
+         * @param {string} key
+         * @param {import("estree").Expression} expression
+         */
+        const get = (key, expression) =>
+            properties.push(
+                b.prop(
+                    "get",
+                    b.id(key),
+                    checkIsDynamic(expression)
+                        ? b.function(null, [], b.block([b.return(expression)]))
+                        : expression
+                )
+            );
+
+        /**
+         * @param {string} key
+         * @param {import("estree").Pattern} expression
+         */
+        const set = (key, expression) =>
+            properties.push(
+                b.prop(
+                    "set",
+                    b.id(key),
+                    b.function(
+                        null,
+                        [b.id("$$value")],
+                        b.block([
+                            b.stmt(
+                                b.assignment("=", expression, b.id("$$value"))
+                            ),
+                        ])
+                    )
+                )
+            );
+
+        switch (attr.type) {
+            case "Attribute": {
+                get(
+                    attr.name,
+                    serializeAttributeValue(attr.value, false, {
+                        visit,
+                        state,
+                    })
+                );
+                break;
+            }
+
+            case "BindDirective": {
+                const pattern = /** @type {import('estree').Pattern} */ (
+                    visit(attr.expression)
+                );
+
+                // @ts-ignore
+                get(attr.name, pattern);
+                set(attr.name, pattern);
+                break;
+            }
+
+            default:
+                throw new Error(
+                    `Component attributes: "${attr.type}" is not handled yet`
+                );
+        }
+    }
+
+    return properties;
+}
 
 /**
  * @param {import('estree').Expression} expression
@@ -1706,165 +1681,6 @@ function getNodeId(expression, state, name) {
         state.init.push(b.const(id, expression));
     }
     return id;
-}
-
-/**
- * @param {Array<import('#ast').Text | import('#ast').ExpressionTag | import("#ast").VariableTag>} values
- * @param {(node: import('#ast').ZvelteNode) => any} visit
- * @param {import("./types.js").ComponentClientTransformState} state
- * @returns {[boolean, import('estree').TemplateLiteral, import('estree').AssignmentExpression[]]}
- */
-function serializeTemplateLiteral(values, visit, state) {
-    /** @type {import('estree').TemplateElement[]} */
-    const quasis = [];
-
-    /** @type {import('estree').Expression[]} */
-    const expressions = [];
-
-    /** @type {import("estree").AssignmentExpression[]} */
-    const assignments = [];
-
-    let contains_call_expression = false;
-    let contains_multiple_call_expression = false;
-    quasis.push(b.quasi(""));
-
-    for (let i = 0; i < values.length; i++) {
-        const node = values[i];
-
-        if (
-            node.type === "ExpressionTag" &&
-            walk(
-                node.expression,
-                {},
-                {
-                    // @ts-ignore
-                    FilterExpression: () => true,
-                    // @ts-ignore
-                    CallExpression: () => true,
-                }
-            )
-        ) {
-            if (contains_call_expression) {
-                contains_multiple_call_expression = true;
-            }
-            contains_call_expression = true;
-        }
-    }
-
-    for (let i = 0; i < values.length; i++) {
-        const node = values[i];
-
-        if (node.type === "Text") {
-            const last = /** @type {import('estree').TemplateElement} */ (
-                quasis.at(-1)
-            );
-            last.value.raw += sanitizeTemplateString(node.data);
-        } else if (node.type === "Variable") {
-            assignments.push(
-                b.assignment("=", visit(node.name), visit(node.value))
-            );
-        } else if (
-            node.type === "ExpressionTag" &&
-            (node.expression.type === "NullLiteral" ||
-                node.expression.type === "StringLiteral" ||
-                node.expression.type === "BooleanLiteral" ||
-                node.expression.type === "NumericLiteral")
-        ) {
-            const last = /** @type {import('estree').TemplateElement} */ (
-                quasis.at(-1)
-            );
-            if (node.expression.value != null) {
-                last.value.raw += sanitizeTemplateString(
-                    node.expression.value + ""
-                );
-            }
-        } else {
-            if (contains_multiple_call_expression) {
-                const id = b.id(state.scope.generate("stringified_text"));
-
-                state.init.push(
-                    b.const(
-                        id,
-                        b.call(
-                            "$.derived",
-                            b.thunk(
-                                b.logical(
-                                    /** @type {import('estree').Expression} */ (
-                                        visit(node.expression)
-                                    ),
-                                    "??",
-                                    b.literal("")
-                                )
-                            )
-                        )
-                    )
-                );
-                expressions.push(b.call("$.get", id));
-            } else {
-                expressions.push(
-                    b.logical(
-                        /** @type {import('estree').Expression} */ (
-                            visit(node.expression)
-                        ),
-                        "??",
-                        b.literal("")
-                    )
-                );
-            }
-            quasis.push(b.quasi("", i + 1 === values.length));
-        }
-    }
-
-    // TODO instead of this tuple, return a `{ dynamic, complex, value }` object. will DRY stuff out
-    return [
-        contains_call_expression,
-        b.template(quasis, expressions),
-        assignments,
-    ];
-}
-
-/**
- * Serializes an event handler function of the `on:` directive or an attribute starting with `on`
- * @param {{name: string; modifiers: string[]; expression: import('estree').Expression | null; delegated?: import('#compiler').DelegatedEvent | null; }} node
- * @param {import('./types.js').ComponentContext} context
- */
-function serializeEvent(node, { visit, state }) {
-    const expression = node.expression ?? {
-        type: "Identifier",
-        name: node.name,
-        start: -1,
-        end: -1,
-    };
-
-    let listener;
-
-    if (expression.type === "ArrowFunctionExpression") {
-        listener = visit(expression);
-    } else {
-        listener = b.function(
-            null,
-            [b.rest(b.id("$$args"))],
-            b.block([
-                b.const("$$callback", visit(expression)),
-                b.return(
-                    b.call(
-                        b.member(
-                            b.id("$$callback"),
-                            b.id("apply"),
-                            false,
-                            true
-                        ),
-                        b.id("this"),
-                        b.id("$$args")
-                    )
-                ),
-            ])
-        );
-    }
-
-    state.init.push(
-        b.call("$.event", b.literal(node.name), state.node, listener)
-    );
 }
 
 /**

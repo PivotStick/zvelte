@@ -6,15 +6,19 @@ export * from "svelte/internal/client";
 
 /**
  * @param {Record<string, any>[]} scopes
- * @param {string} key
  */
-export function scope(scopes, key, fallback = {}) {
-    for (let i = scopes.length - 1; i >= 0; i--) {
-        const scope = scopes[i];
-        if (key in scope) return scope;
-    }
+export function scope(scopes) {
+    /**
+     * @param {string} key
+     */
+    return (key, fallback = scopes[0]) => {
+        for (let i = scopes.length - 1; i >= 0; i--) {
+            const scope = scopes[i];
+            if (key in scope) return scope;
+        }
 
-    return fallback;
+        return fallback;
+    };
 }
 
 /**
@@ -43,11 +47,15 @@ export function is_empty(value) {
 }
 
 /**
- * @param {Record<string, any>[]} scopes
+ * @param {ReturnType<typeof scope> | Record<string, any>} scope
  * @param {string} key
  */
-export function filter(scopes, key) {
-    return scope([filters, ...scopes], key);
+export function filter(scope, key) {
+    if (typeof scope === "function") {
+        return scope(key, filters);
+    }
+
+    return scope[key] ? scope : filters;
 }
 
 /**

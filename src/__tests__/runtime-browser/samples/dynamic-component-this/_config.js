@@ -1,14 +1,16 @@
-import { expect } from "vitest";
-import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
+
+// @ts-ignore
+import Test from "./Test.twig";
 
 export default defineTest({
     get props() {
-        return {};
+        return {
+            Test,
+        };
     },
 
-    todo: true,
-    html: "",
-
-    async test({ props, target }) {},
+    test() {
+        // should not crash
+    },
 });

@@ -3,15 +3,15 @@ import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
 
 // @ts-expect-error
-import * as Foo from "./Foo.twig";
+import Foo from "./Foo.twig";
 // @ts-expect-error
-import * as Bar from "./Bar.twig";
+import Bar from "./Bar.twig";
 
 export default defineTest({
     get props() {
         return {
-            Foo: Foo.default,
-            Bar: Bar.default,
+            Foo,
+            Bar,
             x: true,
         };
     },

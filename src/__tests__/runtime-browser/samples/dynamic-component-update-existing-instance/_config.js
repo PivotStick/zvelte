@@ -2,13 +2,26 @@ import { expect } from "vitest";
 import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
 
+// @ts-ignore
+import Foo from "./Foo.twig";
+// @ts-ignore
+import Bar from "./Bar.twig";
+
 export default defineTest({
     get props() {
-        return {};
+        return {
+            Foo,
+            Bar,
+            x: 0,
+        };
     },
 
-    todo: true,
-    html: "",
+    html: "<p>Bar 0</p><!---->",
 
-    async test({ props, target }) {},
+    async test({ props, target }) {
+        props.x = 1;
+        await tick();
+
+        expect(target.innerHTML).toEqual("<p>Foo 1</p><!---->");
+    },
 });
