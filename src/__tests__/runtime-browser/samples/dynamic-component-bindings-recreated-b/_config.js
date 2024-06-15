@@ -13,22 +13,27 @@ export default defineTest({
             Green,
             Red,
             x: true,
-            foo: "one",
+            foo: /** @type {any} */ ("green"),
         };
     },
 
-    html: "<p>green one</p><!---->",
+    html: "<p>parent green</p> <p>green green</p><!---->",
 
     async test({ props, target }) {
+        props.foo = undefined;
         props.x = false;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>red one</p><!---->");
+        expect(target.innerHTML).toEqual(
+            "<p>parent red</p> <p>red red</p><!---->"
+        );
 
-        props.foo = "two";
+        props.foo = undefined;
         props.x = true;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>green two</p><!---->");
+        expect(target.innerHTML).toEqual(
+            "<p>parent green</p> <p>green green</p><!---->"
+        );
     },
 });
