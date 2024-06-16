@@ -60,6 +60,7 @@ export function renderDom(ast, analysis, options, meta) {
         nonPropSources: [],
         nonPropGetters: [],
         ignoreScope: false,
+        els: false,
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -1309,7 +1310,7 @@ const templateVisitors = {
         state.template.push("<!>");
 
         const parent = path[path.length - 1];
-        const { props, bindThis } = serializeAttibutesForComponent(
+        const { props, pushProp, bindThis } = serializeAttibutesForComponent(
             node.attributes,
             {
                 visit,
@@ -1330,7 +1331,7 @@ const templateVisitors = {
             visit(child);
 
             if (child.type === "SnippetBlock") {
-                props.properties.push(
+                pushProp(
                     b.prop(
                         "init",
                         b.id(child.expression.name),
@@ -1401,7 +1402,7 @@ const templateVisitors = {
             b.arrow([b.id("$$component")], block)
         );
 
-        const { props, bindThis } = serializeAttibutesForComponent(
+        const { props, pushProp, bindThis } = serializeAttibutesForComponent(
             node.attributes,
             context
         );
@@ -1421,7 +1422,7 @@ const templateVisitors = {
 
         for (const child of hoisted) {
             if (child.type === "SnippetBlock") {
-                props.properties.push(
+                pushProp(
                     b.prop(
                         "init",
                         b.id(child.expression.name),
@@ -1443,7 +1444,7 @@ const templateVisitors = {
 
         if (trimmed.length) {
             const block = createBlock(parent, "root", trimmed, context);
-            props.properties.push(
+            pushProp(
                 b.prop(
                     "init",
                     b.id("children"),
@@ -1648,8 +1649,17 @@ const templateVisitors = {
  * @param {Pick<import('./types.js').ComponentContext, "visit" | "state">} context
  */
 function serializeAttibutesForComponent(attributes, { visit, state }) {
-    /** @type {import('estree').Property[]} */
-    const properties = [];
+    /** @type {import("estree").Expression[]} */
+    const args = [];
+
+    const props = () => {
+        const last = args.at(-1);
+        if (last?.type === "ObjectExpression") return last.properties;
+
+        const o = b.object([]);
+        args.push(o);
+        return o.properties;
+    };
 
     /**
      * @type {{
@@ -1660,7 +1670,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
     let bindThis;
 
     /**
-     * @param {import("estree").Expression} expression
+     * @param {import("estree").Node} expression
      */
     function checkIsDynamic(expression) {
         let isDynamic = false;
@@ -1668,9 +1678,14 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
             expression,
             {},
             {
-                Identifier(_, { stop }) {
-                    isDynamic = true;
-                    stop();
+                Identifier(_, { stop, path, next }) {
+                    const parent = path[path.length - 1];
+                    if (parent.type === "Property" && !parent.computed) {
+                        next();
+                    } else {
+                        isDynamic = true;
+                        stop();
+                    }
                 },
             }
         );
@@ -1684,7 +1699,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
          * @param {import("estree").Expression} expression
          */
         const get = (key, expression) =>
-            properties.push(
+            props().push(
                 b.prop(
                     "get",
                     b.id(key),
@@ -1699,7 +1714,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
          * @param {import("estree").Pattern} expression
          */
         const set = (key, expression) =>
-            properties.push(
+            props().push(
                 b.prop(
                     "set",
                     b.id(key),
@@ -1752,6 +1767,15 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
                 break;
             }
 
+            case "SpreadAttribute": {
+                const value = /** @type {import("estree").Expression} */ (
+                    visit(attr.expression)
+                );
+
+                args.push(checkIsDynamic(value) ? b.thunk(value) : value);
+                break;
+            }
+
             default:
                 throw new Error(
                     `Component attributes: "${attr.type}" is not handled yet`
@@ -1759,10 +1783,35 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
         }
     }
 
-    return {
-        props: b.object(properties),
+    if (!args.length) {
+        args.push(b.object([]));
+    }
+
+    const out = {
+        props:
+            args.length === 1
+                ? /** @type {import('estree').ObjectExpression} */ (args[0])
+                : b.call("$.spread_props", ...args),
         bindThis,
+        /**
+         * @param {import("estree").ObjectExpression["properties"]} props
+         */
+        pushProp(...props) {
+            if (out.props.type === "ObjectExpression") {
+                out.props.properties.push(...props);
+            } else {
+                const last =
+                    out.props.arguments[out.props.arguments.length - 1];
+                if (last.type === "ObjectExpression") {
+                    last.properties.push(...props);
+                } else {
+                    out.props.arguments.push(b.object(props));
+                }
+            }
+        },
     };
+
+    return out;
 }
 
 /**
