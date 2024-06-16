@@ -1041,7 +1041,9 @@ const templateVisitors = {
             } else if (!state.nonPropVars.includes(member.object.name)) {
                 member = b.member(
                     state.options.hasJS
-                        ? b.call("$$prop", b.literal(member.object.name))
+                        ? state.els
+                            ? b.id("$$els")
+                            : b.call("$$prop", b.literal(member.object.name))
                         : b.id("$$props"),
                     member
                 );
@@ -1068,7 +1070,9 @@ const templateVisitors = {
             } else if (!state.nonPropVars.includes(id.name)) {
                 id = b.member(
                     state.options.hasJS
-                        ? b.call("$$prop", b.literal(id.name))
+                        ? state.els
+                            ? b.id("$$els")
+                            : b.call("$$prop", b.literal(id.name))
                         : b.id("$$props"),
                     id
                 );
@@ -1305,10 +1309,13 @@ const templateVisitors = {
         state.template.push("<!>");
 
         const parent = path[path.length - 1];
-        const properties = serializeAttibutesForComponent(node.attributes, {
-            visit,
-            state,
-        });
+        const { props, bindThis } = serializeAttibutesForComponent(
+            node.attributes,
+            {
+                visit,
+                state,
+            }
+        );
 
         const { hoisted, trimmed } = cleanNodes(
             parent,
@@ -1323,7 +1330,7 @@ const templateVisitors = {
             visit(child);
 
             if (child.type === "SnippetBlock") {
-                properties.push(
+                props.properties.push(
                     b.prop(
                         "init",
                         b.id(child.expression.name),
@@ -1365,7 +1372,18 @@ const templateVisitors = {
             );
         }
 
-        state.init.push(b.call(id, state.node, b.object(properties)));
+        let statement = b.call(id, state.node, props);
+
+        if (bindThis) {
+            statement = b.call(
+                "$.bind_this",
+                statement,
+                bindThis.set,
+                bindThis.get
+            );
+        }
+
+        state.init.push(statement);
     },
 
     ZvelteComponent(node, context) {
@@ -1383,10 +1401,7 @@ const templateVisitors = {
             b.arrow([b.id("$$component")], block)
         );
 
-        /**
-         * @type {import('estree').Property[]}
-         */
-        const properties = serializeAttibutesForComponent(
+        const { props, bindThis } = serializeAttibutesForComponent(
             node.attributes,
             context
         );
@@ -1406,7 +1421,7 @@ const templateVisitors = {
 
         for (const child of hoisted) {
             if (child.type === "SnippetBlock") {
-                properties.push(
+                props.properties.push(
                     b.prop(
                         "init",
                         b.id(child.expression.name),
@@ -1428,7 +1443,7 @@ const templateVisitors = {
 
         if (trimmed.length) {
             const block = createBlock(parent, "root", trimmed, context);
-            properties.push(
+            props.properties.push(
                 b.prop(
                     "init",
                     b.id("children"),
@@ -1442,9 +1457,13 @@ const templateVisitors = {
             );
         }
 
-        block.body.push(
-            b.stmt(b.call("$$component", nodeId, b.object(properties)))
-        );
+        let render = b.call("$$component", nodeId, props);
+
+        if (bindThis) {
+            render = b.call("$.bind_this", render, bindThis.set, bindThis.get);
+        }
+
+        block.body.push(b.stmt(render));
 
         if (privateScope.length) {
             privateScope.push(b.stmt(call));
@@ -1633,6 +1652,14 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
     const properties = [];
 
     /**
+     * @type {{
+     *  get: import('estree').Expression
+     *  set: import('estree').ArrowFunctionExpression
+     * }=}
+     */
+    let bindThis;
+
+    /**
      * @param {import("estree").Expression} expression
      */
     function checkIsDynamic(expression) {
@@ -1701,13 +1728,27 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
             }
 
             case "BindDirective": {
-                const pattern = /** @type {import('estree').Pattern} */ (
-                    visit(attr.expression)
-                );
+                const pattern =
+                    /** @type {import('estree').Identifier | import('estree').MemberExpression} */ (
+                        visit(attr.expression, {
+                            ...state,
+                            els: true,
+                        })
+                    );
 
-                // @ts-ignore
-                get(attr.name, pattern);
-                set(attr.name, pattern);
+                if (attr.name === "this") {
+                    bindThis = {
+                        get: b.thunk(pattern),
+                        set: b.arrow(
+                            [b.id("$$value")],
+                            b.assignment("=", pattern, b.id("$$value"))
+                        ),
+                    };
+                } else {
+                    get(attr.name, pattern);
+                    set(attr.name, pattern);
+                }
+
                 break;
             }
 
@@ -1718,7 +1759,10 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
         }
     }
 
-    return properties;
+    return {
+        props: b.object(properties),
+        bindThis,
+    };
 }
 
 /**

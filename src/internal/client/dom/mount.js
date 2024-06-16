@@ -180,10 +180,10 @@ export function mount({
  * @param {*} value
  * @param {import("#ast").Identifier | import("#ast").MemberExpression} expression
  * @param {Visit} visit
- * @param {import("../types.js").State} ctx
+ * @param {import("../types.js").State} state
  */
-function setInScope(value, expression, visit, ctx) {
-    let { object, key } = findScopeFromExpression(expression, visit, ctx);
+function setInScope(value, expression, visit, state) {
+    let { object, key } = findScopeFromExpression(expression, visit, state);
 
     object[key] = value;
 }
@@ -191,10 +191,10 @@ function setInScope(value, expression, visit, ctx) {
 /**
  * @param {import("#ast").Identifier | import("#ast").MemberExpression} expression
  * @param {Visit} visit
- * @param {import("../types.js").State} ctx
+ * @param {import("../types.js").State} state
  * @param {((object: any, key: string) => void)=} onfallback
  */
-function findScopeFromExpression(expression, visit, ctx, onfallback) {
+function findScopeFromExpression(expression, visit, state, onfallback) {
     let object;
     let key;
 
@@ -207,16 +207,16 @@ function findScopeFromExpression(expression, visit, ctx, onfallback) {
             key = expression.property.name;
         }
     } else {
-        object = findScopeFrom(expression.name, ctx.scope) ?? UNINITIALIZED;
+        object = findScopeFrom(expression.name, state.scope) ?? UNINITIALIZED;
         key = expression.name;
     }
 
     if (object === UNINITIALIZED) {
         // Get the last scope that is not the props
         object =
-            ctx.scope.length === 2
-                ? ctx.scope[0]
-                : ctx.scope[ctx.scope.length - 1];
+            state.scope.length === 2
+                ? state.scope[0]
+                : state.scope[state.scope.length - 1];
 
         onfallback?.(object, key);
     }
@@ -986,147 +986,36 @@ const visitors = {
         if (!component)
             throw new Error(`Component "${node.key.data}" not found`);
 
-        const props = $.proxy({});
-
-        /**
-         * @type {import("#ast").BindDirective | undefined}
-         */
-        let thisAttr;
-
-        node.attributes.forEach((attr) => {
-            switch (attr.type) {
-                case "Attribute": {
-                    if (attr.value === true) {
-                        props[attr.name] = true;
-                    } else if (
-                        attr.value.length === 1 &&
-                        attr.value[0].type === "Text"
-                    ) {
-                        props[attr.name] = attr.value[0].data;
-                    } else {
-                        $.render_effect(() => {
-                            props[attr.name] = computeAttributeValue(
-                                attr,
-                                visit,
-                                state
-                            );
-                        });
-                    }
-                    break;
-                }
-
-                case "SpreadAttribute": {
-                    $.render_effect(() => {
-                        Object.assign(
-                            props,
-                            /** @type {_} */ (visit(attr.expression))._
-                        );
-                    });
-                    break;
-                }
-
-                case "BindDirective": {
-                    if (attr.name === "this") {
-                        thisAttr = attr;
-                    } else {
-                        const expression = attr.expression;
-
-                        $.render_effect(() => {
-                            props[attr.name] = /** @type {_} */ (
-                                visit(expression)
-                            )._;
-                        });
-                        $.render_effect(() => {
-                            setInScope(
-                                props[attr.name],
-                                expression,
-                                visit,
-                                state
-                            );
-                        });
-                    }
-
-                    break;
-                }
-
-                case "OnDirective": {
-                    const expression = attr.expression;
-                    if (expression) {
-                        // @ts-ignore
-                        (props.$$events ??= {})[node.name] = (_event) => {
-                            visit(expression, pushNewScope(state, { _event }));
-                        };
-                    } else {
-                        (props.$$events ??= {})[node.name] = function (
-                            /** @type {any} */ $$args
-                        ) {
-                            $.bubble_event.call(
-                                this,
-                                // @ts-ignore
-                                ctx.scope.at(1),
-                                $$args
-                            );
-                        };
-                    }
-
-                    break;
-                }
-
-                default:
-                    throw new Error(
-                        `"${attr.type}" not handled yet in component`
-                    );
-            }
+        const { props, bindThis } = handleComponentProps(node, {
+            state,
+            visit,
         });
 
-        node.fragment.nodes.forEach((child) => {
-            if (child.type === "SnippetBlock") {
-                if (!state.scope[0][child.expression.name]) {
-                    visit(child);
-                }
-
-                props[child.expression.name] =
-                    state.scope[0][child.expression.name];
-            }
-        });
-
-        if (node.fragment.nodes.length) {
-            props.children = (
-                /** @type {Element | Comment | Text} */ $$anchor,
-                /** @type {any} */ $$slotProps
-            ) => {
-                const fragment = getRoot(node.fragment);
-
-                visit(
-                    node.fragment,
-                    pushNewScope(state, $$slotProps, fragment)
-                );
-
-                $.append($$anchor, fragment);
-            };
-        }
-
-        if (thisAttr) {
-            if (!thisAttr.expression)
-                throw new Error(
-                    "`bind:this` value must be an Identifier or a MemberExpression"
-                );
-
-            const ex = thisAttr.expression;
-
-            const _ctx = {
-                ...state,
-                scope: [state.els],
-            };
-
-            $.bind_this(
-                component(anchor, props),
-                ($$value) => setInScope($$value, ex, visit, _ctx),
-                () => /** @type {_} */ (visit(ex, _ctx))._
-            );
+        if (bindThis) {
+            $.bind_this(component(anchor, props), bindThis.set, bindThis.get);
         } else {
             component(anchor, props);
         }
+    },
+
+    ZvelteComponent(node, { state, visit }) {
+        const anchor = /** @type {Comment} */ (state.currentNode);
+        const { props, bindThis } = handleComponentProps(node, {
+            state,
+            visit,
+        });
+
+        $.component(
+            () => /** @type {_} */ (visit(node.expression))._,
+            bindThis
+                ? ($$component) =>
+                      $.bind_this(
+                          $$component(anchor, props),
+                          bindThis.set,
+                          bindThis.get
+                      )
+                : ($$component) => $$component(anchor, props)
+        );
     },
 
     RenderTag(node, { state, visit }) {
@@ -1181,88 +1070,129 @@ const visitors = {
             }
         );
     },
-
-    ZvelteComponent(node, { state, visit }) {
-        const anchor = /** @type {Comment} */ (state.currentNode);
-        const props = $.proxy({});
-
-        for (const attr of node.attributes) {
-            switch (attr.type) {
-                case "Attribute": {
-                    $.render_effect(() => {
-                        props[attr.name] = computeAttributeValue(
-                            attr,
-                            visit,
-                            state
-                        );
-                    });
-                    break;
-                }
-
-                case "BindDirective": {
-                    const ex = attr.expression;
-
-                    $.render_effect(() => {
-                        props[attr.name] = /** @type {_} */ (visit(ex))._;
-                    });
-
-                    $.render_effect(() => {
-                        setInScope(props[attr.name], ex, visit, state);
-                    });
-                    break;
-                }
-
-                case "SpreadAttribute": {
-                    $.render_effect(() => {
-                        Object.assign(
-                            props,
-                            /** @type {_} */ (visit(attr.expression))._
-                        );
-                    });
-                    break;
-                }
-
-                default:
-                    throw new Error(
-                        `"${attr.type}" attribute not handled yet on "${node.type}"`
-                    );
-            }
-        }
-
-        node.fragment.nodes.forEach((child) => {
-            if (child.type === "SnippetBlock") {
-                if (!state.scope[0][child.expression.name]) {
-                    visit(child);
-                }
-
-                props[child.expression.name] =
-                    state.scope[0][child.expression.name];
-            }
-        });
-
-        if (node.fragment.nodes.length) {
-            props.children = (
-                /** @type {Element | Comment | Text} */ $$anchor,
-                /** @type {any} */ $$slotProps
-            ) => {
-                const fragment = getRoot(node.fragment);
-
-                visit(
-                    node.fragment,
-                    pushNewScope(state, $$slotProps, fragment)
-                );
-
-                $.append($$anchor, fragment);
-            };
-        }
-
-        $.component(
-            () => /** @type {_} */ (visit(node.expression))._,
-            // @ts-ignore
-            ($$component) => $$component(anchor, props)
-        );
-    },
 };
+
+/**
+ * @param {import("#ast").Component | import("#ast").ZvelteComponent} node
+ * @param {{ visit: Visit, state: State }} context
+ */
+function handleComponentProps(node, { visit, state }) {
+    const props = $.proxy({});
+
+    let bindThis;
+
+    for (const attr of node.attributes) {
+        switch (attr.type) {
+            case "Attribute": {
+                $.render_effect(() => {
+                    props[attr.name] = computeAttributeValue(
+                        attr,
+                        visit,
+                        state
+                    );
+                });
+                break;
+            }
+
+            case "TransitionDirective":
+            case "ClassDirective": {
+                throw new Error(`Cannot use "${attr.type}" on components`);
+            }
+
+            case "BindDirective": {
+                const ex = attr.expression;
+
+                if (attr.name === "this") {
+                    const _state = {
+                        ...state,
+                        scope: [state.els],
+                    };
+
+                    bindThis = {
+                        get: () => /** @type {_} */ (visit(ex, _state))._,
+                        set: (/** @type {any} */ $$value) =>
+                            setInScope($$value, ex, visit, _state),
+                    };
+                    break;
+                }
+
+                $.render_effect(() => {
+                    props[attr.name] = /** @type {_} */ (visit(ex))._;
+                });
+
+                $.render_effect(() => {
+                    setInScope(props[attr.name], ex, visit, state);
+                });
+                break;
+            }
+
+            case "SpreadAttribute": {
+                $.render_effect(() => {
+                    Object.assign(
+                        props,
+                        /** @type {_} */ (visit(attr.expression))._
+                    );
+                });
+                break;
+            }
+
+            case "OnDirective": {
+                const expression = attr.expression;
+                if (expression) {
+                    (props.$$events ??= {})[attr.name] = visit(expression);
+                } else {
+                    (props.$$events ??= {})[attr.name] = function (
+                        /** @type {any} */ $$args
+                    ) {
+                        $.bubble_event.call(
+                            this,
+                            // @ts-ignore
+                            ctx.scope.at(1),
+                            $$args
+                        );
+                    };
+                }
+
+                break;
+            }
+
+            default:
+                throw new Error(
+                    // @ts-expect-error
+                    `"${attr.type}" attribute not handled yet on components`
+                );
+        }
+    }
+
+    node.fragment.nodes.forEach((child) => {
+        if (child.type === "SnippetBlock") {
+            if (!state.scope[0][child.expression.name]) {
+                visit(child);
+            }
+
+            props[child.expression.name] =
+                state.scope[0][child.expression.name];
+        }
+    });
+
+    if (node.fragment.nodes.length) {
+        props.children = (
+            /** @type {Element | Comment | Text} */ $$anchor,
+            /** @type {any} */ $$slotProps
+        ) => {
+            const fragment = getRoot(node.fragment);
+
+            visit(node.fragment, pushNewScope(state, $$slotProps, fragment));
+
+            $.append($$anchor, fragment);
+        };
+    }
+
+    return {
+        props,
+        bindThis,
+    };
+}
 
 /**
  * @param {ZvelteNode} node

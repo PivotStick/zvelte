@@ -35,6 +35,7 @@ export type ComponentClientTransformState = {
     nonPropVars: string[];
     nonPropSources: string[];
     nonPropGetters: string[];
+    els: boolean;
     ignoreScope: boolean;
 };
 

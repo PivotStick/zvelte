@@ -7,7 +7,7 @@
  *  todo?: boolean;
  *  only?: boolean;
  *  fails?: boolean;
- *  test?: (args: { props: Record<keyof Props, any>; target: HTMLElement; raf: typeof import("../animation-helpers.js")["raf"] }) => Promise<void> | void;
+ *  test?: (args: { props: Props; target: HTMLElement; raf: typeof import("../animation-helpers.js")["raf"] }) => Promise<void> | void;
  *  before?: () => void;
  * }} object
  */
