@@ -71,7 +71,7 @@ export default {
 
                 if (id.endsWith(".js") && params.get("legacy") === "true") {
                     const ast = acorn.parse(code, {
-                        ecmaVersion: 2020,
+                        ecmaVersion: 2023,
                         sourceType: "module",
                     });
 
@@ -96,6 +96,7 @@ export default {
                 }
 
                 if (id.endsWith(".twig")) {
+                    let search = query ? "?" + query : "";
                     const hasJS = await access(id.replace(/\.twig$/, ".js"))
                         .then(() => true)
                         .catch(() => false);
@@ -123,9 +124,7 @@ export default {
                                 ).replace(root, "");
 
                                 imports.add(
-                                    `import "${node.key.data}${
-                                        query ? `?${query}` : ""
-                                    }";`
+                                    `import "${node.key.data}${search}";`
                                 );
                                 node.key.data = key;
                                 next();
@@ -140,7 +139,7 @@ export default {
                             imports.add(
                                 `import * as js from "./${basename(id).replace(
                                     ".twig",
-                                    ".js"
+                                    ".js" + search
                                 )}";`
                             );
                         }
@@ -159,10 +158,6 @@ export const mount = createComponent({
 export default mount.component;
 `;
 
-                        output += `\nexport const legacy = \`${output
-                            .replace(/`/g, "\\`")
-                            .replace(/\$\{/g, "\\${")}\`;`;
-
                         return output;
                     } else {
                         const result = compile(code, options);
@@ -172,10 +167,6 @@ export default mount.component;
                                 result.code
                             }`;
                         }
-
-                        result.code += `\nexport const legacy = \`${result.code
-                            .replace(/`/g, "\\`")
-                            .replace(/\$\{/g, "\\${")}\`;`;
 
                         return result;
                     }

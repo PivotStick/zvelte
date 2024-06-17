@@ -3,9 +3,7 @@ import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
 
 // @ts-expect-error
-import Foo, { legacy } from "./Foo.twig";
-
-console.log(legacy);
+import Foo from "./Foo.twig";
 
 export default defineTest({
     get props() {
