@@ -12,13 +12,13 @@ import {
     TRANSITION_IN,
     TRANSITION_OUT,
 } from "../../constants.js";
-import { Scope, setScope } from "./scope.js";
+import { setScope } from "./scope.js";
 import { AttributeAliases, DOMProperties, VoidElements } from "./constants.js";
-import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
 import { renderStylesheet } from "../css/index.js";
+import { buildLoadWrapper } from "./buildLoadWrapper.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -131,11 +131,6 @@ export function renderDom(ast, analysis, options, meta) {
             namespace: options.namespace,
             bound_contenteditable: false,
         },
-        events: new Set(),
-        preserve_whitespace: options.preserveWhitespace,
-        public_state: new Map(),
-        private_state: new Map(),
-        in_constructor: false,
     };
 
     if (analysis.css) {
@@ -168,8 +163,10 @@ export function renderDom(ast, analysis, options, meta) {
         )
     );
 
-    const componentBlock = b.block(
-        /** @type {import('estree').Statement[]} */ (template.body)
+    const component = b.function_declaration(
+        b.id(options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")),
+        [b.id("$$anchor"), b.id("$$props")],
+        b.block(/** @type {import('estree').Statement[]} */ (template.body))
     );
 
     if (options.hasJS) {
@@ -180,7 +177,13 @@ export function renderDom(ast, analysis, options, meta) {
             )
         );
 
-        componentBlock.body.unshift(
+        const initArgs = b.object([
+            b.prop("init", b.id("props"), b.id("$$props")),
+            b.prop("init", b.id("scope"), b.id("$$scope")),
+            b.prop("init", b.id("els"), b.id("$$els")),
+        ]);
+
+        component.body.body.unshift(
             b.stmt(
                 b.assignment(
                     "=",
@@ -197,14 +200,7 @@ export function renderDom(ast, analysis, options, meta) {
             b.const(
                 "$$methods",
                 b.logical(
-                    b.optionalCall(
-                        "js.default",
-                        b.object([
-                            b.prop("init", b.id("props"), b.id("$$props")),
-                            b.prop("init", b.id("scope"), b.id("$$scope")),
-                            b.prop("init", b.id("els"), b.id("$$els")),
-                        ])
-                    ),
+                    b.optionalCall("js.default", initArgs),
                     "??",
                     b.object([])
                 )
@@ -215,19 +211,20 @@ export function renderDom(ast, analysis, options, meta) {
             )
         );
 
-        componentBlock.body.push(b.return(b.call("$.pop", b.id("$$methods"))));
+        component.body.body.push(b.return(b.call("$.pop", b.id("$$methods"))));
+
+        if (options.async) {
+            component.params.push(b.id("$$refresh"));
+            initArgs.properties.push(
+                b.prop("init", b.id("refresh"), b.id("$$refresh"))
+            );
+        }
     }
 
     /**
      * @type {(import("estree").Statement | import("estree").ModuleDeclaration | import("estree").Directive)[]}
      */
     const body = [...state.hoisted];
-
-    const component = b.function_declaration(
-        b.id(options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")),
-        [b.id("$$anchor"), b.id("$$props")],
-        componentBlock
-    );
 
     let exportDefaultId;
 
@@ -251,107 +248,13 @@ export function renderDom(ast, analysis, options, meta) {
             );
         }
 
-        const load = b.function_declaration(
-            b.id("$$load"),
-            [b.id("$$anchor"), b.id("$$props")],
-            b.block([
-                b.var(b.id("fragment"), b.call("$.comment")),
-                b.var(b.id("node"), b.call("$.first_child", b.id("fragment"))),
-                b.stmt(
-                    b.call(
-                        "$.await",
-                        b.id("node"),
-                        b.thunk(
-                            b.call(
-                                b.member(
-                                    b.new(
-                                        "Promise",
-                                        b.arrow(
-                                            [b.id("res")],
-                                            b.call(
-                                                "setTimeout",
-                                                b.id("res"),
-                                                b.literal(2000)
-                                            )
-                                        )
-                                    ),
-                                    b.id("then")
-                                ),
-                                b.thunk(
-                                    b.call(
-                                        b.member(
-                                            b.call(
-                                                "fetch",
-                                                b.literal(
-                                                    options.async.endpoint
-                                                ),
-                                                b.object([
-                                                    b.prop(
-                                                        "init",
-                                                        b.id("headers"),
-                                                        b.object([
-                                                            b.prop(
-                                                                "init",
-                                                                b.id("accept"),
-                                                                b.literal(
-                                                                    "application/json"
-                                                                )
-                                                            ),
-                                                        ])
-                                                    ),
-                                                ])
-                                            ),
-                                            b.id("then")
-                                        ),
-                                        b.arrow(
-                                            [b.id("res")],
-                                            b.call("res.json")
-                                        )
-                                    )
-                                )
-                            )
-                        ),
-                        // await
-                        pendingId ?? b.literal(null),
-                        // then
-                        b.arrow(
-                            [b.id("$$anchor"), b.id("$$data")],
-                            b.block([
-                                b.var("fragment", b.call("$.comment")),
-                                b.var(
-                                    "node",
-                                    b.call("$.first_child", b.id("fragment"))
-                                ),
-                                b.stmt(
-                                    b.assignment(
-                                        "=",
-                                        b.id("$$props.data"),
-                                        b.id("$$data")
-                                    )
-                                ),
-                                b.stmt(
-                                    b.call(
-                                        component.id,
-                                        b.id("node"),
-                                        b.id("$$props")
-                                    )
-                                ),
-                                b.stmt(
-                                    b.call(
-                                        "$.append",
-                                        b.id("$$anchor"),
-                                        b.id("fragment")
-                                    )
-                                ),
-                            ])
-                        ),
-                        // catch
-                        errorId ?? b.literal(null)
-                    )
-                ),
-                b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
-            ])
-        );
+        const load = buildLoadWrapper({
+            componentId: component.id,
+            endpoint: options.async.endpoint,
+            pendingId,
+            errorId,
+            propId: b.id(options.async.propId ?? "data"),
+        });
 
         body.push(b.exportDefault(load));
         exportDefaultId = load.id;

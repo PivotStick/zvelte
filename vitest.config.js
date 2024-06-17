@@ -101,11 +101,23 @@ export default {
                         .then(() => true)
                         .catch(() => false);
 
+                    let overrides = {};
+
+                    if (params.has("options")) {
+                        const base64 = /** @type {string} */ (
+                            params.get("options")
+                        );
+                        const json = atob(base64);
+                        overrides = JSON.parse(json);
+                    }
+
+                    /** @type {import("./src/compiler/types").CompilerOptions} */
                     const options = {
                         hasJS,
                         namespace: dirname(id),
                         filename: basename(id),
                         generate: "dom",
+                        ...overrides,
                     };
 
                     const imports = new Set([]);
@@ -153,6 +165,7 @@ export const mount = createComponent({
     key: "${key}",
     init: ${hasJS ? "js.default" : "undefined"},
     initScope: ${hasJS ? "js.scope" : "undefined"},
+    options: ${JSON.stringify(options)}
 });
 
 export default mount.component;

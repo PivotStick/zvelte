@@ -1,23 +1,12 @@
 import type { Root } from "#ast";
+import type { CompilerOptions } from "../../types.js";
 
 export type Transformer = (
     ast: Root,
     analysis: ReturnType<
         typeof import("../2-analyze/index.js")["analyseComponent"]
     >,
-    options: {
-        dir: string;
-        namespace: string;
-        filename: string;
-        preserveWhitespace: boolean;
-        preserveComments: boolean;
-        async?: {
-            endpoint: string;
-            pendingComponent?: string;
-            errorComponent?: string;
-        };
-        hasJS: boolean;
-    },
+    options: CompilerOptions,
     meta: {}
 ) => {
     code: string;

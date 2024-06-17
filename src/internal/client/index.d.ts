@@ -1,4 +1,8 @@
-export { ComponentInitArgs as Args } from "./types.d.ts";
+export {
+    ComponentInitArgs as Args,
+    ComponentInitAsyncArgs as AsyncArgs,
+} from "./types.d.ts";
+
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";

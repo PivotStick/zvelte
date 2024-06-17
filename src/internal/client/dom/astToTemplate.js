@@ -76,7 +76,7 @@ const visitors = {
             node.nodes,
             path,
             undefined,
-            state.options.preserveWhitespaces,
+            state.options.preserveWhitespace,
             state.options.preserveComments
         );
 

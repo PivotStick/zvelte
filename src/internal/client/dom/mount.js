@@ -61,18 +61,21 @@ export function contextualizeComponent(callback, props) {
  *  initScope?: () => Record<string, any>;
  *  key?: any;
  *  init?: (args: import("../types.js").ComponentInitArgs<any>) => Methods
+ *  options?: Partial<import("../../../compiler/types.js").CompilerOptions>
  * }} args
  */
-export function createComponent({ init, ast, key, initScope }) {
-    /**
-     * @type {State["options"]}
-     */
-    const options = {
-        preserveWhitespaces: false,
-        preserveComments: true,
+export function createComponent({ init, ast, key, initScope, options = {} }) {
+    const conf = {
+        preserveWhitespace: (options.preserveWhitespace ??= false),
+        preserveComments: (options.preserveComments ??= true),
+        hasJS: (options.hasJS ??= false),
+        dir: (options.dir ??= ""),
+        filename: (options.filename ??= ""),
+        namespace: (options.namespace ??= ""),
+        async: options.async,
     };
 
-    addTemplatesToAST(ast, options);
+    addTemplatesToAST(ast, conf);
 
     /**
      * @type {Methods}
@@ -81,7 +84,8 @@ export function createComponent({ init, ast, key, initScope }) {
 
     const component = (
         /** @type {any} */ $$anchor,
-        /** @type {Record<string, any>} */ $$props
+        /** @type {Record<string, any>} */ $$props,
+        /** @type {import("../index.js").AsyncArgs<any>["refresh"]=} */ $$refresh
     ) => {
         if (init) $.push($$props, true);
 
@@ -96,15 +100,20 @@ export function createComponent({ init, ast, key, initScope }) {
             els: {},
             bindingGroups: {},
             currentNode: fragment,
-            options,
+            options: conf,
         };
 
         if (init) {
-            methods = init({
+            /** @type {any} */
+            const args = {
                 props: $$props,
                 els: state.els,
                 scope,
-            });
+            };
+
+            if ($$refresh) args.refresh = $$refresh;
+
+            methods = init(args);
         }
 
         walk(ast, state, visitors);
@@ -115,6 +124,53 @@ export function createComponent({ init, ast, key, initScope }) {
         if (init) return $.pop(methods);
     };
 
+    const _async = options.async
+        ? {
+              endpoint: options.async.endpoint,
+              propId: options.async.propId ?? "data",
+              pendingComponent: options.async.pendingComponent,
+              errorComponent: options.async.errorComponent,
+          }
+        : undefined;
+
+    const ref = _async
+        ? (
+              /** @type {any} */ $$anchor,
+              /** @type {Record<string, any>} */ $$props
+          ) => {
+              $$props = $.proxy($$props);
+
+              var fragment = $.comment();
+              // @ts-ignore
+              var node = $.first_child(fragment);
+              var promise = $.load(
+                  _async.endpoint,
+                  $$props[_async.propId],
+                  ($$data) => ($$props[_async.propId] = $$data)
+              );
+
+              $.await(
+                  // @ts-ignore
+                  node,
+                  promise.get,
+                  null,
+                  ($$anchor, $$data) => {
+                      var fragment = $.comment();
+                      // @ts-ignore
+                      var node = $.first_child(fragment);
+
+                      $$props[_async.propId] = $$data;
+                      component(node, $$props, promise.refresh);
+                      // @ts-ignore
+                      $.append($$anchor, fragment);
+                  },
+                  null
+              );
+
+              $.append($$anchor, fragment);
+          }
+        : component;
+
     /**
      * @param {{ target: HTMLElement; props: any; hydrate?: boolean; }} args
      */
@@ -122,7 +178,7 @@ export function createComponent({ init, ast, key, initScope }) {
         props = $.proxy(props);
 
         // @ts-ignore
-        const instance = (hydrate ? svelte.hydrate : svelte.mount)(component, {
+        const instance = (hydrate ? svelte.hydrate : svelte.mount)(ref, {
             target,
             props,
         });
@@ -137,10 +193,10 @@ export function createComponent({ init, ast, key, initScope }) {
     };
 
     if (key) {
-        registerComponent(key, component);
+        registerComponent(key, ref);
     }
 
-    mount.component = component;
+    mount.component = ref;
     return mount;
 }
 
@@ -244,7 +300,7 @@ const visitors = {
             node.nodes,
             /** @type {ZvelteNode[]} */ (path),
             undefined,
-            state.options.preserveWhitespaces,
+            state.options.preserveWhitespace,
             state.options.preserveComments
         );
 

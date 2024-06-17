@@ -19,11 +19,7 @@ const renderers = {
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
  *  dev?: boolean;
- *  async?: {
- *      endpoint: string;
- *      pendingComponent?: string;
- *      errorComponent?: string;
- *  }
+ *  async?: import("./types.js").CompilerOptions["async"]
  * }=} options
  * @param {{ js?: string }} [meta]
  */

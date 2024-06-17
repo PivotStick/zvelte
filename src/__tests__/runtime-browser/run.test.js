@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { proxy, tick } from "../../internal/client/index.js";
+import { proxy } from "../../internal/client/index.js";
 import { raf } from "../animation-helpers.js";
 import samples from "./all.samples.js";
 
 /**
  * @typedef {Array<{
  *  name: string;
- *  get(): Promise<{
+ *  get(options: any): Promise<{
  *      mount: any;
  *      default: any;
  *  }>;
@@ -27,7 +27,11 @@ async function toTests(samples) {
 
         tests.push({
             name,
-            get: () => import(main),
+            get: (options) => {
+                const search = new URLSearchParams(options ?? {});
+                const separator = main.endsWith("?legacy=true") ? "&" : "?";
+                return import(main + separator + search);
+            },
             config: module.default,
         });
     }
@@ -52,7 +56,13 @@ function run(tests) {
                 }
             }
 
-            const component = await get();
+            const payload = {};
+
+            if (config.compilerOptions) {
+                payload.options = btoa(JSON.stringify(config.compilerOptions));
+            }
+
+            const component = await get(payload);
             const props = proxy(config.props);
 
             component.mount({
@@ -69,6 +79,8 @@ function run(tests) {
                 target,
                 raf,
             });
+
+            config.after?.();
         };
 
         if (config.todo) test.todo(name, exec);

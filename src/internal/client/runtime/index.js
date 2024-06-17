@@ -1,3 +1,4 @@
+import * as $ from "svelte/internal/client";
 import { filters } from "./filters.js";
 
 export { mount, hydrate } from "svelte";
@@ -109,6 +110,54 @@ export function loop(index, array, parent) {
         },
         get parent() {
             return parent;
+        },
+    };
+}
+
+/**
+ * @param {string} endpoint
+ * @param {Record<string, any>} payload
+ * @param {(data: any) => void} setter
+ */
+export function load(endpoint, payload, setter) {
+    async function get() {
+        const search = new URLSearchParams(payload);
+        const response = await fetch(endpoint + "?" + search, {
+            headers: {
+                accept: "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            if (response.headers.get("content-type") === "application/json") {
+                throw new Error(await response.text());
+            }
+
+            throw new Error(response.statusText);
+        }
+
+        return response.json();
+    }
+
+    let promise = $.source(get());
+
+    return {
+        get() {
+            return $.get(promise);
+        },
+        /**
+         * @type {import("../types.js").ComponentInitAsyncArgs<any>["refresh"]}
+         */
+        async refresh(newPayload = payload, full = false) {
+            payload = newPayload;
+
+            if (!full) {
+                const data = await get();
+                setter(data);
+                return data;
+            }
+
+            return await $.set(promise, get());
         },
     };
 }

@@ -27,11 +27,6 @@ export type ComponentClientTransformState = {
         namespace: string;
         bound_contenteditable: boolean;
     };
-    events: Set<any>;
-    preserve_whitespace: boolean | undefined;
-    public_state: Map<any, any>;
-    private_state: Map<any, any>;
-    in_constructor: boolean;
     nonPropVars: string[];
     nonPropSources: string[];
     nonPropGetters: string[];
