@@ -69,29 +69,28 @@ export default {
 `.trim();
                 }
 
-                if (id.endsWith("/_config.js")) {
+                if (id.endsWith(".js") && params.get("legacy") === "true") {
                     const ast = acorn.parse(code, {
                         ecmaVersion: 2020,
                         sourceType: "module",
                     });
 
-                    if (params.get("legacy") === "true") {
-                        walk(
-                            /** @type {import("estree").Node} */ (ast),
-                            {},
-                            {
-                                ImportDeclaration(node) {
-                                    if (
-                                        typeof node.source.value === "string" &&
-                                        node.source.value.endsWith(".twig")
-                                    ) {
-                                        node.source.value += "?legacy=true";
-                                        node.source.raw = `"${node.source.value}"`;
-                                    }
-                                },
-                            }
-                        );
-                    }
+                    walk(
+                        /** @type {import("estree").Node} */ (ast),
+                        {},
+                        {
+                            ImportDeclaration(node) {
+                                if (
+                                    typeof node.source.value === "string" &&
+                                    (node.source.value.endsWith(".twig") ||
+                                        node.source.value.endsWith(".js"))
+                                ) {
+                                    node.source.value += "?legacy=true";
+                                    node.source.raw = `"${node.source.value}"`;
+                                }
+                            },
+                        }
+                    );
 
                     return print(ast);
                 }
