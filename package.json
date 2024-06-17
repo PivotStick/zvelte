@@ -41,7 +41,7 @@
         },
         "./reactivity": {
             "default": "./src/reactivity/index.js",
-            "types": "./src/reactivity/index.js"
+            "types": "./src/reactivity/index.d.js"
         },
         "./types": {
             "default": "./src/compiler/phases/1-parse/types.d.ts"
