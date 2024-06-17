@@ -11,6 +11,11 @@ export type Transformer = (
         filename: string;
         preserveWhitespace: boolean;
         preserveComments: boolean;
+        async?: {
+            endpoint: string;
+            pendingComponent?: string;
+            errorComponent?: string;
+        };
         hasJS: boolean;
     },
     meta: {}

@@ -150,6 +150,18 @@ export function importAll(as, source) {
 }
 
 /**
+ * @param {string} name
+ * @param {string} source
+ * @returns {import('estree').ImportDeclaration}
+ */
+export function importDefault(name, source) {
+    return import_builder(source, {
+        type: "ImportDefaultSpecifier",
+        local: id(name),
+    });
+}
+
+/**
  * @param {string} source
  * @param {import('estree').ImportDeclaration["specifiers"]} specifiers
  * @returns {import('estree').ImportDeclaration}
@@ -435,6 +447,19 @@ function return_builder(argument = null) {
     return { type: "ReturnStatement", argument };
 }
 
+/**
+ * @param {import('estree').NewExpression['callee'] | string} callee
+ * @param {...import('estree').NewExpression['arguments'][number]} args
+ * @returns {import('estree').NewExpression}
+ */
+function new_builder(callee, ...args) {
+    return {
+        type: "NewExpression",
+        callee: typeof callee === "string" ? id(callee) : callee,
+        arguments: args,
+    };
+}
+
 const true_instance = literal(true);
 const false_instance = literal(false);
 
@@ -453,4 +478,5 @@ export {
     return_builder as return,
     this_instance as this,
     import_builder as import,
+    new_builder as new,
 };

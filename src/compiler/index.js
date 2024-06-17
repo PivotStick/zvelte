@@ -19,6 +19,11 @@ const renderers = {
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
  *  dev?: boolean;
+ *  async?: {
+ *      endpoint: string;
+ *      pendingComponent?: string;
+ *      errorComponent?: string;
+ *  }
  * }=} options
  * @param {{ js?: string }} [meta]
  */
@@ -53,6 +58,7 @@ export function compile(source, options = {}, meta = {}) {
             namespace: options.namespace,
             filename: options.filename,
             hasJS: options.hasJS,
+            async: options.async,
             preserveWhitespace: false,
             preserveComments: true,
         },

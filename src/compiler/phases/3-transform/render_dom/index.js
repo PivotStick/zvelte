@@ -224,12 +224,141 @@ export function renderDom(ast, analysis, options, meta) {
     const body = [...state.hoisted];
 
     const component = b.function_declaration(
-        b.id(options.filename.replace(/\.[^\.]*$/, "")),
+        b.id(options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")),
         [b.id("$$anchor"), b.id("$$props")],
         componentBlock
     );
 
-    body.push(b.exportDefault(component));
+    let exportDefaultId;
+
+    if (options.async) {
+        body.push(component);
+
+        let pendingId;
+        let errorId;
+
+        if (options.async.pendingComponent) {
+            pendingId = b.id("__$$pending");
+            body.unshift(
+                b.importDefault(pendingId.name, options.async.pendingComponent)
+            );
+        }
+
+        if (options.async.errorComponent) {
+            errorId = b.id("__$$pending");
+            body.unshift(
+                b.importDefault(errorId.name, options.async.errorComponent)
+            );
+        }
+
+        const load = b.function_declaration(
+            b.id("$$load"),
+            [b.id("$$anchor"), b.id("$$props")],
+            b.block([
+                b.var(b.id("fragment"), b.call("$.comment")),
+                b.var(b.id("node"), b.call("$.first_child", b.id("fragment"))),
+                b.stmt(
+                    b.call(
+                        "$.await",
+                        b.id("node"),
+                        b.thunk(
+                            b.call(
+                                b.member(
+                                    b.new(
+                                        "Promise",
+                                        b.arrow(
+                                            [b.id("res")],
+                                            b.call(
+                                                "setTimeout",
+                                                b.id("res"),
+                                                b.literal(2000)
+                                            )
+                                        )
+                                    ),
+                                    b.id("then")
+                                ),
+                                b.thunk(
+                                    b.call(
+                                        b.member(
+                                            b.call(
+                                                "fetch",
+                                                b.literal(
+                                                    options.async.endpoint
+                                                ),
+                                                b.object([
+                                                    b.prop(
+                                                        "init",
+                                                        b.id("headers"),
+                                                        b.object([
+                                                            b.prop(
+                                                                "init",
+                                                                b.id("accept"),
+                                                                b.literal(
+                                                                    "application/json"
+                                                                )
+                                                            ),
+                                                        ])
+                                                    ),
+                                                ])
+                                            ),
+                                            b.id("then")
+                                        ),
+                                        b.arrow(
+                                            [b.id("res")],
+                                            b.call("res.json")
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        // await
+                        pendingId ?? b.literal(null),
+                        // then
+                        b.arrow(
+                            [b.id("$$anchor"), b.id("$$data")],
+                            b.block([
+                                b.var("fragment", b.call("$.comment")),
+                                b.var(
+                                    "node",
+                                    b.call("$.first_child", b.id("fragment"))
+                                ),
+                                b.stmt(
+                                    b.assignment(
+                                        "=",
+                                        b.id("$$props.data"),
+                                        b.id("$$data")
+                                    )
+                                ),
+                                b.stmt(
+                                    b.call(
+                                        component.id,
+                                        b.id("node"),
+                                        b.id("$$props")
+                                    )
+                                ),
+                                b.stmt(
+                                    b.call(
+                                        "$.append",
+                                        b.id("$$anchor"),
+                                        b.id("fragment")
+                                    )
+                                ),
+                            ])
+                        ),
+                        // catch
+                        errorId ?? b.literal(null)
+                    )
+                ),
+                b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
+            ])
+        );
+
+        body.push(b.exportDefault(load));
+        exportDefaultId = load.id;
+    } else {
+        body.push(b.exportDefault(component));
+        exportDefaultId = component.id;
+    }
 
     body.push(
         b.exportNamed(
@@ -237,7 +366,7 @@ export function renderDom(ast, analysis, options, meta) {
                 b.id("mount"),
                 [b.id("args")],
                 b.block([
-                    b.return(b.call("$.mount", component.id, b.id("args"))),
+                    b.return(b.call("$.mount", exportDefaultId, b.id("args"))),
                 ])
             )
         )
