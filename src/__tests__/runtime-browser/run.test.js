@@ -1,59 +1,42 @@
 import { describe, expect, test } from "vitest";
 import { proxy, tick } from "../../internal/client/index.js";
 import { raf } from "../animation-helpers.js";
-
-// @ts-ignore
-const modulePaths = await import.meta.glob("./samples/**/_config.js");
+import samples from "./all.samples.js";
 
 /**
- * @type {Array<{
+ * @typedef {Array<{
  *  name: string;
  *  get(): Promise<{
  *      mount: any;
  *      default: any;
  *  }>;
  *  config: ReturnType<typeof import("./defineTest.js")["defineTest"]>
- * }>}
+ * }>} Tests
  */
-const tests = [];
 
 /**
- * @type {typeof tests}
+ * @param {typeof samples[keyof typeof samples]} samples
  */
-const legacyTests = [];
+async function toTests(samples) {
+    /** @type {Tests} */
+    const tests = [];
 
-for (const path in modulePaths) {
-    /** @type {string} */
-    // @ts-ignore
-    const name = path.split("/").at(-2);
-    // @ts-ignore
-    const module = await modulePaths[path]();
+    for (const { _config, main } of samples) {
+        const name = _config.split("/").at(-2) ?? "";
+        const module = await import(_config);
 
-    /**
-     * @param {*} o
-     */
-    function payload(o) {
-        const params = new URLSearchParams(o);
-        return params.size ? "?" + params : "";
+        tests.push({
+            name,
+            get: () => import(main),
+            config: module.default,
+        });
     }
 
-    const main = path.replace(/[^/]+$/, "main.twig");
-
-    tests.push({
-        name,
-        get: () => import(main + payload({})),
-        config: module.default,
-    });
-
-    legacyTests.push({
-        name,
-        get: () => import(main + payload({ legacy: true })),
-        config: module.default,
-    });
+    return tests;
 }
 
 /**
- * @param {typeof tests} tests
+ * @param {Tests} tests
  */
 function run(tests) {
     for (const { name, config, get } of tests) {
@@ -95,5 +78,8 @@ function run(tests) {
     }
 }
 
-describe("runtime-legacy-browser", () => run(legacyTests));
-describe("runtime-browser", () => run(tests));
+const legacy = await toTests(samples.legacy);
+const modern = await toTests(samples.modern);
+
+describe("runtime-legacy-browser", () => run(legacy));
+describe("runtime-browser", () => run(modern));

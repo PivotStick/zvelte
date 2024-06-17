@@ -5,7 +5,6 @@ import { onMount } from "@pivotass/zvelte";
  */
 export default function init({ props, els }) {
     onMount(() => {
-        console.log(els.test);
         props.test = els.test;
     });
 }
