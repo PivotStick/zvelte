@@ -39,6 +39,10 @@
             "default": "./src/internal/client/transition/index.js",
             "types": "./src/internal/client/transition/index.d.js"
         },
+        "./reactivity": {
+            "default": "./src/reactivity/index.js",
+            "types": "./src/reactivity/index.js"
+        },
         "./types": {
             "default": "./src/compiler/phases/1-parse/types.d.ts"
         },
