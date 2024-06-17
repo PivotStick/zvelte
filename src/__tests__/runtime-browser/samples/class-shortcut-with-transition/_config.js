@@ -23,7 +23,7 @@ export default defineTest({
 
         raf.tick(150);
         expect(target.innerHTML).toEqual(
-            '<p class="zvelte-1yszte8">foo</p> <p class="zvelte-1yszte8 red border" style="overflow: hidden; opacity: 1; height: 2.3125px; padding-top: 0px; padding-bottom: 0px; margin-top: 2px; margin-bottom: 2px; border-top-width: 0.5px; border-bottom-width: 0.5px;" inert="">bar</p><!---->'
+            '<p class="zvelte-1yszte8">foo</p> <p class="zvelte-1yszte8 red border" style="overflow: hidden; opacity: 1; height: 2.25px; padding-top: 0px; padding-bottom: 0px; margin-top: 2px; margin-bottom: 2px; border-top-width: 0.5px; border-bottom-width: 0.5px;" inert="">bar</p><!---->'
         );
 
         props.open = true;
