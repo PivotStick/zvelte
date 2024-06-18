@@ -9,7 +9,6 @@ export default function init() {
          * @param {any} obj
          */
         set camelCase(obj) {
-            console.log("heyoooo");
             this._obj = obj;
             this.render();
         }
