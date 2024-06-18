@@ -445,6 +445,14 @@ const visitors = {
             path[path.length - 1]
         );
 
+        if (node.name.toLowerCase() === "autofocus") {
+            $.autofocus(
+                /** @type {HTMLElement} */ (state.currentNode),
+                computeAttributeValue(node, visit, state)
+            );
+            return;
+        }
+
         if (
             node.value !== true &&
             (node.value.length > 1 || node.value[0].type !== "Text")

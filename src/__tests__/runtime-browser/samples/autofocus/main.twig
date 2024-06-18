@@ -1,0 +1,11 @@
+{% if active == 'default' %}
+	<input title={{ active }} autofocus />
+{% elseif active == 'dynamic-false' %}
+	<input title={{ active }} autofocus={{ autofocusFalse }} />
+{% elseif active == 'dynamic-true' %}
+	<input title={{ active }} autofocus={{ autofocusTrue }} />
+{% elseif active == 'spread' %}
+	<input title={{ active }} {{ ...spread }} />
+{% elseif active == 'spread-override' %}
+	<input title={{ active }} {{ ...spread }} autofocus={{ false }} />
+{% endif %}

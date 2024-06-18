@@ -375,7 +375,9 @@ function createBlock(parent, name, nodes, context) {
         )
     );
 
-    state.after_update.push(b.call("$.append", b.id("$$anchor"), nodeId));
+    state.after_update.push(
+        b.stmt(b.call("$.append", b.id("$$anchor"), nodeId))
+    );
 
     body.push(...state.before_init);
     body.push(...state.init);
@@ -420,7 +422,7 @@ function processChildren(nodes, expression, { visit, state }) {
                 state,
             });
 
-            state.init.push(
+            state.update.push(
                 b.call(
                     "$.template_effect",
                     b.thunk(b.call("$.set_text", id, value))
@@ -446,7 +448,7 @@ function processChildren(nodes, expression, { visit, state }) {
 
                 const assign = b.assignment("=", name, value);
 
-                state.init.push(b.stmt(assign));
+                state.update.push(b.stmt(assign));
             }
 
             if (sequence.length > 0) {
@@ -534,6 +536,24 @@ const templateVisitors = {
                         break;
                     }
 
+                    if (attr.name.toLowerCase() === "autofocus") {
+                        const expression = serializeAttributeValue(
+                            attr.value,
+                            false,
+                            context
+                        );
+                        context.state.init.push(
+                            b.stmt(
+                                b.call(
+                                    "$.autofocus",
+                                    context.state.node,
+                                    expression
+                                )
+                            )
+                        );
+                        break;
+                    }
+
                     if (attr.value === true) {
                         context.state.template.push(` ${attr.name}`);
                     } else if (
@@ -587,7 +607,7 @@ const templateVisitors = {
                                 ? setter
                                 : b.call("$.template_effect", b.thunk(setter));
 
-                        context.state.init.push(statement);
+                        context.state.update.push(b.stmt(statement));
                     }
                     break;
                 }
@@ -613,7 +633,7 @@ const templateVisitors = {
                                 set
                             );
 
-                            context.state.init.push(call);
+                            context.state.update.push(b.stmt(call));
                             break;
                         }
                         case "this": {
@@ -643,7 +663,7 @@ const templateVisitors = {
                                 get
                             );
 
-                            context.state.init.push(call);
+                            context.state.update.push(b.stmt(call));
                             break;
                         }
 
@@ -655,7 +675,7 @@ const templateVisitors = {
                                 set
                             );
 
-                            context.state.init.push(call);
+                            context.state.update.push(b.stmt(call));
                             break;
                         }
 
@@ -677,7 +697,7 @@ const templateVisitors = {
                                 context.state.node
                             );
 
-                            context.state.init.push(b.stmt(removeDefaults));
+                            context.state.update.push(b.stmt(removeDefaults));
 
                             const valueAttr =
                                 /** @type {import("#ast").Attribute=} */ (
@@ -715,7 +735,7 @@ const templateVisitors = {
                                         expression
                                     )
                                 );
-                                context.state.init.push(b.stmt(init));
+                                context.state.update.push(b.stmt(init));
                             }
 
                             const call = b.call(
@@ -795,7 +815,7 @@ const templateVisitors = {
                         );
                     }
 
-                    context.state.init.push(call);
+                    context.state.update.push(b.stmt(call));
                     break;
                 }
 
@@ -844,7 +864,7 @@ const templateVisitors = {
                         call.arguments.push(b.thunk(expression));
                     }
 
-                    context.state.init.push(call);
+                    context.state.update.push(b.stmt(call));
                     break;
                 }
 
@@ -875,7 +895,7 @@ const templateVisitors = {
                         );
                     }
 
-                    context.state.init.push(b.stmt(call));
+                    context.state.update.push(b.stmt(call));
                     break;
                 }
             }
@@ -956,7 +976,7 @@ const templateVisitors = {
                 )
             );
 
-            context.state.init.push(effect);
+            context.state.update.push(b.stmt(effect));
         }
 
         if (classAttributes.length) {
@@ -1026,9 +1046,9 @@ const templateVisitors = {
                             : b.block(statements)
                     )
                 );
-                context.state.init.push(call);
+                context.state.update.push(call);
             } else {
-                context.state.init.push(...statements);
+                context.state.update.push(...statements);
             }
         }
 
@@ -1112,7 +1132,7 @@ const templateVisitors = {
         }
 
         state.template.push("<!>");
-        state.init.push(b.stmt(call));
+        state.update.push(b.stmt(call));
     },
 
     TransitionDirective(node, { state, visit }) {
@@ -1140,7 +1160,7 @@ const templateVisitors = {
             );
         }
 
-        state.init.push(b.stmt(b.call("$.transition", ...args)));
+        state.update.push(b.stmt(b.call("$.transition", ...args)));
     },
 
     // @ts-ignore
@@ -1539,7 +1559,7 @@ const templateVisitors = {
             );
         }
 
-        state.init.push(statement);
+        state.update.push(statement);
     },
 
     ZvelteComponent(node, context) {
@@ -1623,16 +1643,16 @@ const templateVisitors = {
 
         if (privateScope.length) {
             privateScope.push(b.stmt(call));
-            context.state.init.push(b.block(privateScope));
+            context.state.update.push(b.block(privateScope));
         } else {
-            context.state.init.push(b.stmt(call));
+            context.state.update.push(b.stmt(call));
         }
     },
 
     HtmlTag(node, { state, visit }) {
         state.template.push("<!>");
 
-        state.init.push(
+        state.update.push(
             b.call(
                 "$.html",
                 state.node,
@@ -1661,25 +1681,22 @@ const templateVisitors = {
                 /** @type {import("estree").Expression} */ (
                     visit(node.consequent)
                 )
-            )
+            ),
+            node.alternate
+                ? b.arrow(
+                      [b.id("$$anchor")],
+                      /** @type {import("estree").Expression} */ (
+                          visit(node.alternate)
+                      )
+                  )
+                : b.literal(null)
         );
-
-        if (node.alternate) {
-            call.arguments.push(
-                b.arrow(
-                    [b.id("$$anchor")],
-                    /** @type {import("estree").Expression} */ (
-                        visit(node.alternate)
-                    )
-                )
-            );
-        }
 
         if (node.elseif) {
             call.arguments.push(b.true);
         }
 
-        state.init.push(call);
+        state.update.push(b.stmt(call));
     },
 
     ForBlock(node, { state, visit, path }) {
@@ -1774,7 +1791,7 @@ const templateVisitors = {
             )
         );
 
-        state.init.push(call);
+        state.update.push(call);
     },
 
     KeyBlock(node, { visit, state }) {
@@ -1795,7 +1812,7 @@ const templateVisitors = {
         );
 
         state.template.push("<!>");
-        state.init.push(call);
+        state.update.push(call);
     },
 };
 

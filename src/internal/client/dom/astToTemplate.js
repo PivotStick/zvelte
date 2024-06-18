@@ -125,7 +125,9 @@ const visitors = {
         }
     },
 
-    Attribute(node, { visit, state }) {
+    Attribute(node, { state }) {
+        if (node.name.toLowerCase() === "autofocus") return;
+
         if (node.value === true) {
             state.template.src += ` ${node.name}`;
             return;
