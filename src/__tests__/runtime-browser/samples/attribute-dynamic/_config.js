@@ -11,8 +11,6 @@ export default defineTest({
 
     html: '<div style="color: red;">red</div>',
 
-    todo: true,
-
     async test({ props, target }) {
         const div = target.querySelector("div");
         ok(div);
