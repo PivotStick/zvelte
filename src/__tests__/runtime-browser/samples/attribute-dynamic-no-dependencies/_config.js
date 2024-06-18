@@ -1,5 +1,5 @@
 import { defineTest } from "../../defineTest.js";
 
 export default defineTest({
-    todo: true,
+    html: '<div><div title="foo">bar</div></div>',
 });
