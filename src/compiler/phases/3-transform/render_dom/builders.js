@@ -122,6 +122,16 @@ export function thunk(expression, async = false) {
 }
 
 /**
+ * @param {import('estree').Expression} test
+ * @param {import('estree').Expression} consequent
+ * @param {import('estree').Expression} alternate
+ * @returns {import('estree').ConditionalExpression}
+ */
+export function conditional(test, consequent, alternate) {
+    return { type: "ConditionalExpression", test, consequent, alternate };
+}
+
+/**
  * @param {import('estree').TemplateElement[]} elements
  * @param {import('estree').Expression[]} expressions
  * @returns {import('estree').TemplateLiteral}

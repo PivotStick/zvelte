@@ -4,6 +4,7 @@ interface BaseNode {
     type: string;
     start: number;
     end: number;
+    metadata?: any;
 }
 
 export type TemplateNode =
@@ -32,10 +33,7 @@ export type Expression =
     | UnaryExpression
     | BinaryExpression
     | LogicalExpression
-    | StringLiteral
-    | BooleanLiteral
-    | NullLiteral
-    | NumericLiteral
+    | Literal
     | ObjectExpression
     | ArrayExpression
     | MemberExpression
@@ -266,6 +264,12 @@ export interface StringLiteral extends BaseNode {
     value: string;
     raw: string;
 }
+
+export type Literal =
+    | NullLiteral
+    | BooleanLiteral
+    | StringLiteral
+    | NumericLiteral;
 
 export interface LogicalExpression extends BaseNode {
     type: "LogicalExpression";

@@ -163,6 +163,10 @@ export function renderDom(ast, analysis, options, meta) {
         )
     );
 
+    template.body.unshift(
+        ...[...analysis.bindingGroups].map(([, id]) => b.const(id, b.array([])))
+    );
+
     const component = b.function_declaration(
         b.id(options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")),
         [b.id("$$anchor"), b.id("$$props")],
@@ -342,7 +346,6 @@ function createBlock(parent, name, nodes, context) {
     const nodeId = (context.state.node = b.id("fragment"));
 
     state.before_init.push(b.const(nodeId, b.call(templateName)));
-    state.after_update.push(b.call("$.append", b.id("$$anchor"), nodeId));
 
     for (const node of hoisted) {
         context.visit(node, state);
@@ -371,6 +374,8 @@ function createBlock(parent, name, nodes, context) {
             )
         )
     );
+
+    state.after_update.push(b.call("$.append", b.id("$$anchor"), nodeId));
 
     body.push(...state.before_init);
     body.push(...state.init);
@@ -501,6 +506,9 @@ const templateVisitors = {
         const hasSpread = node.attributes.some(
             (a) => a.type === "SpreadAttribute"
         );
+        const hasBindGroup = node.attributes.some(
+            (a) => a.type === "BindDirective" && a.name === "group"
+        );
 
         /** @type {(import("#ast").ClassDirective | import("#ast").Attribute)[]} */
         const classAttributes = [];
@@ -514,6 +522,10 @@ const templateVisitors = {
                 case "Attribute": {
                     if (hasSpread) {
                         spreadAttributes.push(attr);
+                        break;
+                    }
+
+                    if (hasBindGroup && attr.name === "value") {
                         break;
                     }
 
@@ -644,6 +656,78 @@ const templateVisitors = {
                             );
 
                             context.state.init.push(call);
+                            break;
+                        }
+
+                        case "group": {
+                            /** @type {import('estree').CallExpression[]} */
+                            const indexes = [];
+                            for (const parent_each_block of attr.metadata
+                                .parent_each_blocks) {
+                                indexes.push(
+                                    b.call(
+                                        "$.unwrap",
+                                        parent_each_block.metadata.index
+                                    )
+                                );
+                            }
+
+                            const removeDefaults = b.call(
+                                "$.remove_input_attr_defaults",
+                                context.state.node
+                            );
+
+                            context.state.init.push(b.stmt(removeDefaults));
+
+                            const valueAttr =
+                                /** @type {import("#ast").Attribute=} */ (
+                                    node.attributes.find(
+                                        (a) =>
+                                            a.type === "Attribute" &&
+                                            a.name === "value"
+                                    )
+                                );
+
+                            if (valueAttr) {
+                                const expression = serializeAttributeValue(
+                                    valueAttr.value,
+                                    false,
+                                    context
+                                );
+
+                                const init = b.assignment(
+                                    "=",
+                                    b.member(context.state.node, b.id("value")),
+                                    b.conditional(
+                                        b.binary(
+                                            b.literal(null),
+                                            "==",
+                                            b.assignment(
+                                                "=",
+                                                b.member(
+                                                    context.state.node,
+                                                    b.id("__value")
+                                                ),
+                                                expression
+                                            )
+                                        ),
+                                        b.literal(""),
+                                        expression
+                                    )
+                                );
+                                context.state.init.push(b.stmt(init));
+                            }
+
+                            const call = b.call(
+                                "$.bind_group",
+                                attr.metadata.binding_group_name,
+                                b.array(indexes),
+                                context.state.node,
+                                get,
+                                set
+                            );
+
+                            context.state.after_update.push(b.stmt(call));
                             break;
                         }
 
