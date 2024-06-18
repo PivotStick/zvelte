@@ -1,10 +1,4 @@
-import MagicString from "magic-string";
 import { walk } from "zimmerframe";
-import {
-    is_keyframes_node,
-    regex_css_name_boundary,
-    remove_css_prefix,
-} from "../../css.js";
 import { analyseComponent } from "../../2-analyze/index.js";
 import { generate } from "css-tree";
 
@@ -54,7 +48,7 @@ export function renderStylesheet(source, analysis, options) {
                 )
                     return;
 
-                let classAttr = node.attributes.find(
+                let classAttr = node.attributes.findLast(
                     (attr) => attr.type === "Attribute" && attr.name === "class"
                 );
                 if (classAttr?.type !== "Attribute") {
@@ -69,7 +63,7 @@ export function renderStylesheet(source, analysis, options) {
                 }
 
                 if (classAttr.value !== true) {
-                    let text = classAttr.value[0];
+                    let text = classAttr.value.at(-1);
 
                     if (text?.type !== "Text") {
                         text = {
@@ -79,11 +73,11 @@ export function renderStylesheet(source, analysis, options) {
                             data: state.hash,
                         };
                         if (classAttr.value.length > 0) {
-                            text.data += " ";
+                            text.data = " " + text.data;
                         }
-                        classAttr.value.unshift(text);
+                        classAttr.value.push(text);
                     } else {
-                        text.data = `${state.hash} ${text.data}`;
+                        text.data = `${text.data} ${state.hash}`;
                     }
                 }
 

@@ -63,7 +63,7 @@ function run(tests) {
             }
 
             const component = await get(payload);
-            const props = proxy(config.props);
+            const props = proxy(config.props ?? {});
 
             const ref = component.mount({
                 target,

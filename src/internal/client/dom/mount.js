@@ -1311,9 +1311,10 @@ function computeAttributeValue(attr, visit, ctx) {
     if (attr.value === true) value = true;
     else
         attr.value.forEach((n) => {
-            const r = /** @type {_} */ (
-                visit(n.type === "Text" ? n : n.expression, ctx)
-            )._;
+            const r =
+                /** @type {_} */ (
+                    visit(n.type === "Text" ? n : n.expression, ctx)
+                )._ ?? "";
 
             if (value === UNINITIALIZED) {
                 value = r;
