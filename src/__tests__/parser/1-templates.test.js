@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { TemplateRootOf } from "./common.js";
-import { parse } from "../index.js";
+import { parse } from "../../compiler/phases/1-parse/index.js";
 
 describe("Parser: will test template nodes", () => {
     test("Comment", () => {

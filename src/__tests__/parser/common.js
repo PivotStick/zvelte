@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { parse } from "../index.js";
+import { parse } from "../../compiler/phases/1-parse/index.js";
 
 /**
  * It creates a Root node without js nor css
