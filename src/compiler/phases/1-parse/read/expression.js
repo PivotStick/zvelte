@@ -713,7 +713,7 @@ export function parseStringLiteral(parser) {
     const start = parser.index;
     let raw;
 
-    if ((raw = parser.read(/^("[^"]*"|'[^']*')/))) {
+    if ((raw = parser.read(/^("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/))) {
         const end = parser.index;
 
         return /** @type {import("../types.js").StringLiteral} */ ({
