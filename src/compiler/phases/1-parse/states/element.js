@@ -553,62 +553,69 @@ function attrNameToDirective(attrName) {
 const readAttributeValue = (parser) => {
     const quoteMark = parser.eat("'") ? "'" : parser.eat('"') ? '"' : null;
 
-    if (!quoteMark) {
-        const start = parser.index;
-        parser.eat(
-            "{{",
-            true,
-            "An expression tag is expected if no quotes are present for the value of an attribute"
-        );
-        parser.allowWhitespace();
-        const expression = parseExpression(parser);
-        parser.allowWhitespace();
-        parser.eat("}}", true);
-
-        return [
-            {
-                type: "ExpressionTag",
-                expression,
-                start,
-                end: parser.index,
-            },
-        ];
-    }
-
     /**
      * @type {import("../types.d.ts").Attribute["value"]}
      */
     const values = [];
 
-    while (!parser.match(quoteMark)) {
+    if (quoteMark) {
+        while (!parser.match(quoteMark)) {
+            if (parser.eat("{{")) {
+                const start = parser.index - 2;
+                parser.allowWhitespace();
+                const expression = parseExpression(parser);
+                parser.allowWhitespace();
+                parser.eat("}}", true);
+                values.push({
+                    type: "ExpressionTag",
+                    expression,
+                    start,
+                    end: parser.index,
+                });
+            } else {
+                let text = values.at(-1);
+
+                if (text?.type !== "Text") {
+                    text = {
+                        start: parser.index,
+                        end: parser.index,
+                        type: "Text",
+                        data: "",
+                    };
+                    values.push(text);
+                }
+
+                text.data += parser.template[parser.index++];
+                text.end = parser.index;
+            }
+        }
+    } else {
         if (parser.eat("{{")) {
             const start = parser.index - 2;
             parser.allowWhitespace();
             const expression = parseExpression(parser);
             parser.allowWhitespace();
             parser.eat("}}", true);
-            values.push({
-                type: "ExpressionTag",
-                expression,
-                start,
-                end: parser.index,
-            });
-        } else {
-            let text = values.at(-1);
 
-            if (text?.type !== "Text") {
-                text = {
-                    start: parser.index,
+            return [
+                {
+                    type: "ExpressionTag",
+                    expression,
+                    start,
                     end: parser.index,
-                    type: "Text",
-                    data: "",
-                };
-                values.push(text);
-            }
-
-            text.data += parser.template[parser.index++];
-            text.end = parser.index;
+                },
+            ];
         }
+
+        const start = parser.index;
+        const data = parser.readUntil(/[\s\<\{\>]/);
+        const end = parser.index;
+        values.push({
+            type: "Text",
+            start,
+            end,
+            data,
+        });
     }
 
     if (!values.length) {
@@ -620,7 +627,9 @@ const readAttributeValue = (parser) => {
         });
     }
 
-    parser.eat(quoteMark, true);
+    if (quoteMark) {
+        parser.eat(quoteMark, true);
+    }
 
     return values;
 };
