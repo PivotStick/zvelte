@@ -65,7 +65,7 @@ function run(tests) {
             const component = await get(payload);
             const props = proxy(config.props);
 
-            component.mount({
+            const ref = component.mount({
                 target,
                 props,
             });
@@ -80,6 +80,7 @@ function run(tests) {
                 raf,
             });
 
+            ref?.destroy?.();
             config.after?.();
         };
 

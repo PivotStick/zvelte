@@ -254,7 +254,11 @@ export const element = (parser) => {
         if (
             (attr = element.attributes.find(
                 (attr) =>
+                    // @ts-expect-error
                     attr.type === "ClassDirective" ||
+                    // @ts-expect-error
+                    attr.type === "UseDirective" ||
+                    // @ts-expect-error
                     attr.type === "TransitionDirective"
             ))
         ) {
@@ -500,6 +504,16 @@ const readAttribute = (parser, uniqueNames) => {
                     name: directive.name,
                     modifiers: directive.modifiers,
                     expression: expression ?? fallback,
+                    start,
+                    end,
+                };
+            }
+            case "use": {
+                return {
+                    type: "UseDirective",
+                    name: directive.name,
+                    modifiers: directive.modifiers,
+                    expression,
                     start,
                     end,
                 };

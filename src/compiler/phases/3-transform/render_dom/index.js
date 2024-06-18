@@ -755,6 +755,37 @@ const templateVisitors = {
                     context.state.init.push(call);
                     break;
                 }
+
+                case "UseDirective": {
+                    const id = /** @type {import('estree').Expression} */ (
+                        context.visit({
+                            type: "Identifier",
+                            name: attr.name,
+                            start: attr.start + 3,
+                            end: attr.start + 3 + attr.name.length,
+                        })
+                    );
+
+                    const callAction = b.call(id, b.id("$$node"));
+                    const caller = b.arrow([b.id("$$node")], callAction);
+                    const call = b.call("$.action", context.state.node, caller);
+
+                    if (attr.expression) {
+                        const arg = b.id("$$action_arg");
+                        caller.params.push(arg);
+                        callAction.arguments.push(arg);
+                        call.arguments.push(
+                            b.thunk(
+                                /** @type {import('estree').Expression} */ (
+                                    context.visit(attr.expression)
+                                )
+                            )
+                        );
+                    }
+
+                    context.state.init.push(b.stmt(call));
+                    break;
+                }
             }
         }
 

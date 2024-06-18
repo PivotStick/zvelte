@@ -638,6 +638,28 @@ const visitors = {
         }
     },
 
+    UseDirective(node, { visit, state }) {
+        const element = /** @type {HTMLElement} */ (state.currentNode);
+        const ex = node.expression;
+
+        $.action(
+            element,
+            ($$node, $$action_arg) => {
+                const $$callback = /** @type {_} */ (
+                    visit({
+                        type: "Identifier",
+                        name: node.name,
+                        start: node.start + 3,
+                        end: node.start + 3 + node.name.length,
+                    })
+                )._;
+
+                $$callback?.($$node, $$action_arg);
+            },
+            ex ? () => /** @type {_} */ (visit(ex))._ : undefined
+        );
+    },
+
     CallExpression(node, { visit }) {
         const fn = /** @type {_} */ (visit(node.callee))._;
         const args = node.arguments.map(

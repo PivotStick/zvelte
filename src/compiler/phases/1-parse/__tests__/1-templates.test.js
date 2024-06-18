@@ -490,237 +490,285 @@ describe("Parser: will test template nodes", () => {
             });
         });
 
-        test("on directive", () => {
-            AttributeOf(`<div on:click="{{ handler }}" />`, [
-                {
-                    type: "OnDirective",
-                    name: "click",
-                    modifiers: [],
-                    expression: {
-                        type: "Identifier",
-                        name: "handler",
-                        start: 18,
-                        end: 25,
-                    },
-                    start: 5,
-                    end: 29,
-                },
-            ]);
-        });
-
-        test("on directive with modifiers", () => {
-            AttributeOf(
-                `<div on:click|preventDefault|once="{{ handler }}" />`,
-                [
+        describe("OnDirective", () => {
+            test("on directive", () => {
+                AttributeOf(`<div on:click="{{ handler }}" />`, [
                     {
                         type: "OnDirective",
                         name: "click",
-                        modifiers: ["preventDefault", "once"],
+                        modifiers: [],
                         expression: {
                             type: "Identifier",
                             name: "handler",
-                            start: 38,
-                            end: 45,
+                            start: 18,
+                            end: 25,
                         },
                         start: 5,
-                        end: 49,
+                        end: 29,
                     },
-                ]
-            );
-        });
+                ]);
+            });
 
-        test("on directive with arrow function", () => {
-            AttributeOf(`<div on:click="{{ (e) => foo("bar", e) }}" />`, [
-                {
-                    type: "OnDirective",
-                    name: "click",
-                    modifiers: [],
-                    expression: {
-                        type: "ArrowFunctionExpression",
-                        start: 18,
-                        end: 38,
-                        expression: true,
-                        params: [
-                            {
+            test("on directive with modifiers", () => {
+                AttributeOf(
+                    `<div on:click|preventDefault|once="{{ handler }}" />`,
+                    [
+                        {
+                            type: "OnDirective",
+                            name: "click",
+                            modifiers: ["preventDefault", "once"],
+                            expression: {
                                 type: "Identifier",
-                                name: "e",
-                                start: 19,
-                                end: 20,
+                                name: "handler",
+                                start: 38,
+                                end: 45,
                             },
-                        ],
-                        body: {
-                            type: "FilterExpression",
-                            name: {
-                                type: "Identifier",
-                                name: "foo",
-                                start: 25,
-                                end: 28,
-                            },
-                            arguments: [
-                                {
-                                    type: "StringLiteral",
-                                    value: "bar",
-                                    raw: '"bar"',
-                                    start: 29,
-                                    end: 34,
-                                },
+                            start: 5,
+                            end: 49,
+                        },
+                    ]
+                );
+            });
+
+            test("on directive with arrow function", () => {
+                AttributeOf(`<div on:click="{{ (e) => foo("bar", e) }}" />`, [
+                    {
+                        type: "OnDirective",
+                        name: "click",
+                        modifiers: [],
+                        expression: {
+                            type: "ArrowFunctionExpression",
+                            start: 18,
+                            end: 38,
+                            expression: true,
+                            params: [
                                 {
                                     type: "Identifier",
                                     name: "e",
-                                    start: 36,
-                                    end: 37,
+                                    start: 19,
+                                    end: 20,
                                 },
                             ],
-                            start: 25,
-                            end: 38,
+                            body: {
+                                type: "FilterExpression",
+                                name: {
+                                    type: "Identifier",
+                                    name: "foo",
+                                    start: 25,
+                                    end: 28,
+                                },
+                                arguments: [
+                                    {
+                                        type: "StringLiteral",
+                                        value: "bar",
+                                        raw: '"bar"',
+                                        start: 29,
+                                        end: 34,
+                                    },
+                                    {
+                                        type: "Identifier",
+                                        name: "e",
+                                        start: 36,
+                                        end: 37,
+                                    },
+                                ],
+                                start: 25,
+                                end: 38,
+                            },
+                        },
+                        start: 5,
+                        end: 42,
+                    },
+                ]);
+            });
+        });
+
+        describe("ClassDirective", () => {
+            test("class directive", () => {
+                AttributeOf(`<div class:foo={{ expression }} />`, [
+                    {
+                        type: "ClassDirective",
+                        name: "foo",
+                        modifiers: [],
+                        start: 5,
+                        end: 31,
+                        expression: {
+                            type: "Identifier",
+                            name: "expression",
+                            start: 18,
+                            end: 28,
                         },
                     },
-                    start: 5,
-                    end: 42,
-                },
-            ]);
-        });
+                ]);
+            });
 
-        test("class directive", () => {
-            AttributeOf(`<div class:foo={{ expression }} />`, [
-                {
-                    type: "ClassDirective",
-                    name: "foo",
-                    modifiers: [],
-                    start: 5,
-                    end: 31,
-                    expression: {
-                        type: "Identifier",
-                        name: "expression",
-                        start: 18,
-                        end: 28,
-                    },
-                },
-            ]);
-        });
-
-        test("class directive short form", () => {
-            AttributeOf(`<div class:foo />`, [
-                {
-                    type: "ClassDirective",
-                    name: "foo",
-                    modifiers: [],
-                    start: 5,
-                    end: 14,
-                    expression: {
-                        type: "Identifier",
+            test("class directive short form", () => {
+                AttributeOf(`<div class:foo />`, [
+                    {
+                        type: "ClassDirective",
                         name: "foo",
-                        start: 11,
+                        modifiers: [],
+                        start: 5,
                         end: 14,
+                        expression: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 11,
+                            end: 14,
+                        },
                     },
-                },
-            ]);
+                ]);
+            });
         });
 
-        test("transition directive", () => {
-            AttributeOf(`<div transition:slide />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 21,
-                    modifiers: [],
-                    intro: true,
-                    outro: true,
-                    name: "slide",
-                    expression: null,
-                },
-            ]);
-        });
-
-        test("transition directive with param", () => {
-            AttributeOf(`<div transition:slide={{ "param" }} />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 35,
-                    modifiers: [],
-                    intro: true,
-                    outro: true,
-                    name: "slide",
-                    expression: {
-                        type: "StringLiteral",
-                        raw: '"param"',
-                        value: "param",
-                        start: 25,
-                        end: 32,
+        describe("TransitionDirective", () => {
+            test("transition directive", () => {
+                AttributeOf(`<div transition:slide />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 21,
+                        modifiers: [],
+                        intro: true,
+                        outro: true,
+                        name: "slide",
+                        expression: null,
                     },
-                },
-            ]);
-        });
+                ]);
+            });
 
-        test("transition in directive", () => {
-            AttributeOf(`<div in:slide />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 13,
-                    modifiers: [],
-                    intro: true,
-                    outro: false,
-                    name: "slide",
-                    expression: null,
-                },
-            ]);
-        });
-
-        test("transition in directive with param", () => {
-            AttributeOf(`<div in:slide={{ params }} />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 26,
-                    modifiers: [],
-                    intro: true,
-                    outro: false,
-                    name: "slide",
-                    expression: {
-                        type: "Identifier",
-                        name: "params",
-                        start: 17,
-                        end: 23,
+            test("transition directive with param", () => {
+                AttributeOf(`<div transition:slide={{ "param" }} />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 35,
+                        modifiers: [],
+                        intro: true,
+                        outro: true,
+                        name: "slide",
+                        expression: {
+                            type: "StringLiteral",
+                            raw: '"param"',
+                            value: "param",
+                            start: 25,
+                            end: 32,
+                        },
                     },
-                },
-            ]);
-        });
+                ]);
+            });
 
-        test("transition out directive", () => {
-            AttributeOf(`<div out:slide />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 14,
-                    modifiers: [],
-                    intro: false,
-                    outro: true,
-                    name: "slide",
-                    expression: null,
-                },
-            ]);
-        });
-
-        test("transition out directive with param", () => {
-            AttributeOf(`<div out:slide={{ params }} />`, [
-                {
-                    type: "TransitionDirective",
-                    start: 5,
-                    end: 27,
-                    modifiers: [],
-                    intro: false,
-                    outro: true,
-                    name: "slide",
-                    expression: {
-                        type: "Identifier",
-                        name: "params",
-                        start: 18,
-                        end: 24,
+            test("transition in directive", () => {
+                AttributeOf(`<div in:slide />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 13,
+                        modifiers: [],
+                        intro: true,
+                        outro: false,
+                        name: "slide",
+                        expression: null,
                     },
-                },
-            ]);
+                ]);
+            });
+
+            test("transition in directive with param", () => {
+                AttributeOf(`<div in:slide={{ params }} />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 26,
+                        modifiers: [],
+                        intro: true,
+                        outro: false,
+                        name: "slide",
+                        expression: {
+                            type: "Identifier",
+                            name: "params",
+                            start: 17,
+                            end: 23,
+                        },
+                    },
+                ]);
+            });
+
+            test("transition out directive", () => {
+                AttributeOf(`<div out:slide />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 14,
+                        modifiers: [],
+                        intro: false,
+                        outro: true,
+                        name: "slide",
+                        expression: null,
+                    },
+                ]);
+            });
+
+            test("transition out directive with param", () => {
+                AttributeOf(`<div out:slide={{ params }} />`, [
+                    {
+                        type: "TransitionDirective",
+                        start: 5,
+                        end: 27,
+                        modifiers: [],
+                        intro: false,
+                        outro: true,
+                        name: "slide",
+                        expression: {
+                            type: "Identifier",
+                            name: "params",
+                            start: 18,
+                            end: 24,
+                        },
+                    },
+                ]);
+            });
+        });
+
+        describe("UseDirective", () => {
+            test("short", () => {
+                AttributeOf(`<div use:action />`, [
+                    {
+                        type: "UseDirective",
+                        start: 5,
+                        end: 15,
+                        modifiers: [],
+                        name: "action",
+                        expression: null,
+                    },
+                ]);
+            });
+
+            test("with args", () => {
+                AttributeOf(`<div use:action={{ "some values" }} />`, [
+                    {
+                        type: "UseDirective",
+                        start: 5,
+                        end: 35,
+                        modifiers: [],
+                        name: "action",
+                        expression: {
+                            type: "StringLiteral",
+                            raw: '"some values"',
+                            value: "some values",
+                            start: 19,
+                            end: 32,
+                        },
+                    },
+                ]);
+            });
+
+            test.fails("should not work on components", () => {
+                parse(`<zvelte key="foo" use:action />`);
+            });
+
+            test.fails("should not work on zvelte:components", () => {
+                parse(`<zvelte:component this="{{ foo }}" use:action />`);
+            });
         });
 
         test("value with empty text", () => {

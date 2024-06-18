@@ -20,6 +20,7 @@ export type Directive =
     | BindDirective
     | OnDirective
     | TransitionDirective
+    | UseDirective
     | ClassDirective;
 export type ElementLike = RegularElement | Component | ZvelteComponent;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
@@ -71,6 +72,15 @@ export interface OnDirective extends BaseNode {
     modifiers: string[];
 }
 
+export interface UseDirective extends BaseNode {
+    type: "UseDirective";
+    /** The 'x' in `on:x` */
+    name: string;
+    /** The 'y' in `on:x={y}` */
+    expression: null | Expression;
+    modifiers: string[];
+}
+
 /** A `bind:` directive */
 export interface BindDirective extends BaseNode {
     type: "BindDirective";
@@ -83,7 +93,9 @@ export interface BindDirective extends BaseNode {
 
 export interface Component extends BaseNode {
     type: "Component";
-    attributes: Array<Attribute | Directive | SpreadAttribute>;
+    attributes: Array<
+        Attribute | BindDirective | OnDirective | SpreadAttribute
+    >;
     fragment: Fragment;
     name: string;
     key: Text;
@@ -91,9 +103,7 @@ export interface Component extends BaseNode {
 
 export interface ZvelteComponent extends BaseNode {
     type: "ZvelteComponent";
-    attributes: Array<
-        Attribute | BindDirective | OnDirective | SpreadAttribute
-    >;
+    attributes: Component["attributes"];
     fragment: Fragment;
     name: string;
     expression: Expression;
