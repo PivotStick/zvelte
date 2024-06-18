@@ -423,33 +423,39 @@ const readAttribute = (parser, uniqueNames) => {
     if (name.includes(":")) {
         const directive = attrNameToDirective(name);
 
-        if (
-            value !== true &&
-            (value.length !== 1 || value[0].type === "Text")
-        ) {
-            throw parser.error(
-                "Directive value must be an expression enclosed in curly braces",
-                start + name.length + 2
-            );
-        }
+        const validate = () => {
+            if (
+                value !== true &&
+                (value.length !== 1 || value[0].type === "Text")
+            ) {
+                throw parser.error(
+                    "Directive value must be an expression enclosed in curly braces",
+                    start + name.length + 2
+                );
+            }
 
-        const expression =
-            value === true
-                ? null
-                : /** @type {import("../types.d.ts").ExpressionTag} */ (
-                      value[0]
-                  ).expression;
+            const expression =
+                value === true
+                    ? null
+                    : /** @type {import("../types.d.ts").ExpressionTag} */ (
+                          value[0]
+                      ).expression;
 
-        /** @type {import("../types.d.ts").Identifier} */
-        const fallback = {
-            type: "Identifier",
-            name: directive.name,
-            start: start + directive.type.length + 1,
-            end,
+            /** @type {import("../types.d.ts").Identifier} */
+            const fallback = {
+                type: "Identifier",
+                name: directive.name,
+                start: start + directive.type.length + 1,
+                end,
+            };
+
+            return { expression, fallback };
         };
 
         switch (directive.type) {
-            case "on":
+            case "on": {
+                const { expression } = validate();
+
                 return {
                     type: "OnDirective",
                     start,
@@ -458,8 +464,11 @@ const readAttribute = (parser, uniqueNames) => {
                     modifiers: directive.modifiers,
                     name: directive.name,
                 };
+            }
 
             case "bind": {
+                const { expression, fallback } = validate();
+
                 if (
                     expression &&
                     expression.type !== "Identifier" &&
@@ -483,6 +492,8 @@ const readAttribute = (parser, uniqueNames) => {
             case "transition":
             case "in":
             case "out": {
+                const { expression } = validate();
+
                 return {
                     type: "TransitionDirective",
                     start,
@@ -499,6 +510,8 @@ const readAttribute = (parser, uniqueNames) => {
                 };
             }
             case "class": {
+                const { expression, fallback } = validate();
+
                 return {
                     type: "ClassDirective",
                     name: directive.name,
@@ -509,6 +522,8 @@ const readAttribute = (parser, uniqueNames) => {
                 };
             }
             case "use": {
+                const { expression } = validate();
+
                 return {
                     type: "UseDirective",
                     name: directive.name,

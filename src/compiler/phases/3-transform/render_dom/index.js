@@ -544,11 +544,17 @@ const templateVisitors = {
                             context
                         );
 
+                        let method = "$.set_attribute";
+
+                        if (node.name.includes("-")) {
+                            method = "$.set_custom_element_data";
+                        } else if (attr.name.startsWith("xlink:")) {
+                            method = "$.set_xlink_attribute";
+                        }
+
                         /** @type {import("estree").Expression} */
                         let setter = b.call(
-                            node.name.includes("-")
-                                ? "$.set_custom_element_data"
-                                : "$.set_attribute",
+                            method,
                             context.state.node,
                             b.literal(lowerName),
                             expression

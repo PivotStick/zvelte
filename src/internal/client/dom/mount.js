@@ -469,6 +469,17 @@ const visitors = {
 
             const isCustomElement = parent.name.includes("-");
 
+            /**
+             * @type {keyof typeof $}
+             */
+            let method = "set_attribute";
+
+            if (isCustomElement) {
+                method = "set_custom_element_data";
+            } else if (node.name.startsWith("xlink:")) {
+                method = "set_xlink_attribute";
+            }
+
             if (DOMProperties.includes(lowerName) && !isCustomElement) {
                 const name = AttributeAliases[lowerName] ?? lowerName;
                 $.render_effect(() => {
@@ -476,23 +487,13 @@ const visitors = {
                     element[name] = computeAttributeValue(node, visit, state);
                 });
             } else {
-                if (isCustomElement) {
-                    $.render_effect(() => {
-                        $.set_custom_element_data(
-                            element,
-                            node.name,
-                            computeAttributeValue(node, visit, state)
-                        );
-                    });
-                } else {
-                    $.render_effect(() => {
-                        $.set_attribute(
-                            element,
-                            lowerName,
-                            computeAttributeValue(node, visit, state)
-                        );
-                    });
-                }
+                $.render_effect(() => {
+                    $[method](
+                        element,
+                        lowerName,
+                        computeAttributeValue(node, visit, state)
+                    );
+                });
             }
         }
     },
