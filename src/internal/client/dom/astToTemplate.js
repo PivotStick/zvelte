@@ -9,7 +9,7 @@ import { cleanNodes } from "../../../compiler/phases/3-transform/utils.js";
 import { escapeHtml } from "../../../compiler/escaping.js";
 
 /**
- * @typedef {Pick<import("../types.js").State, "options"> & { template: { src: string } }} State
+ * @typedef {Pick<import("../types.js").State, "options"> & { template: { src: string; flags: number } }} State
  */
 
 /**
@@ -21,7 +21,7 @@ export function addTemplatesToAST(ast, options) {
      * @type {State}
      */
     const state = {
-        template: { src: "" },
+        template: { src: "", flags: 1 },
         options,
     };
 
@@ -31,11 +31,11 @@ export function addTemplatesToAST(ast, options) {
 
 /**
  * @param {import("#ast").ZvelteNode} node
- * @param {{ src: string; }} template
+ * @param {State["template"]} template
  */
 function addRoot(node, template) {
     // @ts-ignore
-    node.__root = $.template(template.src, 1);
+    node.__root = $.template(template.src, template.flags);
 }
 
 /**
@@ -44,7 +44,7 @@ function addRoot(node, template) {
  * @param {State} state
  */
 function newRoot(node, visit, state) {
-    const template = { src: "" };
+    const template = { src: "", flags: 1 };
     visit(node, { ...state, template });
     addRoot(node, template);
 }
@@ -111,6 +111,10 @@ const visitors = {
                 visit(attr);
             }
         });
+
+        if (node.name.includes("-")) {
+            state.template.flags = 3;
+        }
 
         if (isVoid(node.name)) {
             state.template.src += "/>";

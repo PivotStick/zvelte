@@ -546,7 +546,9 @@ const templateVisitors = {
 
                         /** @type {import("estree").Expression} */
                         let setter = b.call(
-                            "$.set_attribute",
+                            node.name.includes("-")
+                                ? "$.set_custom_element_data"
+                                : "$.set_attribute",
                             context.state.node,
                             b.literal(lowerName),
                             expression

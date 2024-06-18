@@ -441,7 +441,9 @@ const visitors = {
     },
 
     Attribute(node, { state, visit, path }) {
-        const parent = path[path.length - 1];
+        const parent = /** @type {import("#ast").RegularElement} */ (
+            path[path.length - 1]
+        );
 
         if (
             node.value !== true &&
@@ -465,20 +467,32 @@ const visitors = {
                 return;
             }
 
-            if (DOMProperties.includes(lowerName)) {
+            const isCustomElement = parent.name.includes("-");
+
+            if (DOMProperties.includes(lowerName) && !isCustomElement) {
                 const name = AttributeAliases[lowerName] ?? lowerName;
                 $.render_effect(() => {
                     // @ts-ignore
                     element[name] = computeAttributeValue(node, visit, state);
                 });
             } else {
-                $.render_effect(() => {
-                    $.set_attribute(
-                        element,
-                        lowerName,
-                        computeAttributeValue(node, visit, state)
-                    );
-                });
+                if (isCustomElement) {
+                    $.render_effect(() => {
+                        $.set_custom_element_data(
+                            element,
+                            node.name,
+                            computeAttributeValue(node, visit, state)
+                        );
+                    });
+                } else {
+                    $.render_effect(() => {
+                        $.set_attribute(
+                            element,
+                            lowerName,
+                            computeAttributeValue(node, visit, state)
+                        );
+                    });
+                }
             }
         }
     },
@@ -1170,11 +1184,6 @@ function handleComponentProps(node, { visit, state }) {
                     );
                 });
                 break;
-            }
-
-            case "TransitionDirective":
-            case "ClassDirective": {
-                throw new Error(`Cannot use "${attr.type}" on components`);
             }
 
             case "BindDirective": {
