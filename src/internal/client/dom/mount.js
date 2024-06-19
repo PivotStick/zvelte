@@ -428,10 +428,17 @@ const visitors = {
                             /** @type {_} */ (visit(ex))._
                         );
                     } else {
-                        $.set_class(
-                            element,
-                            computeAttributeValue(attr, visit, state)
-                        );
+                        if (element instanceof SVGSVGElement) {
+                            $.set_svg_class(
+                                element,
+                                computeAttributeValue(attr, visit, state)
+                            );
+                        } else {
+                            $.set_class(
+                                element,
+                                computeAttributeValue(attr, visit, state)
+                            );
+                        }
                     }
                 }
             });

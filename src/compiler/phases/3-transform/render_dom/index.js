@@ -531,11 +531,6 @@ const templateVisitors = {
                         break;
                     }
 
-                    if (attr.name.toLowerCase() === "class") {
-                        classAttributes.push(attr);
-                        break;
-                    }
-
                     if (attr.name.toLowerCase() === "autofocus") {
                         const expression = serializeAttributeValue(
                             attr.value,
@@ -569,6 +564,12 @@ const templateVisitors = {
                         );
                     } else {
                         const lowerName = attr.name.toLowerCase();
+
+                        if (lowerName === "class") {
+                            classAttributes.push(attr);
+                            break;
+                        }
+
                         const isProp = DOMProperties.includes(lowerName);
                         const expression = serializeAttributeValue(
                             attr.value,
@@ -1027,11 +1028,13 @@ const templateVisitors = {
 
                     checkIsDynamic(expression);
 
-                    const call = b.call(
-                        "$.set_class",
-                        context.state.node,
-                        expression
-                    );
+                    let method = "$.set_class";
+
+                    if (node.name === "svg") {
+                        method = "$.set_svg_class";
+                    }
+
+                    const call = b.call(method, context.state.node, expression);
 
                     statements.push(b.stmt(call));
                 }
