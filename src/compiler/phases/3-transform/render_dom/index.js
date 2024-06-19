@@ -2031,7 +2031,7 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
                 visit(node.expression, state)
             );
 
-            if (expression.type !== "Literal" && isElement) {
+            if (attributeValue.length !== 1 && isElement) {
                 expression = b.logical(expression, "??", b.literal(""));
             }
 
