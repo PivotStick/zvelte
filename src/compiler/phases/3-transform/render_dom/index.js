@@ -13,7 +13,12 @@ import {
     TRANSITION_OUT,
 } from "../../constants.js";
 import { setScope } from "./scope.js";
-import { AttributeAliases, DOMProperties, VoidElements } from "./constants.js";
+import {
+    AttributeAliases,
+    DOMProperties,
+    SVGElements,
+    VoidElements,
+} from "./constants.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
@@ -1030,7 +1035,7 @@ const templateVisitors = {
 
                     let method = "$.set_class";
 
-                    if (node.name === "svg") {
+                    if (SVGElements.includes(node.name)) {
                         method = "$.set_svg_class";
                     }
 

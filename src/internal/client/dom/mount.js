@@ -22,6 +22,7 @@ import {
     AttributeAliases,
     DOMBooleanAttributes,
     DOMProperties,
+    SVGElements,
 } from "../../../compiler/phases/3-transform/render_dom/constants.js";
 
 /**
@@ -414,7 +415,7 @@ const visitors = {
         }
 
         if (classAttributes.length) {
-            const element = /** @type {HTMLElement} */ (state.currentNode);
+            const element = /** @type {any} */ (state.currentNode);
 
             $.template_effect(() => {
                 for (const attr of classAttributes) {
@@ -428,7 +429,7 @@ const visitors = {
                             /** @type {_} */ (visit(ex))._
                         );
                     } else {
-                        if (element instanceof SVGSVGElement) {
+                        if (SVGElements.includes(node.name)) {
                             $.set_svg_class(
                                 element,
                                 computeAttributeValue(attr, visit, state)
