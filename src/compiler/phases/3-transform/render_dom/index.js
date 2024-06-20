@@ -173,7 +173,11 @@ export function renderDom(ast, analysis, options, meta) {
     );
 
     const component = b.function_declaration(
-        b.id(options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")),
+        b.id(
+            state.scope.generate(
+                options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_")
+            )
+        ),
         [b.id("$$anchor"), b.id("$$props")],
         b.block(/** @type {import('estree').Statement[]} */ (template.body))
     );
@@ -1544,7 +1548,7 @@ const templateVisitors = {
                 (/([^/]+)$/.exec(node.key.data)?.[1] ?? "component").replace(
                     /\.\w+$/,
                     ""
-                )
+                ) + "Component"
             );
 
         if (!alreadyImported) {
