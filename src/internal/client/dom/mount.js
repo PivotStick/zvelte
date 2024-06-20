@@ -24,6 +24,7 @@ import {
     DOMProperties,
     SVGElements,
 } from "../../../compiler/phases/3-transform/render_dom/constants.js";
+import { expressionToString } from "./expressionToString.js";
 
 /**
  * @typedef {import("#ast").ZvelteNode} ZvelteNode
@@ -697,6 +698,12 @@ const visitors = {
             (arg) => /** @type {_} */ (visit(arg))._
         );
 
+        if (typeof fn !== "function") {
+            throw new Error(
+                `${expressionToString(node.callee)} is not a function`
+            );
+        }
+
         return { type: "", _: fn(...args) };
     },
 
@@ -706,6 +713,12 @@ const visitors = {
         const args = node.arguments.map(
             (arg) => /** @type {_} */ (visit(arg))._
         );
+
+        if (typeof fn !== "function") {
+            throw new Error(
+                `${expressionToString(node.name)} is not a function`
+            );
+        }
 
         return { type: "", _: fn(...args) };
     },
