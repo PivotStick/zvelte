@@ -1,3 +1,4 @@
+import { walk } from "zimmerframe";
 import { parse } from "./phases/1-parse/index.js";
 import { analyseComponent } from "./phases/2-analyze/index.js";
 import { renderStylesheet } from "./phases/3-transform/css/index.js";
@@ -19,12 +20,17 @@ const renderers = {
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
  *  dev?: boolean;
- *  async?: import("./types.js").CompilerOptions["async"]
+ *  async?: import("./types.js").CompilerOptions["async"];
+ *  transformers?: import("./types.js").CompilerOptions["transformers"];
  * }=} options
  * @param {{ js?: string }} [meta]
  */
 export function compile(source, options = {}, meta = {}) {
     const ast = parse(source, options.parser);
+
+    if (options.transformers?.ast) {
+        walk(ast, {}, options.transformers.ast);
+    }
 
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;

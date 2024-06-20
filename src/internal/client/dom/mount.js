@@ -564,7 +564,7 @@ const visitors = {
                     groupIndex.push(loop.parent.index0);
                 }
 
-                $.remove_input_attr_defaults(element);
+                $.remove_input_defaults(element);
 
                 const valueAttribute =
                     parent?.type === "RegularElement" &&

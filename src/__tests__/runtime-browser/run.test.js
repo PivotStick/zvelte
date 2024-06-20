@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { proxy } from "../../internal/client/index.js";
 import { raf } from "../animation-helpers.js";
-
 import samples from "./all.samples.js";
 
 /**

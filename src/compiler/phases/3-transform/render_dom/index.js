@@ -699,7 +699,7 @@ const templateVisitors = {
                             }
 
                             const removeDefaults = b.call(
-                                "$.remove_input_attr_defaults",
+                                "$.remove_input_defaults",
                                 context.state.node
                             );
 

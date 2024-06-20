@@ -1,3 +1,6 @@
+import { ZvelteNode } from "#ast";
+import { Visitors } from "zimmerframe";
+
 export type CompilerOptions = {
     dir: string;
     namespace: string;
@@ -10,5 +13,8 @@ export type CompilerOptions = {
         propId?: string;
         pendingComponent?: string;
         errorComponent?: string;
+    };
+    transformers?: {
+        ast?: Visitors<ZvelteNode, {}>;
     };
 };
