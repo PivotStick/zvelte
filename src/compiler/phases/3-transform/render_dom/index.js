@@ -796,6 +796,10 @@ const templateVisitors = {
                             );
                         }
 
+                        if (attr.modifiers.includes("self")) {
+                            handler = b.call("$.self", handler);
+                        }
+
                         call = b.call(
                             "$.event",
                             b.literal(attr.name),

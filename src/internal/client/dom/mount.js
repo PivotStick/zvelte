@@ -660,6 +660,10 @@ const visitors = {
                 };
             }
 
+            if (node.modifiers.includes("self")) {
+                handler = $.self(handler);
+            }
+
             $.event(node.name, element, handler, false);
         } else {
             // @ts-ignore
