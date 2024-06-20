@@ -1,4 +1,4 @@
-import { ZvelteNode } from "#ast";
+import { ZvelteNode } from "./phases/1-parse/types.d.ts";
 import { Visitors } from "zimmerframe";
 
 export type CompilerOptions = {
