@@ -365,7 +365,9 @@ const visitors = {
                 attributesToSpread.push(attr);
             } else if (
                 (attr.type === "Attribute" &&
-                    attr.name.toLowerCase() === "class") ||
+                    attr.name.toLowerCase() === "class" &&
+                    attr.value !== true &&
+                    attr.value.some((a) => a.type === "ExpressionTag")) ||
                 attr.type === "ClassDirective"
             ) {
                 classAttributes.push(attr);
@@ -420,6 +422,7 @@ const visitors = {
 
             $.template_effect(() => {
                 for (const attr of classAttributes) {
+                    console.log(attr);
                     if (attr.type === "ClassDirective") {
                         const name = attr.name;
                         const ex = attr.expression;
