@@ -1935,7 +1935,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
                     /** @type {import('estree').Identifier | import('estree').MemberExpression} */ (
                         visit(attr.expression, {
                             ...state,
-                            els: true,
+                            els: attr.name === "this",
                         })
                     );
 
