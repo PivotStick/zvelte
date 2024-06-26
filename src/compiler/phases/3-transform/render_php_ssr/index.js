@@ -1,9 +1,21 @@
+import { walk } from "zimmerframe";
 import { isVoid } from "../../../shared/utils/names.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
+import { cleanNodes } from "../utils.js";
 
 const outputName = "html";
 const propsName = "props";
+
+/**
+ * @typedef {{
+ *  append(value: any): void;
+ *  appendText(value: string): void;
+ *  options: import("../../../types.js").CompilerOptions;
+ *  readonly block: import("./type.js").Block;
+ *  nonPropVars: string[];
+ * }} State
+ */
 
 /**
  * @type {import("../types.js").Transformer}
@@ -14,27 +26,16 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     renderMethod.isStatic = true;
     renderMethod.arguments.push(
         b.parameter(propsName, "object"),
-        b.parameter("slots", "array"),
-        b.parameter("render", "callable"),
+        b.parameter("render", "callable")
     );
 
-    renderBlock(
-        renderMethod.body,
-        ast.fragment,
-        [],
-        { namespace: options.namespace },
-        true,
-    );
+    renderBlock(renderMethod.body, ast, [], options);
 
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
     ]);
     const result = print(
-        b.program([
-            b.namespace(options.namespace + options.dir.replace(/\//g, "\\"), [
-                renderer,
-            ]),
-        ]),
+        b.program([b.namespace(options.namespace, [renderer])])
     );
 
     return result;
@@ -42,22 +43,20 @@ export function renderPhpSSR(ast, analysis, options, meta) {
 
 /**
  * @param {import("./type.js").Block} block
- * @param {import("#ast").Fragment} node
+ * @param {import("#ast").Root} node
  * @param {string[][]} scope
- * @param {{ namespace: string; }} meta
+ * @param {import("../../../types.js").CompilerOptions} options
  */
-function renderBlock(block, node, scope, meta, wrapInComments = false) {
+function renderBlock(block, node, scope, options) {
     const outputValue = b.array([]);
     const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
 
     block.children.push(outputAssign);
-    const ctx = createCtx(block);
 
-    if (wrapInComments) ctx.appendText("<!--[-->");
+    /** @type {State} */
+    const state = createState(block, options);
 
-    handle(node, ctx, false, scope, meta);
-
-    if (wrapInComments) ctx.appendText("<!--]-->");
+    walk(node, state, visitors);
 
     let returned;
 
@@ -89,12 +88,16 @@ function renderBlock(block, node, scope, meta, wrapInComments = false) {
 
 /**
  * @param {import("./type.js").Block} block
- *
- * @returns {Ctx}
+ * @param {import("../../../types.js").CompilerOptions} options
+ * @returns {State}
  */
-function createCtx(block) {
+function createState(block, options) {
     return {
-        block,
+        options,
+        nonPropVars: [],
+        get block() {
+            return block;
+        },
         append(value) {
             const previous = block.children.at(-1);
 
@@ -128,11 +131,7 @@ function createCtx(block) {
                 }
             } else {
                 block.children.push(
-                    b.assign(
-                        b.offsetLookup(b.variable(outputName)),
-                        "=",
-                        value,
-                    ),
+                    b.assign(b.offsetLookup(b.variable(outputName)), "=", value)
                 );
             }
         },
@@ -143,677 +142,290 @@ function createCtx(block) {
 }
 
 /**
- * @typedef {{
- *  append(value: import("./type.js").Assign["right"]): void;
- *  appendText(value: string): void;
- *  block: import("./type.js").Block;
- * }} Ctx
- *
- * @param {Exclude<import("#ast").ZvelteNode, import("#ast").Expression>} node
- * @param {Ctx} ctx
- * @param {boolean} deep
- * @param {string[][]} scope
- * @param {{ namespace: string }} meta
+ * @type {import("zimmerframe").Visitors<import("#ast").ZvelteNode, State>}
  */
-function handle(node, ctx, deep, scope, meta) {
-    switch (node.type) {
-        case "Comment":
-            // ignore for ssr
-            break;
+const visitors = {
+    _(node, { next, state }) {
+        if (!(node.type in visitors)) {
+            state.appendText(`[ ${node.type} ]`);
+        } else {
+            next();
+        }
+    },
 
-        case "Fragment":
-            node.nodes.forEach((fragment) =>
-                handle(fragment, ctx, deep, scope, meta),
-            );
-            break;
+    Root(node, { visit }) {
+        visit(node.fragment);
+    },
 
-        case "RegularElement": {
-            ctx.appendText(`<${node.name}`);
+    Fragment(node, { visit, state, path }) {
+        const parent = path[path.length - 1];
+        state.appendText("<!--[-->");
 
-            node.attributes.forEach((attr) => {
-                switch (attr.type) {
-                    case "Attribute":
-                        if (
-                            attr.name === "class" &&
-                            node.attributes.find(
-                                (a) => a.type === "ClassDirective",
-                            )
-                        ) {
-                            break;
+        const { trimmed, hoisted } = cleanNodes(
+            parent,
+            node.nodes,
+            path,
+            "html",
+            state.options.preserveWhitespace,
+            state.options.preserveComments
+        );
+
+        for (const node of hoisted) {
+            visit(node);
+        }
+
+        for (const node of trimmed) {
+            visit(node);
+        }
+
+        state.appendText("<!--]-->");
+    },
+
+    Text(node, { state }) {
+        state.appendText(node.data);
+    },
+
+    IfBlock(node, { state, visit }) {
+        state.appendText("<!--[-->");
+
+        // @ts-ignore
+        const test = /** @type {import("./type.js").Expression} */ (
+            visit(node.test)
+        );
+
+        const consequent = createState(b.block(), state.options);
+        const alternate = createState(b.block(), state.options);
+
+        visit(node.consequent, consequent);
+
+        if (node.alternate) {
+            visit(node.alternate, alternate);
+        }
+
+        consequent.appendText("<!--]-->");
+        alternate.appendText("<!--]!-->");
+
+        state.block.children.push(
+            b.ifStatement(test, consequent.block, alternate.block)
+        );
+    },
+
+    // @ts-ignore
+    Identifier(node, { state, visit }) {
+        if (state.nonPropVars.includes(node.name)) {
+            return b.variable(node.name);
+        }
+
+        return b.propertyLookup(b.variable("props"), b.identifier(node.name));
+    },
+
+    MemberExpression() {},
+
+    RegularElement(node, { state, path, visit }) {
+        const parent = path[path.length - 1];
+
+        state.appendText(`<${node.name}`);
+
+        for (const attr of node.attributes) {
+            switch (attr.type) {
+                case "Attribute": {
+                    state.appendText(` ${attr.name}`);
+
+                    if (attr.value !== true) {
+                        state.appendText(`="`);
+                        for (const value of attr.value) {
+                            visit(value);
                         }
-
-                        if (attr.value === true) {
-                            ctx.appendText(` ${attr.name}`);
-                        } else if (
-                            attr.value.length === 1 &&
-                            attr.value[0].type === "Text"
-                        ) {
-                            ctx.appendText(
-                                ` ${attr.name}="${attr.value[0].data}"`,
-                            );
-                        } else {
-                            ctx.appendText(` ${attr.name}="`);
-                            ctx.append(
-                                computeAttrValue(attr, ctx, deep, scope),
-                            );
-                            ctx.appendText('"');
-                        }
-                        break;
-
-                    case "ClassDirective": {
-                        // If this class directive is not the first skip
-                        // It's because the it's the first found class directive that handles everything
-                        if (
-                            node.attributes.find(
-                                (a) => a.type === "ClassDirective",
-                            ) !== attr
-                        )
-                            break;
-
-                        ctx.appendText(` class="`);
-
-                        const attrs =
-                            /** @type {import("#ast").Attribute[]} */ (
-                                node.attributes.filter(
-                                    (a) =>
-                                        a.type === "Attribute" &&
-                                        a.name === "class",
-                                )
-                            );
-
-                        attrs.forEach((a) => {
-                            if (a.value === true) return;
-
-                            const last = a.value[a.value.length - 1];
-                            if (last.type === "Text") {
-                                last.data += " ";
-                            } else {
-                                a.value.push({
-                                    type: "Text",
-                                    data: " ",
-                                    end: -1,
-                                    start: -1,
-                                });
-                            }
-
-                            ctx.append(computeAttrValue(a, ctx, deep, scope));
-                        });
-
-                        const classDirectives =
-                            /** @type {import("#ast").ClassDirective[]} */ (
-                                node.attributes.filter(
-                                    (a) => a.type === "ClassDirective",
-                                )
-                            );
-
-                        const array = b.array();
-
-                        classDirectives.forEach((a) => {
-                            const test = expression(
-                                a.expression ?? {
-                                    type: "Identifier",
-                                    name: a.name,
-                                    start: -1,
-                                    end: -1,
-                                },
-                                ctx,
-                                deep,
-                                scope,
-                            );
-
-                            array.items.push(
-                                b.entry(
-                                    b.ternary(
-                                        test,
-                                        b.string(a.name),
-                                        b.string(""),
-                                    ),
-                                ),
-                            );
-                        });
-
-                        ctx.append(
-                            b.call(b.name("implode"), [
-                                b.string(" "),
-                                b.call(b.name("array_filter"), [
-                                    array,
-                                    b.string("boolval"),
-                                ]),
-                            ]),
-                        );
-
-                        ctx.appendText(`"`);
-                        break;
+                        state.appendText(`"`);
                     }
-
-                    case "BindDirective": {
-                        const ex = attr.expression ?? {
-                            type: "Identifier",
-                            name: attr.name,
-                            start: -1,
-                            end: -1,
-                        };
-
-                        const value = b.variable("attrValue");
-
-                        ctx.block.children.push(
-                            b.assign(
-                                value,
-                                "=",
-                                expression(ex, ctx, deep, scope),
-                            ),
-                        );
-
-                        const test = b.bin(value, "==", b.nullKeyword());
-
-                        ctx.append(
-                            b.ternary(
-                                test,
-                                b.sprintf([`${attr.name}="`, value, '"']),
-                                b.string(""),
-                            ),
-                        );
-                        break;
-                    }
-
-                    case "OnDirective":
-                    case "TransitionDirective":
-                        // do nothing
-                        break;
-
-                    default:
-                        throw new Error(
-                            // @ts-expect-error
-                            `Unhandled "${attr.type}" on element php render`,
-                        );
-                }
-            });
-
-            if (isVoid(node.name)) {
-                ctx.appendText("/>");
-            } else {
-                ctx.appendText(">");
-                handle(node.fragment, ctx, deep, scope, meta);
-                ctx.appendText(`</${node.name}>`);
-            }
-            break;
-        }
-
-        case "Text": {
-            ctx.appendText(node.data);
-            break;
-        }
-
-        case "ExpressionTag": {
-            const ex = expression(node.expression, ctx, deep, scope);
-            ctx.append(ex);
-            break;
-        }
-
-        case "Variable": {
-            const left = expression(node.name, ctx, deep, scope);
-            const right = expression(node.value, ctx, deep, scope);
-
-            ctx.block.children.push(b.assign(left, "=", right));
-            break;
-        }
-
-        case "IfBlock": {
-            const ifBlock = b.ifStatement(
-                expression(node.test, ctx, deep, scope),
-            );
-
-            ctx.appendText("<!--[-->");
-
-            const bodyCtx = createCtx(ifBlock.body);
-            handle(node.consequent, bodyCtx, deep, [...scope, []], meta);
-            bodyCtx.appendText("<!--]-->");
-
-            ifBlock.alternate = b.block();
-            const elseCtx = createCtx(ifBlock.alternate);
-
-            if (node.alternate) {
-                handle(node.alternate, elseCtx, deep, [...scope, []], meta);
-            }
-
-            elseCtx.appendText("<!--]!-->");
-
-            ctx.block.children.push(ifBlock);
-            break;
-        }
-
-        case "ForBlock": {
-            const arrayVar = b.variable("forArray");
-            const indexVar = b.variable("index");
-            const lengthVar = b.variable("arrayLength");
-            const loopParentVar = b.variable("loopParent");
-            const loopVar = b.variable("loop");
-
-            ctx.block.children.push(
-                b.assign(
-                    arrayVar,
-                    "=",
-                    expression(node.expression, ctx, deep, scope),
-                ),
-            );
-
-            ctx.block.children.push(
-                b.assign(lengthVar, "=", b.call(b.name("count"), [arrayVar])),
-            );
-
-            ctx.block.children.push(
-                b.assign(
-                    loopParentVar,
-                    "=",
-                    b.ternary(b.isset(loopVar), loopVar, b.nullKeyword()),
-                ),
-            );
-
-            ctx.appendText("<!--[-->");
-
-            const ifBlock = node.fallback
-                ? b.ifStatement(b.unary("!", b.empty(arrayVar)))
-                : null;
-
-            if (ifBlock && node.fallback) {
-                ifBlock.alternate = b.block();
-                const alternateCtx = createCtx(ifBlock.alternate);
-                handle(node.fallback, alternateCtx, deep, [...scope, []], meta);
-                alternateCtx.appendText("<!--]!-->");
-            }
-
-            let targetCtx = ifBlock ? createCtx(ifBlock.body) : ctx;
-
-            const forEach = b.forEach(
-                arrayVar,
-                b.variable(node.context.name),
-                indexVar,
-            );
-
-            const forEachCtx = createCtx(forEach.body);
-
-            const loopObject = b.objectFromLiteral({
-                index: b.bin(indexVar, "+", b.number(1)),
-                index0: indexVar,
-                revindex: b.bin(lengthVar, "-", indexVar),
-                revindex0: b.bin(
-                    lengthVar,
-                    "-",
-                    b.bin(indexVar, "-", b.number(1)),
-                ),
-                first: b.bin(indexVar, "===", b.number(0)),
-                last: b.bin(
-                    indexVar,
-                    "===",
-                    b.bin(lengthVar, "-", b.number(1)),
-                ),
-                length: lengthVar,
-                parent: loopParentVar,
-            });
-
-            forEachCtx.block.children.push(b.assign(loopVar, "=", loopObject));
-
-            forEachCtx.appendText("<!--[-->");
-
-            handle(
-                node.body,
-                forEachCtx,
-                deep,
-                [...scope, [node.context.name, loopVar.name]],
-                meta,
-            );
-
-            forEachCtx.appendText("<!--]-->");
-
-            targetCtx.block.children.push(forEach);
-            targetCtx.appendText("<!--]-->");
-
-            if (ifBlock) {
-                ctx.block.children.push(ifBlock);
-            }
-            break;
-        }
-
-        case "Component": {
-            const callee = b.variable("render");
-
-            /**
-             * @type {Record<string, import("./type.js").Expression>}
-             */
-            const props = {};
-
-            node.attributes.forEach((attr) => {
-                switch (attr.type) {
-                    case "Attribute":
-                        props[attr.name] = computeAttrValue(
-                            attr,
-                            ctx,
-                            deep,
-                            scope,
-                        );
-                        break;
-
-                    case "BindDirective": {
-                        const ex = attr.expression ?? {
-                            type: "Identifier",
-                            name: attr.name,
-                            start: -1,
-                            end: -1,
-                        };
-
-                        props[attr.name] = expression(ex, ctx, deep, scope);
-                        break;
-                    }
-
-                    case "TransitionDirective":
-                    case "OnDirective": {
-                        // ignore for ssr
-                        break;
-                    }
-
-                    default:
-                        throw new Error(
-                            `Unhandled "${attr.type}" on component php render`,
-                        );
-                }
-            });
-
-            /**
-             * @type {Record<string, import("./type.js").Expression>}
-             */
-            const slots = {};
-
-            if (node.fragment.nodes.length) {
-                const uniqueVars = [...new Set(scope.flatMap((vars) => vars))];
-
-                const slotProps = "slotProps";
-
-                slots.default = b.closure(
-                    true,
-                    [b.parameter(slotProps, "object")],
-
-                    [
-                        b.variable(propsName),
-                        ...uniqueVars.map((name) => b.variable(name)),
-                    ],
-                    "string",
-                );
-
-                slots.default.body.children.push(
-                    b.assign(
-                        b.variable(propsName),
-                        "=",
-                        b.array([
-                            b.entry(b.variable(propsName), undefined, true),
-                            b.entry(b.variable(slotProps), undefined, true),
-                        ]),
-                    ),
-                );
-
-                renderBlock(slots.default.body, node.fragment, scope, meta);
-            }
-
-            const render = b.call(callee, [
-                b.string(
-                    "\\" + meta.namespace + node.key.data.replace(/\//g, "\\"),
-                ),
-                b.objectFromLiteral(props),
-                b.arrayFromObject(slots),
-            ]);
-
-            ctx.appendText(`<${node.name}>`);
-            ctx.append(render);
-            ctx.appendText(`</${node.name}>`);
-            break;
-        }
-
-        default:
-            throw new Error(`"${node.type}" not handled in php renderer`);
-    }
-}
-
-/**
- * @param {import("#ast").Expression} node
- * @param {Ctx} ctx
- * @param {boolean} deep
- * @param {string[][]} scope
- *
- * @returns {import("./type.js").Expression}
- */
-function expression(node, ctx, deep, scope) {
-    switch (node.type) {
-        case "MemberExpression": {
-            const what = expression(node.object, ctx, deep, scope);
-
-            let offset;
-            if (node.computed === true) {
-                const ex = expression(node.property, ctx, deep, scope);
-                offset = b.encapsedPart(ex);
-            } else {
-                offset = expression(node.property, ctx, true, scope);
-                if (offset.kind !== "identifier") {
-                    throw new Error("expected identifier");
-                }
-            }
-
-            return b.propertyLookup(what, offset);
-        }
-
-        case "BinaryExpression": {
-            const left = expression(node.left, ctx, deep, scope);
-            const right = expression(node.right, ctx, deep, scope);
-
-            /** @type {string} */
-            let operator = node.operator;
-
-            switch (node.operator) {
-                case "~":
-                    operator = ".";
                     break;
-
-                case "or":
-                    operator = "||";
-                    break;
-
-                case "and":
-                    operator = "&&";
-                    break;
-            }
-
-            return b.bin(left, operator, right);
-        }
-
-        case "Identifier": {
-            const identifier = b.identifier(node.name);
-
-            if (
-                deep === false &&
-                scope.flatMap((vars) => vars).includes(node.name)
-            ) {
-                return b.variable(node.name);
-            } else if (deep === false) {
-                return b.propertyLookup(b.variable(propsName), identifier);
-            }
-
-            return identifier;
-        }
-
-        case "StringLiteral": {
-            return b.string(node.value);
-        }
-
-        case "NullLiteral": {
-            return b.nullKeyword();
-        }
-
-        case "NumericLiteral": {
-            return b.number(node.value);
-        }
-
-        case "BooleanLiteral": {
-            return b.boolean(node.value);
-        }
-
-        case "ObjectExpression": {
-            /**
-             * @type {Parameters<typeof b["object"]>[0]}
-             */
-            const map = new Map();
-
-            node.properties.forEach((prop) => {
-                const key = b.string(
-                    prop.key.type === "StringLiteral"
-                        ? prop.key.value
-                        : prop.key.name,
-                );
-                map.set(key, expression(prop.value, ctx, deep, scope));
-            });
-
-            return b.object(map);
-        }
-
-        case "ArrayExpression": {
-            /**
-             * @type {import("./type.js").Entry[]}
-             */
-            const entries = [];
-
-            node.elements.forEach((element) => {
-                entries.push(b.entry(expression(element, ctx, deep, scope)));
-            });
-
-            return b.array(entries);
-        }
-
-        case "CallExpression": {
-            /** @type {import("./type.js").Expression[]} */
-            const args = [];
-            const what = expression(node.callee, ctx, deep, scope);
-
-            node.arguments.forEach((arg) => {
-                args.push(expression(arg, ctx, deep, scope));
-            });
-
-            return b.call(what, args, true);
-        }
-
-        case "FilterExpression": {
-            ctx.block.children.push(
-                b.statement(
-                    b.call(b.name("print_r"), [
-                        b.string(
-                            "[WARNING] - FilterExpression are not handled yet but not ignored for testing pruposes",
-                        ),
-                    ]),
-                ),
-            );
-            return b.nullKeyword();
-        }
-
-        case "UnaryExpression": {
-            const what = expression(node.argument, ctx, deep, scope);
-
-            switch (node.operator) {
-                case "not":
-                    return b.unary("!", what);
-
-                case "+":
-                case "-":
-                    return b.unary(node.operator, what);
+                }
 
                 default:
                     throw new Error(
-                        // @ts-expect-error
-                        `"${node.operator}" unary operator not handled in php renderer`,
+                        `"${attr.type}" on "${node.type}" not handled yet`
                     );
             }
         }
 
-        case "IsExpression": {
-            const left = expression(node.left, ctx, deep, scope);
-
-            if (node.right.type === "Identifier") {
-                switch (node.right.name) {
-                    case "empty": {
-                        const empty = b.empty(left);
-                        return node.not ? b.unary("!", empty) : empty;
-                    }
-
-                    case "defined": {
-                        const isset = b.isset(left);
-                        return node.not ? b.unary("!", isset) : isset;
-                    }
-                }
-            }
-
-            if (node.right.type === "NullLiteral") {
-                return b.bin(left, node.not ? "!==" : "===", b.nullKeyword());
-            }
-
-            throw new Error(`Unhandled kind of "IsExpression"`);
+        if (isVoid(node.name)) {
+            state.appendText(`>`);
+            return;
         }
 
-        case "InExpression": {
-            const left = expression(node.left, ctx, deep, scope);
-            const right = expression(node.right, ctx, deep, scope);
+        state.appendText(`>`);
 
-            const inArray = b.call(b.name("in_array"), [
-                left,
-                b.cast(right, "array"),
-            ]);
+        const { trimmed, hoisted } = cleanNodes(
+            parent,
+            node.fragment.nodes,
+            path,
+            "html",
+            state.options.preserveWhitespace,
+            state.options.preserveComments
+        );
 
-            return node.not ? b.unary("!", inArray) : inArray;
+        for (const node of hoisted) {
+            visit(node);
         }
 
-        case "ConditionalExpression": {
-            const test = expression(node.test, ctx, deep, scope);
-            const consequent = expression(node.consequent, ctx, deep, scope);
-            const alternate = expression(node.alternate, ctx, deep, scope);
-
-            return b.ternary(test, consequent, alternate);
+        for (const node of trimmed) {
+            visit(node);
         }
 
-        case "RangeExpression": {
-            return b.call(b.name("range"), [
-                expression(node.from, ctx, deep, scope),
-                expression(node.to, ctx, deep, scope),
-                b.number(node.step),
-            ]);
+        state.appendText(`</${node.name}>`);
+    },
+
+    ExpressionTag(node, { state, visit }) {
+        /** @type {import("./type.js").Expression} */
+        // @ts-ignore
+        let expression = visit(node.expression);
+
+        expression = b.call(b.identifier("htmlspecialchars"), [
+            expression,
+            b.identifier("ENT_QUOTES"),
+        ]);
+
+        state.append(expression);
+    },
+
+    RenderTag(node, { state }) {
+        state.append(b.call(b.variable("render"), []));
+    },
+
+    // @ts-ignore
+    BinaryExpression(node, { visit }) {
+        return b.bin(
+            // @ts-ignore
+            visit(node.left),
+            // @ts-ignore
+            { "~": "." }[node.operator] ?? node.operator,
+            // @ts-ignore
+            visit(node.right)
+        );
+    },
+
+    // @ts-ignore
+    NumericLiteral(node) {
+        return b.number(node.value);
+    },
+
+    // @ts-ignore
+    StringLiteral(node) {
+        return b.string(node.value);
+    },
+
+    // @ts-ignore
+    BooleanLiteral(node) {
+        return b.boolean(node.value);
+    },
+
+    // @ts-ignore
+    NullLiteral() {
+        return b.nullKeyword();
+    },
+
+    // @ts-ignore
+    ArrayExpression(node, { visit }) {
+        const array = b.array();
+
+        for (const element of node.elements) {
+            // @ts-ignore
+            array.items.push(visit(element));
         }
 
-        default:
-            throw new Error(
-                // @ts-expect-error
-                `"${node.type}" expression not handled in php renderer`,
+        return array;
+    },
+
+    // @ts-ignore
+    ObjectExpression(node, { visit }) {
+        const object = new Map();
+
+        for (const prop of node.properties) {
+            object.set(
+                prop.key.type === "Identifier"
+                    ? b.string(prop.key.name)
+                    : visit(prop.key),
+                visit(prop.value)
             );
-    }
-}
-
-/**
- * @param {import("#ast").Attribute} attr
- * @param {Ctx} ctx
- * @param {boolean} deep
- * @param {string[][]} scope
- */
-function computeAttrValue(attr, ctx, deep, scope) {
-    if (attr.value === true) return b.boolean(true);
-
-    if (attr.value.length === 1) {
-        if (attr.value[0].type !== "Text") {
-            const ex = attr.value[0];
-            return expression(ex, ctx, deep, scope);
-        } else {
-            return b.string(attr.value[0].data);
         }
-    }
 
-    const template = attr.value.map((val) => {
-        if (val.type === "Text") {
-            return val.data;
-        } else {
-            return expression(val, ctx, deep, scope);
+        return b.object(object);
+    },
+
+    // @ts-ignore
+    ConditionalExpression(node, { visit }) {
+        const test = /** @type {any} */ (visit(node.test));
+        const consequent = /** @type {any} */ (visit(node.consequent));
+        const alternate = /** @type {any} */ (visit(node.alternate));
+
+        return b.ternary(test, consequent, alternate);
+    },
+
+    // @ts-ignore
+    UnaryExpression(node, { visit }) {
+        const what = /** @type {any} */ (visit(node.argument));
+        const operator = node.operator === "not" ? "!" : node.operator;
+
+        return b.unary(operator, what);
+    },
+
+    // @ts-ignore
+    LogicalExpression(node, { visit }) {
+        const left = /** @type {any} */ (visit(node.left));
+        const right = /** @type {any} */ (visit(node.right));
+
+        let operator;
+
+        switch (node.operator) {
+            case "and":
+                operator = "&&";
+                break;
+
+            case "or":
+                operator = "||";
+                break;
+
+            default:
+                operator = node.operator;
+                break;
         }
-    });
 
-    return b.sprintf(template);
-}
+        return b.bin(left, operator, right);
+    },
+
+    // @ts-ignore
+    RangeExpression(node, { visit }) {
+        const start = /** @type {any} */ (visit(node.from));
+        const end = /** @type {any} */ (visit(node.to));
+
+        return b.call(b.identifier("range"), [start, end, b.number(node.step)]);
+    },
+
+    // @ts-ignore
+    IsExpression() {},
+    // @ts-ignore
+    InExpression() {},
+
+    // @ts-ignore
+    FilterExpression() {},
+    // @ts-ignore
+    CallExpression() {},
+
+    // @ts-ignore
+    ArrowFunctionExpression(node, { visit, state }) {
+        const args = [];
+        const nonPropVars = [];
+
+        for (const arg of node.params) {
+            nonPropVars.push(arg.name);
+            args.push(b.variable(arg.name));
+        }
+
+        const body = visit(node.body, {
+            ...state,
+            nonPropVars: [...state.nonPropVars, ...nonPropVars],
+        });
+
+        return b.arrow(args, body);
+    },
+};

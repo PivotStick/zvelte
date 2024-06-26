@@ -95,7 +95,8 @@ export type Expression =
     | Assign
     | Bin
     | Closure
-    | RetIf;
+    | RetIf
+    | ArrowFunc;
 
 export type Closure = {
     kind: "closure";
@@ -255,3 +256,12 @@ export type NullKeyword = {
     kind: "nullkeyword";
     raw: string;
 };
+
+export type ArrowFunc = {
+    kind: "arrowfunc";
+    arguments: Expression[];
+    body: Expression;
+    isStatic: boolean;
+};
+
+export type Node = Literal | Expression;

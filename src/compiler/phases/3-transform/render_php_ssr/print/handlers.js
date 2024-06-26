@@ -49,7 +49,7 @@ const scoped = (fn) => {
 };
 
 /**
- * @param {import("php-parser").Node} node
+ * @param {import("../type.js").Node} node
  * @param {State} state
  *
  * @returns {Chunk[]}
@@ -353,7 +353,7 @@ const handlers = {
                 if (i < arr.length - 1) {
                     chunks.push(c(", "));
                 }
-            },
+            }
         );
 
         chunks.push(c(")"));
@@ -480,13 +480,13 @@ const handlers = {
                     handle(entry, {
                         ...state,
                         indent,
-                    }),
+                    })
                 );
 
                 const last = i === arr.length - 1;
 
                 chunks.push(c(`,\n${last ? indent.slice(1) : indent}`));
-            },
+            }
         );
 
         chunks.push(c("]"));
@@ -591,10 +591,34 @@ const handlers = {
         chunks.push(...handle(node.body, state));
         return chunks;
     },
+
+    arrowfunc(node, state) {
+        console.log(node);
+
+        const chunks = [];
+
+        if (node.isStatic) {
+            chunks.push(c("static "));
+        }
+
+        chunks.push(c("fn("));
+        for (let i = 0; i < node.arguments.length; i++) {
+            const arg = node.arguments[i];
+            chunks.push(...handle(arg, state));
+
+            if (i < node.arguments.length - 1) {
+                chunks.push(c(", "));
+            }
+        }
+        chunks.push(c(") => "));
+        chunks.push(...handle(node.body, state));
+
+        return chunks;
+    },
 };
 
 /**
- * @param {import("php-parser").Node[]} nodes
+ * @param {import("../type.js").Node[]} nodes
  * @param {State} state
  */
 const handle_body = (nodes, state) => {
@@ -619,8 +643,8 @@ const handle_body = (nodes, state) => {
                 c(
                     needs_padding || needed_padding
                         ? `\n\n${state.indent}`
-                        : `\n${state.indent}`,
-                ),
+                        : `\n${state.indent}`
+                )
             );
         }
 
@@ -634,7 +658,7 @@ const handle_body = (nodes, state) => {
 
 /**
  * @param {string} content
- * @param {import("php-parser").Node} [node]
+ * @param {import("../type.js").Node} [node]
  * @returns {Chunk}
  */
 function c(content, node) {

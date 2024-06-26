@@ -79,12 +79,13 @@ export function typeReference(name) {
 }
 
 /**
+ * @param {import("./type.js").Block["children"]} [children=[]]
  * @returns {import("./type.js").Block}
  */
-export function block() {
+export function block(children = []) {
     return {
         kind: "block",
-        children: [],
+        children,
     };
 }
 
@@ -228,8 +229,8 @@ export function name(name) {
         resolution: name.startsWith("\\")
             ? "fqn"
             : name.includes("\\")
-              ? "qn"
-              : "uqn",
+            ? "qn"
+            : "uqn",
     };
 }
 
@@ -417,7 +418,7 @@ export function object(map) {
 
     return cast(
         array(entries.map(([key, value]) => entry(value, key))),
-        "object",
+        "object"
     );
 }
 
@@ -539,7 +540,7 @@ export function closure(
     isStatic = false,
     args = [],
     uses = [],
-    type = undefined,
+    type = undefined
 ) {
     return {
         kind: "closure",
@@ -564,5 +565,20 @@ export function cast(expr, type) {
         expr,
         type,
         raw: `(${type})`,
+    };
+}
+
+/**
+ * @param {import("./type.js").ArrowFunc["arguments"]} args
+ * @param {import("./type.js").ArrowFunc["body"]} body
+ *
+ * @returns {import("./type.js").ArrowFunc}
+ */
+export function arrow(args, body) {
+    return {
+        kind: "arrowfunc",
+        body,
+        isStatic: true,
+        arguments: args,
     };
 }
