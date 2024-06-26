@@ -3,7 +3,10 @@ import { Visitors } from "zimmerframe";
 
 export type CompilerOptions = {
     dir: string;
+
     namespace: string;
+    internalsNamespace: string;
+
     filename: string;
     preserveWhitespace: boolean;
     preserveComments: boolean;

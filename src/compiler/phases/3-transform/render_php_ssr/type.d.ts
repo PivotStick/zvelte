@@ -44,7 +44,7 @@ export type Namespace = {
     kind: "namespace";
     name: string;
     withBrackets: boolean;
-    children: Array<Class>;
+    children: Array<Class | UseGroup>;
 };
 
 export type Parameter = {
@@ -264,4 +264,15 @@ export type ArrowFunc = {
     isStatic: boolean;
 };
 
-export type Node = Literal | Expression;
+export type UseGroup = {
+    kind: "usegroup";
+    name: string;
+    items: UseItem[];
+};
+
+export type UseItem = {
+    kind: "useitem";
+    name: string;
+};
+
+export type Node = Literal | Expression | UseGroup | UseItem;

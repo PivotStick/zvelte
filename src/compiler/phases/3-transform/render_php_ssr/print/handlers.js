@@ -286,6 +286,7 @@ const handlers = {
 
         if (
             node.what.kind !== "variable" &&
+            node.what.kind !== "identifier" &&
             node.what.kind !== "propertylookup"
         ) {
             what.unshift(c("("));

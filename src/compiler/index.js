@@ -11,18 +11,12 @@ const renderers = {
 
 /**
  * @param {string} source
- * @param {{
- *  dir?: string;
- *  filename?: string;
- *  namespace?: string;
+ * @param {({
  *  generate?: keyof renderers;
- *  hasJS?: boolean;
  *  parser?: Parameters<typeof parse>[1];
  *  hydratable?: boolean;
  *  dev?: boolean;
- *  async?: import("./types.js").CompilerOptions["async"];
- *  transformers?: import("./types.js").CompilerOptions["transformers"];
- * }=} options
+ * } & Partial<import("./types.js").CompilerOptions>)=} options
  * @param {{ js?: string }} [meta]
  */
 export function compile(source, options = {}, meta = {}) {
@@ -35,7 +29,8 @@ export function compile(source, options = {}, meta = {}) {
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;
     options.dev ??= false;
-    options.namespace ??= "Zvelte\\components";
+    options.namespace ??= "Zvelte\\Components";
+    options.internalsNamespace ??= "Zvelte\\Core";
     options.filename ??= "Component.twig";
     options.hasJS ??= false;
 
@@ -58,6 +53,7 @@ export function compile(source, options = {}, meta = {}) {
         {
             dir: options.dir ?? "",
             namespace: options.namespace,
+            internalsNamespace: options.internalsNamespace,
             filename: options.filename,
             hasJS: options.hasJS,
             async: options.async,

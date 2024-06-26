@@ -34,8 +34,14 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
     ]);
+
     const result = print(
-        b.program([b.namespace(options.namespace, [renderer])])
+        b.program([
+            b.namespace(options.namespace, [
+                b.use(options.internalsNamespace, "Internals"),
+                renderer,
+            ]),
+        ])
     );
 
     return result;
@@ -210,17 +216,6 @@ const visitors = {
         );
     },
 
-    // @ts-ignore
-    Identifier(node, { state, visit }) {
-        if (state.nonPropVars.includes(node.name)) {
-            return b.variable(node.name);
-        }
-
-        return b.propertyLookup(b.variable("props"), b.identifier(node.name));
-    },
-
-    MemberExpression() {},
-
     RegularElement(node, { state, path, visit }) {
         const parent = path[path.length - 1];
 
@@ -241,9 +236,16 @@ const visitors = {
                     break;
                 }
 
+                case "OnDirective":
+                case "TransitionDirective":
+                case "UseDirective": {
+                    // Do nothing, useless for ssr
+                    break;
+                }
+
                 default:
                     throw new Error(
-                        `"${attr.type}" on "${node.type}" not handled yet`
+                        `Unknown "${attr.type}" attribute type on "${node.type}"`
                     );
             }
         }
@@ -402,14 +404,62 @@ const visitors = {
     },
 
     // @ts-ignore
-    IsExpression() {},
-    // @ts-ignore
-    InExpression() {},
+    IsExpression(node, { visit }) {
+        const left = /** @type {any} */ (visit(node.left));
+
+        if (node.right.type === "Identifier" && node.right.name === "empty") {
+            const expression = b.empty(left);
+
+            return node.not ? b.unary("!", expression) : expression;
+        }
+
+        if (node.right.type === "NullLiteral") {
+            return b.bin(left, node.not ? "!==" : "===", b.nullKeyword());
+        }
+
+        if (node.right.type === "Identifier" && node.right.name === "defined") {
+            const expression = b.isset(left);
+            return node.not ? b.unary("!", expression) : expression;
+        }
+
+        throw new Error(`Unknown IsExpression kind "${node.right.type}"`);
+    },
 
     // @ts-ignore
-    FilterExpression() {},
+    InExpression(node, { visit }) {
+        const right = /** @type {any} */ (visit(node.right));
+        const left = /** @type {any} */ (visit(node.left));
+
+        const expression = b.call(b.staticLookup(b.name("Internals"), "in"), [
+            left,
+            right,
+        ]);
+
+        return node.not ? b.unary("!", expression) : expression;
+    },
+
     // @ts-ignore
-    CallExpression() {},
+    FilterExpression(node, { visit }) {
+        const args = [b.variable("props"), b.string(node.name.name)];
+
+        for (const arg of node.arguments) {
+            args.push(/** @type {any} */ (visit(arg)));
+        }
+
+        return b.call(b.staticLookup(b.name("Internals"), "filter"), args);
+    },
+
+    // @ts-ignore
+    CallExpression(node, { visit }) {
+        const what = /** @type {any} */ (visit(node.callee));
+        const args = [];
+
+        for (const arg of node.arguments) {
+            args.push(/** @type {any} */ (visit(arg)));
+        }
+
+        return b.call(what, args, true);
+    },
 
     // @ts-ignore
     ArrowFunctionExpression(node, { visit, state }) {
@@ -421,11 +471,49 @@ const visitors = {
             args.push(b.variable(arg.name));
         }
 
-        const body = visit(node.body, {
-            ...state,
-            nonPropVars: [...state.nonPropVars, ...nonPropVars],
-        });
+        const body = /** @type {any} */ (
+            visit(node.body, {
+                ...state,
+                nonPropVars: [...state.nonPropVars, ...nonPropVars],
+            })
+        );
 
         return b.arrow(args, body);
+    },
+
+    // @ts-ignore
+    Identifier(node, { state, path, visit }) {
+        const parent = path[path.length - 1];
+
+        if (parent.type === "MemberExpression" && !parent.computed) {
+            return b.identifier(node.name);
+        }
+
+        if (state.nonPropVars.includes(node.name)) {
+            return b.variable(node.name);
+        }
+
+        return b.propertyLookup(b.variable("props"), b.identifier(node.name));
+    },
+
+    // @ts-ignore
+    MemberExpression(node, { path, visit }) {
+        const parent = path[path.length - 1];
+        const what = /** @type {any} */ (visit(node.object));
+
+        let offset = /** @type {any} */ (visit(node.property));
+
+        if (node.computed) {
+            offset = b.encapsedPart(offset);
+        }
+
+        if (parent.type === "MemberExpression") {
+            return b.propertyLookup(what, offset);
+        }
+
+        return b.propertyLookup(
+            b.propertyLookup(b.variable("props"), what),
+            offset
+        );
     },
 };

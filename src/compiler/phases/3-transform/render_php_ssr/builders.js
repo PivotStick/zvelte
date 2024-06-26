@@ -205,14 +205,14 @@ export function returnExpression(expression) {
 }
 
 /**
- * @param {import("./type.js").Call["what"]} what
+ * @param {import("./type.js").Call["what"] | string} what
  * @param {import("./type.js").Call["arguments"]} args
  * @returns {import("./type.js").Call}
  */
 export function call(what, args = [], wrap = false) {
     return {
         kind: "call",
-        what,
+        what: typeof what === "string" ? identifier(what) : what,
         arguments: args,
         wrap,
     };
@@ -580,5 +580,19 @@ export function arrow(args, body) {
         body,
         isStatic: true,
         arguments: args,
+    };
+}
+
+/**
+ * @param {string} name
+ * @param {...string} items
+ *
+ * @returns {import("./type.js").UseGroup}
+ */
+export function use(name, ...items) {
+    return {
+        kind: "usegroup",
+        name,
+        items: items.map((name) => ({ kind: "useitem", name })),
     };
 }
