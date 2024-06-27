@@ -1497,174 +1497,6 @@ const templateVisitors = {
         return b.object(properties);
     },
 
-    Component(node, { state, path, visit }) {
-        state.template.push("<!>");
-
-        const parent = path[path.length - 1];
-        const { props, pushProp, bindThis } = serializeAttibutesForComponent(
-            node.attributes,
-            {
-                visit,
-                state,
-            }
-        );
-
-        const { hoisted, trimmed } = cleanNodes(
-            parent,
-            node.fragment.nodes,
-            path,
-            undefined,
-            state.options.preserveWhitespace,
-            state.options.preserveComments
-        );
-
-        for (const child of hoisted) {
-            visit(child);
-
-            if (child.type === "SnippetBlock") {
-                pushProp(
-                    b.prop(
-                        "init",
-                        b.id(child.expression.name),
-                        /** @type {import("estree").Expression} */ (
-                            visit(child.expression)
-                        )
-                    )
-                );
-            }
-        }
-
-        let alreadyImported;
-
-        for (const hoist of state.hoisted) {
-            if (
-                hoist.type === "ImportDeclaration" &&
-                hoist.source.value === node.key.data &&
-                hoist.specifiers[0].type === "ImportDefaultSpecifier"
-            ) {
-                alreadyImported = hoist.specifiers[0].local;
-            }
-        }
-
-        const id =
-            alreadyImported ??
-            state.scope.root.unique(
-                (/([^/]+)$/.exec(node.key.data)?.[1] ?? "component").replace(
-                    /\.\w+$/,
-                    ""
-                ) + "Component"
-            );
-
-        if (!alreadyImported) {
-            state.hoisted.unshift(
-                b.import(node.key.data, {
-                    type: "ImportDefaultSpecifier",
-                    local: id,
-                })
-            );
-        }
-
-        let statement = b.call(id, state.node, props);
-
-        if (bindThis) {
-            statement = b.call(
-                "$.bind_this",
-                statement,
-                bindThis.set,
-                bindThis.get
-            );
-        }
-
-        state.update.push(statement);
-    },
-
-    ZvelteComponent(node, context) {
-        context.state.template.push("<!>");
-
-        const parent = context.path[context.path.length - 1];
-        const block = b.block([]);
-        const call = b.call(
-            "$.component",
-            b.thunk(
-                /** @type {import('estree').Expression} */ (
-                    context.visit(node.expression)
-                )
-            ),
-            b.arrow([b.id("$$component")], block)
-        );
-
-        const { props, pushProp, bindThis } = serializeAttibutesForComponent(
-            node.attributes,
-            context
-        );
-
-        const { hoisted, trimmed } = cleanNodes(
-            parent,
-            node.fragment.nodes,
-            context.path,
-            undefined,
-            context.state.options.preserveWhitespace,
-            context.state.options.preserveComments
-        );
-
-        const nodeId = context.state.node;
-        /** @type {any[]} */
-        const privateScope = [];
-
-        for (const child of hoisted) {
-            if (child.type === "SnippetBlock") {
-                pushProp(
-                    b.prop(
-                        "init",
-                        b.id(child.expression.name),
-                        b.id(child.expression.name)
-                    )
-                );
-                context.visit(child, {
-                    ...context.state,
-                    init: privateScope,
-                    nonPropVars: [
-                        ...context.state.nonPropVars,
-                        child.expression.name,
-                    ],
-                });
-            } else {
-                context.visit(child);
-            }
-        }
-
-        if (trimmed.length) {
-            const block = createBlock(parent, "root", trimmed, context);
-            pushProp(
-                b.prop(
-                    "init",
-                    b.id("children"),
-                    b.arrow([b.id("$$anchor")], b.block(block))
-                ),
-                b.prop(
-                    "init",
-                    b.id("$$slots"),
-                    b.object([b.prop("init", b.id("default"), b.true)])
-                )
-            );
-        }
-
-        let render = b.call("$$component", nodeId, props);
-
-        if (bindThis) {
-            render = b.call("$.bind_this", render, bindThis.set, bindThis.get);
-        }
-
-        block.body.push(b.stmt(render));
-
-        if (privateScope.length) {
-            privateScope.push(b.stmt(call));
-            context.state.update.push(b.block(privateScope));
-        } else {
-            context.state.update.push(b.stmt(call));
-        }
-    },
-
     HtmlTag(node, { state, visit }) {
         state.template.push("<!>");
 
@@ -1830,7 +1662,148 @@ const templateVisitors = {
         state.template.push("<!>");
         state.update.push(call);
     },
+
+    Component(node, context) {
+        context.state.template.push("<!>");
+
+        let alreadyImported;
+
+        for (const hoist of context.state.hoisted) {
+            if (
+                hoist.type === "ImportDeclaration" &&
+                hoist.source.value === node.key.data &&
+                hoist.specifiers[0].type === "ImportDefaultSpecifier"
+            ) {
+                alreadyImported = hoist.specifiers[0].local;
+            }
+        }
+
+        const id =
+            alreadyImported ??
+            context.state.scope.root.unique(
+                (/([^/]+)$/.exec(node.key.data)?.[1] ?? "component").replace(
+                    /\.\w+$/,
+                    ""
+                ) + "Component"
+            );
+
+        if (!alreadyImported) {
+            context.state.hoisted.unshift(
+                b.import(node.key.data, {
+                    type: "ImportDefaultSpecifier",
+                    local: id,
+                })
+            );
+        }
+
+        const statement = serializeComponentProps(
+            node,
+            context,
+            (props, bindThis) => bindThis(b.call(id, context.state.node, props))
+        );
+
+        context.state.update.push(statement);
+    },
+
+    ZvelteComponent(node, context) {
+        context.state.template.push("<!>");
+
+        const nodeId = context.state.node;
+        const statement = serializeComponentProps(
+            node,
+            context,
+            (props, bindThis) =>
+                b.call(
+                    "$.component",
+                    b.thunk(
+                        /** @type {import('estree').Expression} */ (
+                            context.visit(node.expression)
+                        )
+                    ),
+                    b.arrow(
+                        [b.id("$$component")],
+                        b.block([
+                            b.stmt(
+                                bindThis(b.call("$$component", nodeId, props))
+                            ),
+                        ])
+                    )
+                )
+        );
+
+        context.state.update.push(statement);
+    },
 };
+
+/**
+ * @param {import("#ast").ZvelteComponent | import("#ast").Component} node
+ * @param {import("./types.js").ComponentContext} context
+ * @param {(statement: import("estree").ObjectExpression | import("estree").CallExpression, bindThis: (expression: import("estree").Expression) => import("estree").Expression) => import("estree").Expression} wrap
+ */
+function serializeComponentProps(node, context, wrap) {
+    const parent = context.path[context.path.length - 1];
+    const { props, pushProp, bindThis } = serializeAttibutesForComponent(
+        node.attributes,
+        context
+    );
+
+    const { hoisted, trimmed } = cleanNodes(
+        parent,
+        node.fragment.nodes,
+        context.path,
+        undefined,
+        context.state.options.preserveWhitespace,
+        context.state.options.preserveComments
+    );
+
+    /** @type {any[]} */
+    const privateScope = [];
+
+    for (const child of hoisted) {
+        if (child.type === "SnippetBlock") {
+            pushProp(
+                b.prop(
+                    "init",
+                    b.id(child.expression.name),
+                    b.id(child.expression.name)
+                )
+            );
+            context.visit(child, {
+                ...context.state,
+                init: privateScope,
+                nonPropVars: [
+                    ...context.state.nonPropVars,
+                    child.expression.name,
+                ],
+            });
+        } else {
+            context.visit(child);
+        }
+    }
+
+    if (trimmed.length) {
+        const block = createBlock(parent, "root", trimmed, context);
+        pushProp(
+            b.prop(
+                "init",
+                b.id("children"),
+                b.arrow([b.id("$$anchor")], b.block(block))
+            )
+        );
+    }
+
+    const expression = wrap(props, (expression) =>
+        bindThis
+            ? b.call("$.bind_this", expression, bindThis.set, bindThis.get)
+            : expression
+    );
+
+    if (privateScope.length) {
+        return b.block([...privateScope, b.stmt(expression)]);
+    }
+
+    return b.stmt(expression);
+}
 
 /**
  * @param {Array<import("#ast").ZvelteComponent["attributes"][number] | import("#ast").Component["attributes"][number]>} attributes
