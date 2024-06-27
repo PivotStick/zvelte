@@ -606,3 +606,8 @@ export function use(name, ...items) {
 export function internal(method, ...args) {
     return call(staticLookup(name("Internals"), method), args);
 }
+
+const true_instance = boolean(true);
+const false_instance = boolean(false);
+
+export { true_instance as true, false_instance as false };

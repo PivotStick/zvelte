@@ -1,6 +1,6 @@
 import * as b from "./builders.js";
 import * as e from "../errors.js";
-import { JsKeywords } from "./constants.js";
+import { JsKeywords } from "../constants.js";
 import { walk } from "zimmerframe";
 
 export class Scope {

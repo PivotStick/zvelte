@@ -3,6 +3,7 @@ import { isVoid } from "../../../shared/utils/names.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
 import { cleanNodes } from "../utils.js";
+import { DOMBooleanAttributes } from "../constants.js";
 
 const outputName = "html";
 const propsName = "props";
@@ -15,6 +16,8 @@ const propsName = "props";
  *  readonly block: import("./type.js").Block;
  *  nonPropVars: string[];
  * }} State
+ *
+ * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
  */
 
 /**
@@ -22,29 +25,22 @@ const propsName = "props";
  */
 export function renderPhpSSR(ast, analysis, options, meta) {
     const renderMethod = b.method("render", "string");
-    const getAllUsedComponents = b.method("getAllUsedComponents", "array");
 
     renderMethod.isStatic = true;
     renderMethod.arguments.push(b.parameter(propsName, "object"));
 
-    const state = createState(renderMethod.body, options);
+    const state = createState(
+        {
+            options,
+            nonPropVars: [],
+        },
+        renderMethod.body
+    );
 
     renderBlock(state, ast);
 
-    const allUsedComponents = b.array();
-    walk(/** @type {import("#ast").ZvelteNode} */ (ast), null, {
-        Component(node) {
-            allUsedComponents.items.push(b.entry(b.string(node.key.data)));
-        },
-    });
-
-    getAllUsedComponents.body.children.push(
-        b.returnExpression(allUsedComponents)
-    );
-
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
-        getAllUsedComponents,
     ]);
 
     const result = print(
@@ -100,14 +96,13 @@ function renderBlock(state, node) {
 }
 
 /**
+ * @param {Omit<State, "block" | "append" | "appendText">} state
  * @param {import("./type.js").Block} block
- * @param {import("../../../types.js").CompilerOptions} options
  * @returns {State}
  */
-function createState(block, options) {
+function createState(state, block) {
     return {
-        options,
-        nonPropVars: [],
+        ...state,
         get block() {
             return block;
         },
@@ -195,26 +190,38 @@ const visitors = {
         state.appendText(node.data);
     },
 
-    Component(node, { state, visit }) {
-        const staticLookup = b.staticLookup(
-            b.name("\\" + node.key.data.replace(/\//g, "\\")),
-            "renderHTML"
-        );
+    Comment(node, { state }) {
+        state.appendText(node.data);
+    },
 
+    Component(node, { state, visit }) {
+        const className = b.name(node.key.data);
+
+        /**
+         * @type {Record<string, import("./type.js").Expression>}
+         */
         const object = {};
 
         for (const attr of node.attributes) {
             switch (attr.type) {
                 case "Attribute": {
-                    if (attr.value === true) {
-                        object[attr.name] = b.boolean(true);
-                    } else if (attr.value.length === 1) {
-                        const v = attr.value[0];
-                        object[attr.name] =
-                            v.type === "Text"
-                                ? b.string(v.data)
-                                : visit(v.expression);
-                    }
+                    object[attr.name] = serializeAttributeValue(
+                        attr.value,
+                        false,
+                        { visit, state }
+                    );
+                    break;
+                }
+
+                case "BindDirective": {
+                    object[attr.name] = /** @type {any} */ (
+                        visit(attr.expression)
+                    );
+                    break;
+                }
+
+                case "OnDirective": {
+                    // useless for ssr
                     break;
                 }
 
@@ -223,18 +230,18 @@ const visitors = {
             }
         }
 
-        state.append(
-            b.call(staticLookup, [
-                b.object(
-                    new Map(
-                        Object.entries(object).map(([key, value]) => [
-                            b.string(key),
-                            value,
-                        ])
-                    )
-                ),
-            ])
+        const props = b.object(
+            new Map(
+                Object.entries(object).map(([key, value]) => [
+                    b.string(key),
+                    value,
+                ])
+            )
         );
+
+        state.appendText("<!--[-->");
+        state.append(b.internal("zone", b.string(className.name), props));
+        state.appendText("<!--]-->");
     },
 
     IfBlock(node, { state, visit }) {
@@ -245,8 +252,8 @@ const visitors = {
             visit(node.test)
         );
 
-        const consequent = createState(b.block(), state.options);
-        const alternate = createState(b.block(), state.options);
+        const consequent = createState(state, b.block());
+        const alternate = createState(state, b.block());
 
         visit(node.consequent, consequent);
 
@@ -286,7 +293,7 @@ const visitors = {
             );
         }
 
-        const forEachState = createState(forEach.body, state.options);
+        const forEachState = createState(state, forEach.body);
         const length = b.variable("length");
 
         state.block.children.push(b.assign(index, "=", b.number(0)));
@@ -304,8 +311,8 @@ const visitors = {
             );
             ifBlock.alternate = b.block();
 
-            const ifState = createState(ifBlock.body, state.options);
-            const fallbackState = createState(ifBlock.alternate, state.options);
+            const ifState = createState(state, ifBlock.body);
+            const fallbackState = createState(state, ifBlock.alternate);
 
             ifBlock.body.children.push(forEach);
             state.block.children.push(ifBlock);
@@ -378,33 +385,89 @@ const visitors = {
 
         state.appendText(`<${node.name}`);
 
+        const classDirectives =
+            /** @type {Array<import("#ast").ClassDirective>} */ (
+                node.attributes.filter((a) => a.type === "ClassDirective")
+            );
+
         for (const attr of node.attributes) {
             switch (attr.type) {
                 case "Attribute": {
-                    state.appendText(` ${attr.name}`);
+                    if (classDirectives.length && attr.name === "class") {
+                        /**
+                         * @type {Array<import("#ast").Text | import("#ast").ExpressionTag | import("#ast").ClassDirective>}
+                         */
+                        const values =
+                            attr.value === true
+                                ? [
+                                      /** @type {import("#ast").Text} */ ({
+                                          type: "Text",
+                                          data: "",
+                                      }),
+                                  ]
+                                : attr.value.slice();
 
-                    if (attr.value !== true) {
-                        state.appendText(`="`);
-                        for (const value of attr.value) {
-                            visit(value);
+                        values.push(...classDirectives);
+
+                        state.append(
+                            b.internal(
+                                "attr",
+                                b.string(attr.name),
+                                serializeAttributeValue(values, true, {
+                                    visit,
+                                    state,
+                                })
+                            )
+                        );
+
+                        classDirectives.length = 0;
+                        break;
+                    }
+
+                    if (attr.value === true) {
+                        state.appendText(` ${attr.name}`);
+                        if (!DOMBooleanAttributes.includes(attr.name)) {
+                            state.appendText(`=""`);
                         }
+                    } else if (
+                        attr.value.length === 1 &&
+                        attr.value[0].type === "Text"
+                    ) {
+                        state.appendText(` ${attr.name}="`);
+                        state.appendText(attr.value[0].data);
                         state.appendText(`"`);
+                    } else {
+                        state.append(
+                            b.internal(
+                                "attr",
+                                b.string(attr.name),
+                                serializeAttributeValue(attr.value, true, {
+                                    visit,
+                                    state,
+                                })
+                            )
+                        );
                     }
                     break;
                 }
 
-                case "ClassDirective": {
+                case "BindDirective": {
                     state.append(
                         b.internal(
                             "attr",
-                            b.string("class"),
-                            b.ternary(
+                            b.string(attr.name),
+                            b.bin(
                                 /** @type {any} */ (visit(attr.expression)),
-                                b.string(attr.name),
-                                b.string("")
+                                "??",
+                                b.literal("")
                             )
                         )
                     );
+                    break;
+                }
+
+                case "ClassDirective": {
+                    // Do nothing handled in the Attribute's case
                     break;
                 }
 
@@ -420,6 +483,19 @@ const visitors = {
                         `Unknown "${attr.type}" attribute type on "${node.type}"`
                     );
             }
+        }
+
+        if (classDirectives.length) {
+            state.append(
+                b.internal(
+                    "attr",
+                    b.string("class"),
+                    serializeAttributeValue(classDirectives, true, {
+                        visit,
+                        state,
+                    })
+                )
+            );
         }
 
         if (isVoid(node.name)) {
@@ -459,8 +535,40 @@ const visitors = {
         state.append(expression);
     },
 
-    RenderTag(node, { state }) {
-        state.append(b.call(b.variable("render"), []));
+    RenderTag(node, { state, visit }) {
+        const callee = /** @type {any} */ (
+            visit(
+                node.expression.type === "CallExpression"
+                    ? node.expression.callee
+                    : node.expression.name
+            )
+        );
+
+        const args = node.expression.arguments.map((arg) => {
+            return /** @type {any} */ (visit(arg));
+        });
+
+        state.append(b.call(callee, args));
+    },
+
+    HtmlTag(node, { state, visit }) {
+        state.append(visit(node.expression));
+    },
+
+    KeyBlock(node, { state, visit }) {
+        state.appendText("<!--[-->");
+        visit(node.fragment);
+        state.appendText("<!--]-->");
+    },
+
+    SnippetBlock(node, { state }) {
+        state.appendText(`[ ${node.type} ]`);
+    },
+
+    ZvelteComponent(node, { state }) {
+        state.appendText("<!--[-->");
+        state.appendText(`[ ${node.type} ]`);
+        state.appendText("<!--]-->");
     },
 
     // @ts-ignore
@@ -687,3 +795,139 @@ const visitors = {
         return member;
     },
 };
+
+/**
+ * @param {Array<import("#ast").ZvelteComponent["attributes"][number] | import("#ast").Component["attributes"][number]>} attributes
+ * @param {Pick<ComponentContext, "visit" | "state">} context
+ */
+function serializeAttibutesForComponent(attributes, { visit, state }) {
+    /** @type {Record<string, import("./type.js").Expression>} */
+    const props = {};
+
+    /**
+     * @type {{
+     *  get: import('estree').Expression
+     *  set: import('estree').ArrowFunctionExpression
+     * }=}
+     */
+    let bindThis;
+
+    for (const attr of attributes) {
+        switch (attr.type) {
+            case "Attribute": {
+                props[attr.name] = serializeAttributeValue(attr.value, false, {
+                    visit,
+                    state,
+                });
+                break;
+            }
+
+            case "BindDirective": {
+                if (attr.name === "this") {
+                    break;
+                } else {
+                    get(attr.name, pattern);
+                    set(attr.name, pattern);
+                }
+
+                break;
+            }
+
+            case "SpreadAttribute": {
+                const value = /** @type {import("estree").Expression} */ (
+                    visit(attr.expression)
+                );
+
+                args.push(checkIsDynamic(value) ? b.thunk(value) : value);
+                break;
+            }
+
+            default:
+                throw new Error(
+                    `Component attributes: "${attr.type}" is not handled yet`
+                );
+        }
+    }
+
+    if (!args.length) {
+        args.push(b.object([]));
+    }
+
+    const out = {
+        props:
+            args.length === 1
+                ? /** @type {import('estree').ObjectExpression} */ (args[0])
+                : b.call("$.spread_props", ...args),
+        bindThis,
+        /**
+         * @param {import("estree").ObjectExpression["properties"]} props
+         */
+        pushProp(...props) {
+            if (out.props.type === "ObjectExpression") {
+                out.props.properties.push(...props);
+            } else {
+                const last =
+                    out.props.arguments[out.props.arguments.length - 1];
+                if (last.type === "ObjectExpression") {
+                    last.properties.push(...props);
+                } else {
+                    out.props.arguments.push(b.object(props));
+                }
+            }
+        },
+    };
+
+    return out;
+}
+
+/**
+ * @param {true | Array<import("#ast").Text | import("#ast").ExpressionTag | import("#ast").ClassDirective>} attributeValue
+ * @param {boolean} isElement
+ * @param {Pick<ComponentContext, "visit" | "state">} context
+ * @returns {import("./type.js").Expression}
+ */
+function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
+    if (attributeValue === true) return b.true;
+
+    /** @type {import("./type.js").Expression[]} */
+    const expressions = [];
+    const texts = [];
+
+    for (let i = 0; i < attributeValue.length; i++) {
+        const node = attributeValue[i];
+
+        if (node.type === "Text") {
+            texts.push(node.data);
+        } else if (node.type === "ExpressionTag") {
+            texts.push("%");
+            let expression = /** @type {any} */ (visit(node.expression, state));
+
+            if (attributeValue.length !== 1 && isElement) {
+                expression = b.bin(expression, "??", b.literal(""));
+            }
+
+            expressions.push(expression);
+        } else if (node.type === "ClassDirective") {
+            if (texts[texts.length - 1]) {
+                texts.push(" %");
+            } else {
+                texts.push("%");
+            }
+
+            let expression = /** @type {any} */ (visit(node.expression, state));
+            expression = b.ternary(
+                expression,
+                b.literal(node.name),
+                b.literal("")
+            );
+
+            expressions.push(expression);
+        }
+    }
+
+    return texts.filter((t) => t !== "%").length
+        ? !expressions.length
+            ? b.string(texts[0])
+            : b.call("sprintf", [b.string(texts.join("")), ...expressions])
+        : expressions[0];
+}

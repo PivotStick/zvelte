@@ -20,10 +20,9 @@ import { hash } from "../../../compiler/index.js";
 import * as $ from "../runtime/index.js";
 import {
     AttributeAliases,
-    DOMBooleanAttributes,
     DOMProperties,
     SVGElements,
-} from "../../../compiler/phases/3-transform/render_dom/constants.js";
+} from "../../../compiler/phases/3-transform/constants.js";
 import { expressionToString } from "./expressionToString.js";
 
 /**

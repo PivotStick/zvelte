@@ -18,7 +18,7 @@ import {
     DOMProperties,
     SVGElements,
     VoidElements,
-} from "./constants.js";
+} from "../constants.js";
 import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
