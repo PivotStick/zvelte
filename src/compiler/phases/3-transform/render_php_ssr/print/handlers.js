@@ -594,8 +594,6 @@ const handlers = {
     },
 
     arrowfunc(node, state) {
-        console.log(node);
-
         const chunks = [];
 
         if (node.isStatic) {

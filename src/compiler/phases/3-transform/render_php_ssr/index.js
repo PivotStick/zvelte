@@ -454,7 +454,7 @@ const visitors = {
         // @ts-ignore
         let expression = visit(node.expression);
 
-        expression = b.internal("espace_html", expression);
+        expression = b.internal("escape_html", expression);
 
         state.append(expression);
     },
