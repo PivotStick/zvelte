@@ -21,7 +21,7 @@ export function program(children) {
 export function declareClass(name, body = []) {
     return {
         kind: "class",
-        name: identifier(name),
+        name: id(name),
         isAbstract: false,
         body,
         isAnonymous: false,
@@ -36,7 +36,7 @@ export function declareClass(name, body = []) {
  *
  * @returns {import("./type.js").Identifier}
  */
-export function identifier(name) {
+export function id(name) {
     return {
         kind: "identifier",
         name,
@@ -54,7 +54,7 @@ export function method(name, returnType) {
         kind: "method",
         nullable: false,
         visibility: "public",
-        name: identifier(name),
+        name: id(name),
         byref: false,
         isFinal: false,
         body: block(),
@@ -114,7 +114,7 @@ export function parameter(name, type, byref = false) {
     return {
         kind: "parameter",
         byref,
-        name: identifier(name),
+        name: id(name),
         type: type ? typeReference(type) : undefined,
         nullable: false,
         variadic: false,
@@ -212,7 +212,7 @@ export function returnExpression(expression) {
 export function call(what, args = [], wrap = false) {
     return {
         kind: "call",
-        what: typeof what === "string" ? identifier(what) : what,
+        what: typeof what === "string" ? id(what) : what,
         arguments: args,
         wrap,
     };
@@ -244,7 +244,7 @@ export function staticLookup(what, name) {
     return {
         kind: "staticlookup",
         what,
-        offset: identifier(name),
+        offset: id(name),
     };
 }
 
@@ -595,4 +595,14 @@ export function use(name, ...items) {
         name,
         items: items.map((name) => ({ kind: "useitem", name })),
     };
+}
+
+/**
+ * @param {string} method
+ * @param {...import("./type.js").Expression} args
+ *
+ * @returns {import("./type.js").Call}
+ */
+export function internal(method, ...args) {
+    return call(staticLookup(name("Internals"), method), args);
 }

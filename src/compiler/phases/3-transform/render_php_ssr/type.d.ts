@@ -163,7 +163,7 @@ export type StaticLookup = {
 export type PropertyLookup = {
     kind: "propertylookup";
     what: Expression;
-    offset: Identifier | EncapsedPart;
+    offset: Expression;
 };
 
 export type EncapsedPart = {

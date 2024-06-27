@@ -22,17 +22,29 @@ const propsName = "props";
  */
 export function renderPhpSSR(ast, analysis, options, meta) {
     const renderMethod = b.method("render", "string");
+    const getAllUsedComponents = b.method("getAllUsedComponents", "array");
 
     renderMethod.isStatic = true;
-    renderMethod.arguments.push(
-        b.parameter(propsName, "object"),
-        b.parameter("render", "callable")
-    );
+    renderMethod.arguments.push(b.parameter(propsName, "object"));
 
-    renderBlock(renderMethod.body, ast, [], options);
+    const state = createState(renderMethod.body, options);
+
+    renderBlock(state, ast);
+
+    const allUsedComponents = b.array();
+    walk(/** @type {import("#ast").ZvelteNode} */ (ast), null, {
+        Component(node) {
+            allUsedComponents.items.push(b.entry(b.string(node.key.data)));
+        },
+    });
+
+    getAllUsedComponents.body.children.push(
+        b.returnExpression(allUsedComponents)
+    );
 
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
+        getAllUsedComponents,
     ]);
 
     const result = print(
@@ -48,19 +60,14 @@ export function renderPhpSSR(ast, analysis, options, meta) {
 }
 
 /**
- * @param {import("./type.js").Block} block
+ * @param {State} state
  * @param {import("#ast").Root} node
- * @param {string[][]} scope
- * @param {import("../../../types.js").CompilerOptions} options
  */
-function renderBlock(block, node, scope, options) {
+function renderBlock(state, node) {
     const outputValue = b.array([]);
     const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
 
-    block.children.push(outputAssign);
-
-    /** @type {State} */
-    const state = createState(block, options);
+    state.block.children.push(outputAssign);
 
     walk(node, state, visitors);
 
@@ -69,7 +76,7 @@ function renderBlock(block, node, scope, options) {
     const implode = (/** @type {import("./type.js").Expression} */ expr) =>
         b.call(b.name("implode"), [b.literal(""), expr]);
 
-    const last = block.children.at(-1);
+    const last = state.block.children.at(-1);
     if (
         last?.kind === "expressionstatement" &&
         last.expression.kind === "assign" &&
@@ -78,7 +85,7 @@ function renderBlock(block, node, scope, options) {
         last.expression.operator === "=" &&
         last.expression.right === outputValue
     ) {
-        block.children.pop();
+        state.block.children.pop();
 
         if (outputValue.items.length <= 1) {
             returned = outputValue.items[0]?.value ?? b.string("");
@@ -89,7 +96,7 @@ function renderBlock(block, node, scope, options) {
         returned = implode(outputAssign.expression.left);
     }
 
-    block.children.push(b.returnExpression(returned));
+    state.block.children.push(b.returnExpression(returned));
 }
 
 /**
@@ -165,7 +172,6 @@ const visitors = {
 
     Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
-        state.appendText("<!--[-->");
 
         const { trimmed, hoisted } = cleanNodes(
             parent,
@@ -183,12 +189,52 @@ const visitors = {
         for (const node of trimmed) {
             visit(node);
         }
-
-        state.appendText("<!--]-->");
     },
 
     Text(node, { state }) {
         state.appendText(node.data);
+    },
+
+    Component(node, { state, visit }) {
+        const staticLookup = b.staticLookup(
+            b.name("\\" + node.key.data.replace(/\//g, "\\")),
+            "renderHTML"
+        );
+
+        const object = {};
+
+        for (const attr of node.attributes) {
+            switch (attr.type) {
+                case "Attribute": {
+                    if (attr.value === true) {
+                        object[attr.name] = b.boolean(true);
+                    } else if (attr.value.length === 1) {
+                        const v = attr.value[0];
+                        object[attr.name] =
+                            v.type === "Text"
+                                ? b.string(v.data)
+                                : visit(v.expression);
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+
+        state.append(
+            b.call(staticLookup, [
+                b.object(
+                    new Map(
+                        Object.entries(object).map(([key, value]) => [
+                            b.string(key),
+                            value,
+                        ])
+                    )
+                ),
+            ])
+        );
     },
 
     IfBlock(node, { state, visit }) {
@@ -216,6 +262,117 @@ const visitors = {
         );
     },
 
+    ForBlock(node, { state, path, visit }) {
+        state.appendText("<!--[-->");
+
+        const hasParent = path.some((n) => n.type === "ForBlock");
+
+        const source = /** @type {any} */ (visit(node.expression));
+        const index = b.variable("i");
+        const value = b.variable(node.context.name);
+        const key = node.index ? b.variable(node.index.name) : undefined;
+
+        const forEach = b.forEach(source, value, key);
+
+        const nonPropVars = ["loop", value.name];
+
+        if (key) {
+            nonPropVars.push(key.name);
+        }
+
+        if (hasParent) {
+            state.block.children.push(
+                b.assign(b.variable("parent"), "=", b.variable("loop"))
+            );
+        }
+
+        const forEachState = createState(forEach.body, state.options);
+        const length = b.variable("length");
+
+        state.block.children.push(b.assign(index, "=", b.number(0)));
+        forEachState.block.children.push(
+            b.assign(
+                length,
+                "=",
+                b.call(b.id("count"), [b.cast(source, "array")])
+            )
+        );
+
+        if (node.fallback) {
+            const ifBlock = b.ifStatement(
+                b.unary("!", b.internal("testEmpty", source))
+            );
+            ifBlock.alternate = b.block();
+
+            const ifState = createState(ifBlock.body, state.options);
+            const fallbackState = createState(ifBlock.alternate, state.options);
+
+            ifBlock.body.children.push(forEach);
+            state.block.children.push(ifBlock);
+
+            visit(node.fallback, fallbackState);
+            ifState.appendText("<!--]-->");
+            fallbackState.appendText("<!--]!-->");
+        } else {
+            state.block.children.push(forEach);
+            state.appendText("<!--]-->");
+        }
+
+        forEach.body.children.push(
+            b.assign(
+                b.variable("loop"),
+                "=",
+                b.object(
+                    new Map(
+                        /** @type {[any, any][]} */ ([
+                            [b.string("index0"), index],
+                            [b.string("index"), b.bin(index, "+", b.number(1))],
+                            [
+                                b.string("revindex0"),
+                                b.bin(
+                                    b.bin(length, "-", index),
+                                    "-",
+                                    b.number(1)
+                                ),
+                            ],
+                            [b.string("revindex"), b.bin(length, "-", index)],
+                            [
+                                b.string("first"),
+                                b.bin(index, "===", b.number(0)),
+                            ],
+                            [
+                                b.string("last"),
+                                b.bin(
+                                    index,
+                                    "===",
+                                    b.bin(length, "-", b.number(1))
+                                ),
+                            ],
+                            [b.string("length"), length],
+                            [
+                                b.string("parent"),
+                                hasParent
+                                    ? b.variable("parent")
+                                    : b.nullKeyword(),
+                            ],
+                        ])
+                    )
+                )
+            )
+        );
+
+        forEachState.nonPropVars = [
+            ...forEachState.nonPropVars,
+            ...nonPropVars,
+        ];
+
+        forEachState.appendText("<!--[-->");
+        visit(node.body, forEachState);
+        forEachState.appendText("<!--]-->");
+
+        forEach.body.children.push(b.assign(index, "+=", b.number(1)));
+    },
+
     RegularElement(node, { state, path, visit }) {
         const parent = path[path.length - 1];
 
@@ -233,6 +390,21 @@ const visitors = {
                         }
                         state.appendText(`"`);
                     }
+                    break;
+                }
+
+                case "ClassDirective": {
+                    state.append(
+                        b.internal(
+                            "attr",
+                            b.string("class"),
+                            b.ternary(
+                                /** @type {any} */ (visit(attr.expression)),
+                                b.string(attr.name),
+                                b.string("")
+                            )
+                        )
+                    );
                     break;
                 }
 
@@ -282,10 +454,7 @@ const visitors = {
         // @ts-ignore
         let expression = visit(node.expression);
 
-        expression = b.call(b.identifier("htmlspecialchars"), [
-            expression,
-            b.identifier("ENT_QUOTES"),
-        ]);
+        expression = b.internal("espace_html", expression);
 
         state.append(expression);
     },
@@ -400,7 +569,7 @@ const visitors = {
         const start = /** @type {any} */ (visit(node.from));
         const end = /** @type {any} */ (visit(node.to));
 
-        return b.call(b.identifier("range"), [start, end, b.number(node.step)]);
+        return b.call(b.id("range"), [start, end, b.number(node.step)]);
     },
 
     // @ts-ignore
@@ -408,7 +577,7 @@ const visitors = {
         const left = /** @type {any} */ (visit(node.left));
 
         if (node.right.type === "Identifier" && node.right.name === "empty") {
-            const expression = b.empty(left);
+            const expression = b.internal("testEmpty", left);
 
             return node.not ? b.unary("!", expression) : expression;
         }
@@ -430,23 +599,20 @@ const visitors = {
         const right = /** @type {any} */ (visit(node.right));
         const left = /** @type {any} */ (visit(node.left));
 
-        const expression = b.call(b.staticLookup(b.name("Internals"), "in"), [
-            left,
-            right,
-        ]);
+        const expression = b.internal("in", left, right);
 
         return node.not ? b.unary("!", expression) : expression;
     },
 
     // @ts-ignore
     FilterExpression(node, { visit }) {
-        const args = [b.variable("props"), b.string(node.name.name)];
+        const args = [b.variable(propsName), b.string(node.name.name)];
 
         for (const arg of node.arguments) {
             args.push(/** @type {any} */ (visit(arg)));
         }
 
-        return b.call(b.staticLookup(b.name("Internals"), "filter"), args);
+        return b.internal("filter", ...args);
     },
 
     // @ts-ignore
@@ -482,38 +648,42 @@ const visitors = {
     },
 
     // @ts-ignore
-    Identifier(node, { state, path, visit }) {
+    Identifier(node, { state, path }) {
         const parent = path[path.length - 1];
 
         if (parent.type === "MemberExpression" && !parent.computed) {
-            return b.identifier(node.name);
+            return b.id(node.name);
         }
 
         if (state.nonPropVars.includes(node.name)) {
             return b.variable(node.name);
         }
 
-        return b.propertyLookup(b.variable("props"), b.identifier(node.name));
+        return b.propertyLookup(b.variable(propsName), b.id(node.name));
     },
 
     // @ts-ignore
-    MemberExpression(node, { path, visit }) {
+    MemberExpression(node, { state, path, visit }) {
         const parent = path[path.length - 1];
-        const what = /** @type {any} */ (visit(node.object));
 
+        let what = /** @type {any} */ (visit(node.object));
         let offset = /** @type {any} */ (visit(node.property));
 
         if (node.computed) {
             offset = b.encapsedPart(offset);
         }
 
-        if (parent.type === "MemberExpression") {
-            return b.propertyLookup(what, offset);
+        let member = b.propertyLookup(what, offset);
+
+        if (
+            member.what.kind === "identifier" &&
+            !state.nonPropVars.includes(member.what.name)
+        ) {
+            member = b.propertyLookup(b.variable(propsName), member);
+        } else if (member.what.kind === "identifier") {
+            member.what = b.variable(member.what.name);
         }
 
-        return b.propertyLookup(
-            b.propertyLookup(b.variable("props"), what),
-            offset
-        );
+        return member;
     },
 };
