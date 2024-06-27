@@ -37,7 +37,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
         renderMethod.body
     );
 
-    renderBlock(state, ast);
+    walk(ast, state, visitors);
 
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
@@ -56,16 +56,18 @@ export function renderPhpSSR(ast, analysis, options, meta) {
 }
 
 /**
- * @param {State} state
- * @param {import("#ast").Root} node
+ * @param {ComponentContext} context
+ * @param {import("#ast").ZvelteNode[]} nodes
  */
-function renderBlock(state, node) {
+function renderBlock({ state, visit }, nodes) {
     const outputValue = b.array([]);
     const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
 
     state.block.children.push(outputAssign);
 
-    walk(node, state, visitors);
+    for (const node of nodes) {
+        visit(node, state);
+    }
 
     let returned;
 
@@ -161,8 +163,17 @@ const visitors = {
         }
     },
 
-    Root(node, { visit }) {
-        visit(node.fragment);
+    Root(node, context) {
+        const { trimmed, hoisted } = cleanNodes(
+            node,
+            node.fragment.nodes,
+            [node],
+            "html",
+            context.state.options.preserveWhitespace,
+            context.state.options.preserveComments
+        );
+
+        renderBlock(context, [...hoisted, ...trimmed]);
     },
 
     Fragment(node, { visit, state, path }) {
@@ -192,56 +203,6 @@ const visitors = {
 
     Comment(node, { state }) {
         state.appendText(node.data);
-    },
-
-    Component(node, { state, visit }) {
-        const className = b.name(node.key.data);
-
-        /**
-         * @type {Record<string, import("./type.js").Expression>}
-         */
-        const object = {};
-
-        for (const attr of node.attributes) {
-            switch (attr.type) {
-                case "Attribute": {
-                    object[attr.name] = serializeAttributeValue(
-                        attr.value,
-                        false,
-                        { visit, state }
-                    );
-                    break;
-                }
-
-                case "BindDirective": {
-                    object[attr.name] = /** @type {any} */ (
-                        visit(attr.expression)
-                    );
-                    break;
-                }
-
-                case "OnDirective": {
-                    // useless for ssr
-                    break;
-                }
-
-                default:
-                    break;
-            }
-        }
-
-        const props = b.object(
-            new Map(
-                Object.entries(object).map(([key, value]) => [
-                    b.string(key),
-                    value,
-                ])
-            )
-        );
-
-        state.appendText("<!--[-->");
-        state.append(b.internal("zone", b.string(className.name), props));
-        state.appendText("<!--]-->");
     },
 
     IfBlock(node, { state, visit }) {
@@ -385,117 +346,166 @@ const visitors = {
 
         state.appendText(`<${node.name}`);
 
-        const classDirectives =
-            /** @type {Array<import("#ast").ClassDirective>} */ (
-                node.attributes.filter((a) => a.type === "ClassDirective")
-            );
+        if (node.attributes.some((a) => a.type === "SpreadAttribute")) {
+            /** @type {import("./type.js").Entry[]} */
+            const attrs = [];
+            /** @type {Record<string, import("./type.js").Expression>} */
+            const classes = {};
 
-        for (const attr of node.attributes) {
-            switch (attr.type) {
-                case "Attribute": {
-                    if (classDirectives.length && attr.name === "class") {
-                        /**
-                         * @type {Array<import("#ast").Text | import("#ast").ExpressionTag | import("#ast").ClassDirective>}
-                         */
-                        const values =
-                            attr.value === true
-                                ? [
-                                      /** @type {import("#ast").Text} */ ({
-                                          type: "Text",
-                                          data: "",
-                                      }),
-                                  ]
-                                : attr.value.slice();
-
-                        values.push(...classDirectives);
-
-                        state.append(
-                            b.internal(
-                                "attr",
-                                b.string(attr.name),
-                                serializeAttributeValue(values, true, {
-                                    visit,
-                                    state,
-                                })
-                            )
+            for (const attr of node.attributes) {
+                switch (attr.type) {
+                    case "Attribute": {
+                        const value = serializeAttributeValue(
+                            attr.value,
+                            false,
+                            { visit, state }
                         );
-
-                        classDirectives.length = 0;
+                        const n = b.entry(value, b.literal(attr.name));
+                        attrs.push(n);
                         break;
                     }
 
-                    if (attr.value === true) {
-                        state.appendText(` ${attr.name}`);
-                        if (!DOMBooleanAttributes.includes(attr.name)) {
-                            state.appendText(`=""`);
+                    case "SpreadAttribute": {
+                        const value = /** @type {any} */ (
+                            visit(attr.expression)
+                        );
+                        attrs.push(b.entry(value, undefined, true));
+                        break;
+                    }
+
+                    case "ClassDirective": {
+                        const value = /** @type {any} */ (
+                            visit(attr.expression)
+                        );
+                        classes[attr.name] = value;
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+            }
+
+            const args = [b.cast(b.array(attrs), "object")];
+
+            if (Object.keys(classes).length) {
+                args.push(b.objectFromLiteral(classes));
+            }
+
+            state.append(b.internal("spread_attributes", ...args));
+        } else {
+            const classDirectives =
+                /** @type {Array<import("#ast").ClassDirective>} */ (
+                    node.attributes.filter((a) => a.type === "ClassDirective")
+                );
+
+            for (const attr of node.attributes) {
+                switch (attr.type) {
+                    case "Attribute": {
+                        if (classDirectives.length && attr.name === "class") {
+                            /**
+                             * @type {Array<import("#ast").Text | import("#ast").ExpressionTag | import("#ast").ClassDirective>}
+                             */
+                            const values =
+                                attr.value === true
+                                    ? [
+                                          /** @type {import("#ast").Text} */ ({
+                                              type: "Text",
+                                              data: "",
+                                          }),
+                                      ]
+                                    : attr.value.slice();
+
+                            values.push(...classDirectives);
+
+                            state.append(
+                                b.internal(
+                                    "attr",
+                                    b.string(attr.name),
+                                    serializeAttributeValue(values, true, {
+                                        visit,
+                                        state,
+                                    })
+                                )
+                            );
+
+                            classDirectives.length = 0;
+                            break;
                         }
-                    } else if (
-                        attr.value.length === 1 &&
-                        attr.value[0].type === "Text"
-                    ) {
-                        state.appendText(` ${attr.name}="`);
-                        state.appendText(attr.value[0].data);
-                        state.appendText(`"`);
-                    } else {
+
+                        if (attr.value === true) {
+                            state.appendText(` ${attr.name}`);
+                            if (!DOMBooleanAttributes.includes(attr.name)) {
+                                state.appendText(`=""`);
+                            }
+                        } else if (
+                            attr.value.length === 1 &&
+                            attr.value[0].type === "Text"
+                        ) {
+                            state.appendText(` ${attr.name}="`);
+                            state.appendText(attr.value[0].data);
+                            state.appendText(`"`);
+                        } else {
+                            state.append(
+                                b.internal(
+                                    "attr",
+                                    b.string(attr.name),
+                                    serializeAttributeValue(attr.value, true, {
+                                        visit,
+                                        state,
+                                    })
+                                )
+                            );
+                        }
+                        break;
+                    }
+
+                    case "BindDirective": {
                         state.append(
                             b.internal(
                                 "attr",
                                 b.string(attr.name),
-                                serializeAttributeValue(attr.value, true, {
-                                    visit,
-                                    state,
-                                })
+                                b.bin(
+                                    /** @type {any} */ (visit(attr.expression)),
+                                    "??",
+                                    b.literal("")
+                                )
                             )
                         );
+                        break;
                     }
-                    break;
-                }
 
-                case "BindDirective": {
-                    state.append(
-                        b.internal(
-                            "attr",
-                            b.string(attr.name),
-                            b.bin(
-                                /** @type {any} */ (visit(attr.expression)),
-                                "??",
-                                b.literal("")
-                            )
-                        )
-                    );
-                    break;
-                }
+                    case "ClassDirective": {
+                        // Do nothing handled in the Attribute's case
+                        break;
+                    }
 
-                case "ClassDirective": {
-                    // Do nothing handled in the Attribute's case
-                    break;
-                }
+                    case "OnDirective":
+                    case "TransitionDirective":
+                    case "UseDirective": {
+                        // Do nothing, useless for ssr
+                        break;
+                    }
 
-                case "OnDirective":
-                case "TransitionDirective":
-                case "UseDirective": {
-                    // Do nothing, useless for ssr
-                    break;
+                    default:
+                        throw new Error(
+                            `Unknown "${attr.type}" attribute type on "${node.type}"`
+                        );
                 }
-
-                default:
-                    throw new Error(
-                        `Unknown "${attr.type}" attribute type on "${node.type}"`
-                    );
             }
-        }
 
-        if (classDirectives.length) {
-            state.append(
-                b.internal(
-                    "attr",
-                    b.string("class"),
-                    serializeAttributeValue(classDirectives, true, {
-                        visit,
-                        state,
-                    })
-                )
-            );
+            if (classDirectives.length) {
+                state.append(
+                    b.internal(
+                        "attr",
+                        b.string("class"),
+                        serializeAttributeValue(classDirectives, true, {
+                            visit,
+                            state,
+                        })
+                    )
+                );
+            }
         }
 
         if (isVoid(node.name)) {
@@ -548,7 +558,9 @@ const visitors = {
             return /** @type {any} */ (visit(arg));
         });
 
-        state.append(b.call(callee, args));
+        state.appendText("<!--[-->");
+        state.append(b.call(callee, args, true));
+        state.appendText("<!--]-->");
     },
 
     HtmlTag(node, { state, visit }) {
@@ -561,14 +573,52 @@ const visitors = {
         state.appendText("<!--]-->");
     },
 
-    SnippetBlock(node, { state }) {
-        state.appendText(`[ ${node.type} ]`);
+    SnippetBlock(node, context) {
+        const fn = createSnippetClosure(
+            context,
+            node.parameters,
+            node.body.nodes
+        );
+
+        context.state.block.children.push(
+            b.assign(
+                b.propertyLookup(
+                    b.variable(propsName),
+                    b.id(node.expression.name)
+                ),
+                "=",
+                fn
+            )
+        );
     },
 
-    ZvelteComponent(node, { state }) {
-        state.appendText("<!--[-->");
-        state.appendText(`[ ${node.type} ]`);
-        state.appendText("<!--]-->");
+    Variable(node, { state, visit }) {
+        const name = /** @type {any} */ (visit(node.name));
+        const value = /** @type {any} */ (visit(node.value));
+
+        state.block.children.push(b.assign(name, "=", value));
+    },
+
+    Component(node, context) {
+        const className = b.name(node.key.data);
+        const props = getComponentProps(node, context);
+
+        context.state.appendText("<!--[-->");
+        context.state.append(
+            b.internal("component", b.string(className.name), props)
+        );
+        context.state.appendText("<!--]-->");
+    },
+
+    ZvelteComponent(node, context) {
+        const callee = /** @type {any} */ (context.visit(node.expression));
+        const props = getComponentProps(node, context);
+
+        context.state.appendText("<!--[-->");
+        context.state.append(
+            b.ternary(callee, b.call(callee, [props], true), b.string(""))
+        );
+        context.state.appendText("<!--]-->");
     },
 
     // @ts-ignore
@@ -797,81 +847,184 @@ const visitors = {
 };
 
 /**
+ * @param {import("#ast").ZvelteComponent | import("#ast").Component} node
+ * @param {ComponentContext} context
+ */
+function getComponentProps(node, context) {
+    const parent = context.path[context.path.length - 1];
+    const { props, pushProp } = serializeAttibutesForComponent(
+        node.attributes,
+        context
+    );
+
+    const { trimmed, hoisted } = cleanNodes(
+        parent,
+        node.fragment.nodes,
+        context.path,
+        "html",
+        context.state.options.preserveWhitespace,
+        context.state.options.preserveComments
+    );
+
+    for (const node of hoisted) {
+        if (node.type === "SnippetBlock") {
+            const value = createSnippetClosure(
+                context,
+                node.parameters,
+                node.body.nodes
+            );
+            pushProp(b.entry(value, b.string(node.expression.name)));
+        } else {
+            context.visit(node);
+        }
+    }
+
+    if (trimmed.length) {
+        const value = createSnippetClosure(context, [], trimmed);
+        pushProp(b.entry(value, b.string("children")));
+    }
+
+    return props;
+}
+
+/**
+ * @param {ComponentContext} context
+ * @param {import("#ast").Identifier[]} parameters
+ * @param {import("#ast").ZvelteNode[]} nodes
+ */
+function createSnippetClosure(context, parameters, nodes) {
+    const parent = context.path[context.path.length - 1];
+    const nonPropVars = [...context.state.nonPropVars];
+    const params = [];
+
+    for (const param of parameters) {
+        nonPropVars.push(param.name);
+        params.push(b.parameter(param.name));
+    }
+
+    const fn = b.closure(true, params, [
+        b.variable(propsName),
+        ...[...new Set(nonPropVars)].map((p) => b.variable(p)),
+    ]);
+
+    const { trimmed, hoisted } = cleanNodes(
+        parent,
+        nodes,
+        context.path,
+        "html",
+        context.state.options.preserveWhitespace,
+        context.state.options.preserveComments
+    );
+
+    renderBlock(
+        {
+            ...context,
+            state: createState(
+                {
+                    ...context.state,
+                    nonPropVars,
+                },
+                fn.body
+            ),
+        },
+        [...hoisted, ...trimmed]
+    );
+
+    return fn;
+}
+
+/**
  * @param {Array<import("#ast").ZvelteComponent["attributes"][number] | import("#ast").Component["attributes"][number]>} attributes
  * @param {Pick<ComponentContext, "visit" | "state">} context
  */
 function serializeAttibutesForComponent(attributes, { visit, state }) {
-    /** @type {Record<string, import("./type.js").Expression>} */
-    const props = {};
-
     /**
-     * @type {{
-     *  get: import('estree').Expression
-     *  set: import('estree').ArrowFunctionExpression
-     * }=}
+     * @type {(import("./type.js").Expression)[]}
      */
-    let bindThis;
+    const args = [];
+
+    function last() {
+        let last = args[args.length - 1];
+        if (
+            last?.kind === "cast" &&
+            last.type === "object" &&
+            last.expr.kind === "array"
+        )
+            return last.expr.items;
+
+        const array = b.array();
+        last = b.cast(array, "object");
+        args.push(last);
+        return array.items;
+    }
 
     for (const attr of attributes) {
         switch (attr.type) {
             case "Attribute": {
-                props[attr.name] = serializeAttributeValue(attr.value, false, {
+                const items = last();
+                const value = serializeAttributeValue(attr.value, false, {
                     visit,
                     state,
                 });
+
+                items.push(b.entry(value, b.string(attr.name)));
                 break;
             }
 
             case "BindDirective": {
-                if (attr.name === "this") {
-                    break;
-                } else {
-                    get(attr.name, pattern);
-                    set(attr.name, pattern);
-                }
-
+                const items = last();
+                const value = /** @type {any} */ (visit(attr.expression));
+                items.push(b.entry(value, b.string(attr.name)));
                 break;
             }
 
             case "SpreadAttribute": {
-                const value = /** @type {import("estree").Expression} */ (
-                    visit(attr.expression)
-                );
+                const value = /** @type {any} */ (visit(attr.expression));
+                args.push(value);
+                break;
+            }
 
-                args.push(checkIsDynamic(value) ? b.thunk(value) : value);
+            case "OnDirective": {
+                // useless for ssr
                 break;
             }
 
             default:
-                throw new Error(
-                    `Component attributes: "${attr.type}" is not handled yet`
-                );
+                break;
         }
     }
 
-    if (!args.length) {
-        args.push(b.object([]));
-    }
+    if (!args.length) last();
 
     const out = {
         props:
             args.length === 1
-                ? /** @type {import('estree').ObjectExpression} */ (args[0])
-                : b.call("$.spread_props", ...args),
-        bindThis,
+                ? /** @type {import('./type.js').Cast} */ (args[0])
+                : b.internal(
+                      "spread_props",
+                      b.array(args.map((arg) => b.entry(arg)))
+                  ),
         /**
-         * @param {import("estree").ObjectExpression["properties"]} props
+         * @param {import("./type.js").Entry[]} props
          */
         pushProp(...props) {
-            if (out.props.type === "ObjectExpression") {
-                out.props.properties.push(...props);
+            if (out.props.kind === "cast") {
+                if (
+                    out.props.type === "object" &&
+                    out.props.expr.kind === "array"
+                ) {
+                    out.props.expr.items.push(...props);
+                }
             } else {
                 const last =
                     out.props.arguments[out.props.arguments.length - 1];
-                if (last.type === "ObjectExpression") {
-                    last.properties.push(...props);
+
+                if (last.kind === "cast") {
+                    if (last.type === "object" && last.expr.kind === "array") {
+                        last.expr.items.push(...props);
+                    }
                 } else {
-                    out.props.arguments.push(b.object(props));
+                    out.props.arguments.push(b.cast(b.array(props), "object"));
                 }
             }
         },
