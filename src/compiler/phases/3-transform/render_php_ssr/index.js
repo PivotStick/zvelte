@@ -16,6 +16,7 @@ const propsName = "props";
  *  readonly block: import("./type.js").Block;
  *  nonPropVars: string[];
  *  usedComponents: import("./type.js").Entry[];
+ *  counter: number;
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -42,6 +43,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
             options,
             nonPropVars: [],
             usedComponents: [],
+            counter: 0,
         },
         renderMethod.body
     );
@@ -182,7 +184,7 @@ const visitors = {
             node,
             node.fragment.nodes,
             [node],
-            "html",
+            undefined,
             context.state.options.preserveWhitespace,
             context.state.options.preserveComments
         );
@@ -619,11 +621,13 @@ const visitors = {
     Component(node, context) {
         const className = b.name(node.key.data);
         const props = getComponentProps(node, context);
+        const index = b.number(context.state.counter++);
 
         context.state.usedComponents.push(
             b.entry(
                 b.objectFromLiteral({
                     key: b.string(node.key.data),
+                    index,
                     props,
                 })
             )
@@ -631,7 +635,7 @@ const visitors = {
 
         context.state.appendText("<!--[-->");
         context.state.append(
-            b.internal("component", b.string(className.name), props)
+            b.internal("component", index, b.string(className.name), props)
         );
         context.state.appendText("<!--]-->");
     },
