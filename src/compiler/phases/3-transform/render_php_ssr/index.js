@@ -15,6 +15,7 @@ const propsName = "props";
  *  options: import("../../../types.js").CompilerOptions;
  *  readonly block: import("./type.js").Block;
  *  nonPropVars: string[];
+ *  scopeVars: string[];
  *  usedComponents: import("./type.js").Entry[];
  *  counter: number;
  * }} State
@@ -42,6 +43,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
         {
             options,
             nonPropVars: [],
+            scopeVars: [],
             usedComponents: [],
             counter: 0,
         },
@@ -62,7 +64,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     const result = print(
         b.program([
             b.namespace(options.namespace, [
-                b.use(options.internalsNamespace, "Internals"),
+                b.use(options.internalsNamespace, "Internals", "Snippet"),
                 renderer,
             ]),
         ])
@@ -621,13 +623,11 @@ const visitors = {
     Component(node, context) {
         const className = b.name(node.key.data);
         const props = getComponentProps(node, context);
-        const index = b.number(context.state.counter++);
 
         context.state.usedComponents.push(
             b.entry(
                 b.objectFromLiteral({
                     key: b.string(node.key.data),
-                    index,
                     props,
                 })
             )
@@ -635,7 +635,7 @@ const visitors = {
 
         context.state.appendText("<!--[-->");
         context.state.append(
-            b.internal("component", index, b.string(className.name), props)
+            b.internal("component", b.string(className.name), props)
         );
         context.state.appendText("<!--]-->");
     },
@@ -847,6 +847,10 @@ const visitors = {
             return b.variable(node.name);
         }
 
+        if (state.scopeVars.includes(node.name)) {
+            return b.propertyLookup(b.variable("scope"), b.id(node.name));
+        }
+
         return b.propertyLookup(b.variable(propsName), b.id(node.name));
     },
 
@@ -863,13 +867,14 @@ const visitors = {
 
         let member = b.propertyLookup(what, offset);
 
-        if (
-            member.what.kind === "identifier" &&
-            !state.nonPropVars.includes(member.what.name)
-        ) {
-            member = b.propertyLookup(b.variable(propsName), member);
-        } else if (member.what.kind === "identifier") {
-            member.what = b.variable(member.what.name);
+        if (member.what.kind === "identifier") {
+            if (!state.nonPropVars.includes(member.what.name)) {
+                member = b.propertyLookup(b.variable(propsName), member);
+            } else if (state.scopeVars.includes(member.what.name)) {
+                member = b.propertyLookup(b.variable("scope"), member);
+            } else {
+                member.what = b.variable(member.what.name);
+            }
         }
 
         return member;
@@ -924,18 +929,23 @@ function getComponentProps(node, context) {
  */
 function createSnippetClosure(context, parameters, nodes) {
     const parent = context.path[context.path.length - 1];
+    const scopeVars = [...new Set(context.state.nonPropVars)];
     const nonPropVars = [...context.state.nonPropVars];
-    const params = [];
+
+    const params = [b.variable(propsName), b.variable("scope")];
 
     for (const param of parameters) {
         nonPropVars.push(param.name);
         params.push(b.parameter(param.name));
     }
 
-    const fn = b.closure(true, params, [
-        b.variable(propsName),
-        ...[...new Set(nonPropVars)].map((p) => b.variable(p)),
-    ]);
+    const fn = b.closure(true, params);
+    const scope = b.cast(
+        b.array(scopeVars.map((v) => b.entry(b.variable(v), b.string(v)))),
+        "object"
+    );
+
+    const snippet = b.new("Snippet", b.variable("props"), scope, fn);
 
     const { trimmed, hoisted } = cleanNodes(
         parent,
@@ -952,6 +962,7 @@ function createSnippetClosure(context, parameters, nodes) {
             state: createState(
                 {
                     ...context.state,
+                    scopeVars,
                     nonPropVars,
                 },
                 fn.body
@@ -960,7 +971,7 @@ function createSnippetClosure(context, parameters, nodes) {
         [...hoisted, ...trimmed]
     );
 
-    return fn;
+    return snippet;
 }
 
 /**

@@ -276,4 +276,10 @@ export type UseItem = {
     name: string;
 };
 
+export type New = {
+    kind: "new";
+    what: Name;
+    arguments: Expression[];
+};
+
 export type Node = Literal | Expression | UseGroup | UseItem;

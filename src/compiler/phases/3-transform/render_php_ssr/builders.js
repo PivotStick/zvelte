@@ -607,7 +607,21 @@ export function internal(method, ...args) {
     return call(staticLookup(name("Internals"), method), args);
 }
 
+/**
+ * @param {string} what
+ * @param {...import("./type.js").Expression} args
+ *
+ * @returns {import("./type.js").New}
+ */
+function new_builder(what, ...args) {
+    return {
+        kind: "new",
+        what: name(what),
+        arguments: args,
+    };
+}
+
 const true_instance = boolean(true);
 const false_instance = boolean(false);
 
-export { true_instance as true, false_instance as false };
+export { true_instance as true, false_instance as false, new_builder as new };

@@ -444,6 +444,23 @@ const handlers = {
         return chunks;
     },
 
+    new(node, state) {
+        const chunks = [c("new "), ...handle(node.what, state), c("(")];
+
+        for (let i = 0; i < node.arguments.length; i++) {
+            const arg = node.arguments[i];
+            chunks.push(...handle(arg, state));
+
+            if (i < node.arguments.length - 1) {
+                chunks.push(c(", "));
+            }
+        }
+
+        chunks.push(c(")"));
+
+        return chunks;
+    },
+
     foreach(node, state) {
         const chunks = [
             c("foreach ("),
