@@ -15,6 +15,7 @@ const propsName = "props";
  *  options: import("../../../types.js").CompilerOptions;
  *  readonly block: import("./type.js").Block;
  *  nonPropVars: string[];
+ *  usedComponents: import("./type.js").Entry[];
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -25,22 +26,31 @@ const propsName = "props";
  */
 export function renderPhpSSR(ast, analysis, options, meta) {
     const renderMethod = b.method("render", "string");
+    const getAllComponentsMethod = b.method("getAllComponents", "array");
 
     renderMethod.isStatic = true;
     renderMethod.arguments.push(b.parameter(propsName, "object"));
+
+    getAllComponentsMethod.isStatic = true;
 
     const state = createState(
         {
             options,
             nonPropVars: [],
+            usedComponents: [],
         },
         renderMethod.body
     );
 
     walk(ast, state, visitors);
 
+    getAllComponentsMethod.body.children.push(
+        b.returnExpression(b.array(state.usedComponents))
+    );
+
     const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
         renderMethod,
+        getAllComponentsMethod,
     ]);
 
     const result = print(
@@ -605,6 +615,15 @@ const visitors = {
     Component(node, context) {
         const className = b.name(node.key.data);
         const props = getComponentProps(node, context);
+
+        context.state.usedComponents.push(
+            b.entry(
+                b.objectFromLiteral({
+                    key: b.string(node.key.data),
+                    props,
+                })
+            )
+        );
 
         context.state.appendText("<!--[-->");
         context.state.append(
