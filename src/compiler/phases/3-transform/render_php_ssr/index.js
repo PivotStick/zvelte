@@ -53,6 +53,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     walk(ast, state, visitors);
 
     getAllComponentsMethod.body.children.push(
+        b.assign(b.variable(propsName), "??=", b.object()),
         b.returnExpression(b.array(state.usedComponents))
     );
 

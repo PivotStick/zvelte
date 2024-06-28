@@ -121,7 +121,7 @@ export type Assign = {
     kind: "assign";
     left: Expression;
     right: Expression;
-    operator: "=" | "+=" | "-=";
+    operator: "=" | "+=" | "-=" | "??=";
 };
 
 export type Return = {

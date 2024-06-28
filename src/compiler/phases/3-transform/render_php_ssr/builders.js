@@ -413,7 +413,7 @@ export function ternary(test, consequent, alternate) {
  * @param {Map<import("./type.js").Expression, import("./type.js").Expression>} map
  * @returns {import("./type.js").Cast}
  */
-export function object(map) {
+export function object(map = new Map()) {
     const entries = Array.from(map.entries());
 
     return cast(
