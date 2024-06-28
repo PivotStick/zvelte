@@ -558,8 +558,11 @@ const visitors = {
             return /** @type {any} */ (visit(arg));
         });
 
+        const call = b.call(callee, args, true);
+        const test = b.call(b.id("is_callable"), [callee]);
+
         state.appendText("<!--[-->");
-        state.append(b.call(callee, args, true));
+        state.append(b.ternary(test, call, b.string("")));
         state.appendText("<!--]-->");
     },
 
