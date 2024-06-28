@@ -54,6 +54,7 @@ export type Parameter = {
     byref: boolean;
     variadic: boolean;
     nullable: boolean;
+    value?: Expression;
 };
 
 export type TypeReference = {

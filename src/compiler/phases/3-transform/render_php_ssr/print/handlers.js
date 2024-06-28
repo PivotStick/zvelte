@@ -215,6 +215,11 @@ const handlers = {
         chunks.push(c("$"));
         push_array(chunks, handle(node.name, state));
 
+        if (node.value) {
+            chunks.push(c(" = "));
+            push_array(chunks, handle(node.value, state));
+        }
+
         return chunks;
     },
 

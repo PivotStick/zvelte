@@ -32,6 +32,10 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     renderMethod.arguments.push(b.parameter(propsName, "object"));
 
     getAllComponentsMethod.isStatic = true;
+    const param = b.parameter(propsName, "object");
+    getAllComponentsMethod.arguments.push(param);
+    param.nullable = true;
+    param.value = b.nullKeyword();
 
     const state = createState(
         {
