@@ -59,9 +59,10 @@ export default defineConfig({
                         params.get("props")
                     );
 
-                    return `export default { output: ${safe(
-                        output
-                    )}, code: ${safe(result.code)} };`;
+                    return `export default ${JSON.stringify({
+                        output,
+                        code: result.code,
+                    })};`;
                 }
 
                 if (id.endsWith("all.samples.js")) {
