@@ -598,16 +598,6 @@ export function use(name, ...items) {
 }
 
 /**
- * @param {string} method
- * @param {...import("./type.js").Expression} args
- *
- * @returns {import("./type.js").Call}
- */
-export function internal(method, ...args) {
-    return call(staticLookup(name("Internals"), method), args);
-}
-
-/**
  * @param {string} what
  * @param {...import("./type.js").Expression} args
  *

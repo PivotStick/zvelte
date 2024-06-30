@@ -97,7 +97,8 @@ export type Expression =
     | Bin
     | Closure
     | RetIf
-    | ArrowFunc;
+    | ArrowFunc
+    | New;
 
 export type Closure = {
     kind: "closure";

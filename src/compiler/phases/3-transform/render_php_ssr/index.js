@@ -18,6 +18,8 @@ const propsName = "props";
  *  scopeVars: string[];
  *  usedComponents: import("./type.js").Entry[];
  *  counter: number;
+ *  import(name: string): void;
+ *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -39,6 +41,10 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     param.nullable = true;
     param.value = b.nullKeyword();
 
+    /**
+     * @type {Set<string>}
+     */
+    const internalImports = new Set();
     const state = createState(
         {
             options,
@@ -46,6 +52,16 @@ export function renderPhpSSR(ast, analysis, options, meta) {
             scopeVars: [],
             usedComponents: [],
             counter: 0,
+            import(name) {
+                internalImports.add(name);
+            },
+            internal(method, ...args) {
+                internalImports.add("Internals");
+                return b.call(
+                    b.staticLookup(b.name("Internals"), method),
+                    args
+                );
+            },
         },
         renderMethod.body
     );
@@ -62,13 +78,18 @@ export function renderPhpSSR(ast, analysis, options, meta) {
         getAllComponentsMethod,
     ]);
 
+    const namespace = [];
+
+    if (internalImports.size) {
+        namespace.push(
+            b.use(options.internalsNamespace, ...[...internalImports])
+        );
+    }
+
+    namespace.push(renderer);
+
     const result = print(
-        b.program([
-            b.namespace(options.namespace, [
-                b.use(options.internalsNamespace, "Internals", "Snippet"),
-                renderer,
-            ]),
-        ])
+        b.program([b.namespace(options.namespace, namespace)])
     );
 
     return result;
@@ -287,7 +308,7 @@ const visitors = {
 
         if (node.fallback) {
             const ifBlock = b.ifStatement(
-                b.unary("!", b.internal("testEmpty", source))
+                b.unary("!", state.internal("testEmpty", source))
             );
             ifBlock.alternate = b.block();
 
@@ -411,7 +432,7 @@ const visitors = {
                 args.push(b.objectFromLiteral(classes));
             }
 
-            state.append(b.internal("spread_attributes", ...args));
+            state.append(state.internal("spread_attributes", ...args));
         } else {
             const classDirectives =
                 /** @type {Array<import("#ast").ClassDirective>} */ (
@@ -438,7 +459,7 @@ const visitors = {
                             values.push(...classDirectives);
 
                             state.append(
-                                b.internal(
+                                state.internal(
                                     "attr",
                                     b.string(attr.name),
                                     serializeAttributeValue(values, true, {
@@ -466,7 +487,7 @@ const visitors = {
                             state.appendText(`"`);
                         } else {
                             state.append(
-                                b.internal(
+                                state.internal(
                                     "attr",
                                     b.string(attr.name),
                                     serializeAttributeValue(attr.value, true, {
@@ -481,7 +502,7 @@ const visitors = {
 
                     case "BindDirective": {
                         state.append(
-                            b.internal(
+                            state.internal(
                                 "attr",
                                 b.string(attr.name),
                                 b.bin(
@@ -515,7 +536,7 @@ const visitors = {
 
             if (classDirectives.length) {
                 state.append(
-                    b.internal(
+                    state.internal(
                         "attr",
                         b.string("class"),
                         serializeAttributeValue(classDirectives, true, {
@@ -559,7 +580,7 @@ const visitors = {
         // @ts-ignore
         let expression = visit(node.expression);
 
-        expression = b.internal("escape_html", expression);
+        expression = state.internal("escape_html", expression);
 
         state.append(expression);
     },
@@ -636,7 +657,7 @@ const visitors = {
 
         context.state.appendText("<!--[-->");
         context.state.append(
-            b.internal("component", b.string(className.name), props)
+            context.state.internal("component", b.string(className.name), props)
         );
         context.state.appendText("<!--]-->");
     },
@@ -762,11 +783,11 @@ const visitors = {
     },
 
     // @ts-ignore
-    IsExpression(node, { visit }) {
+    IsExpression(node, { state, visit }) {
         const left = /** @type {any} */ (visit(node.left));
 
         if (node.right.type === "Identifier" && node.right.name === "empty") {
-            const expression = b.internal("testEmpty", left);
+            const expression = state.internal("testEmpty", left);
 
             return node.not ? b.unary("!", expression) : expression;
         }
@@ -784,24 +805,24 @@ const visitors = {
     },
 
     // @ts-ignore
-    InExpression(node, { visit }) {
+    InExpression(node, { state, visit }) {
         const right = /** @type {any} */ (visit(node.right));
         const left = /** @type {any} */ (visit(node.left));
 
-        const expression = b.internal("in", left, right);
+        const expression = state.internal("in", left, right);
 
         return node.not ? b.unary("!", expression) : expression;
     },
 
     // @ts-ignore
-    FilterExpression(node, { visit }) {
+    FilterExpression(node, { state, visit }) {
         const args = [b.variable(propsName), b.string(node.name.name)];
 
         for (const arg of node.arguments) {
             args.push(/** @type {any} */ (visit(arg)));
         }
 
-        return b.internal("filter", ...args);
+        return state.internal("filter", ...args);
     },
 
     // @ts-ignore
@@ -933,7 +954,7 @@ function createSnippetClosure(context, parameters, nodes) {
     const scopeVars = [...new Set(context.state.nonPropVars)];
     const nonPropVars = [...context.state.nonPropVars];
 
-    const params = [b.variable(propsName), b.variable("scope")];
+    const params = [b.parameter(propsName), b.parameter("scope")];
 
     for (const param of parameters) {
         nonPropVars.push(param.name);
@@ -946,6 +967,7 @@ function createSnippetClosure(context, parameters, nodes) {
         "object"
     );
 
+    context.state.import("Snippet");
     const snippet = b.new("Snippet", b.variable("props"), scope, fn);
 
     const { trimmed, hoisted } = cleanNodes(
@@ -1042,7 +1064,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
         props:
             args.length === 1
                 ? /** @type {import('./type.js').Cast} */ (args[0])
-                : b.internal(
+                : state.internal(
                       "spread_props",
                       b.array(args.map((arg) => b.entry(arg)))
                   ),

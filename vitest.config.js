@@ -1,13 +1,15 @@
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/compiler/index";
-import { access, readdir } from "fs/promises";
+import { access, readFile, readdir, rm, writeFile } from "fs/promises";
 import { basename, dirname, join } from "path";
 import { parse } from "./src/compiler/phases/1-parse";
 import { walk } from "zimmerframe";
 import * as acorn from "acorn";
 import { print } from "esrap";
+import { execSync } from "child_process";
 
 let root = "";
+const safe = (str) => `\`${str.replace(/`/g, "\\`")}\``;
 
 export default defineConfig({
     test: {
@@ -31,6 +33,36 @@ export default defineConfig({
                 let query = "";
                 [id, query] = id.split("?");
                 const params = new URLSearchParams(query);
+
+                if (
+                    id.endsWith(".zvelte") &&
+                    id.startsWith(
+                        join(root, "./src/__tests__/runtime-php-ssr/")
+                    )
+                ) {
+                    const optionsPath = id.replace(/\.zvelte$/, ".json");
+                    const hasOptions = await access(optionsPath)
+                        .then(() => true)
+                        .catch(() => false);
+
+                    const options = hasOptions
+                        ? JSON.parse(await readFile(optionsPath, "utf8"))
+                        : {};
+
+                    const result = compile(code, {
+                        ...options,
+                        generate: "php_ssr",
+                    });
+
+                    const output = await runPHP(
+                        result.code,
+                        params.get("props")
+                    );
+
+                    return `export default { output: ${safe(
+                        output
+                    )}, code: ${safe(result.code)} };`;
+                }
 
                 if (id.endsWith("all.samples.js")) {
                     const legacy = [];
@@ -188,3 +220,14 @@ export default mount.component;
         },
     ],
 });
+
+/**
+ * @param {string} code
+ */
+async function runPHP(code, props) {
+    const dir = "./src/__tests__/runtime-php-ssr/php";
+    const path = join(dir, "/current.php");
+    await writeFile(path, code);
+    const buffer = execSync(`cd ${dir} && php index.php '${props}'`);
+    return buffer.toString();
+}
