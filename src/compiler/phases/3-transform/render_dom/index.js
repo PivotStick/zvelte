@@ -1678,6 +1678,7 @@ const templateVisitors = {
             }
         }
 
+        const nodeId = context.state.node;
         const id =
             alreadyImported ??
             context.state.scope.root.unique(
@@ -1699,7 +1700,7 @@ const templateVisitors = {
         const statement = serializeComponentProps(
             node,
             context,
-            (props, bindThis) => bindThis(b.call(id, context.state.node, props))
+            (props, bindThis) => bindThis(b.call(id, nodeId, props))
         );
 
         context.state.update.push(statement);
