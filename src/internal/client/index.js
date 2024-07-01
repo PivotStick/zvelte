@@ -3,7 +3,6 @@ export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
 export { onMount, onDestroy, tick } from "svelte";
 export { user_effect as effect } from "svelte/internal/client";
-
 import * as $ from "svelte/internal/client";
 
 /**
