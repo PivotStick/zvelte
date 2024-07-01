@@ -58,7 +58,7 @@ export default defineTest({
         };
 
         expect(target.innerHTML).toEqual(
-            `main\n\n${JSON.stringify(expectedReturn)}`
+            `main\n\n${JSON.stringify(expectedReturn)}`,
         );
     },
 });
