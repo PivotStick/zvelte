@@ -73,6 +73,7 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
         dir: (options.dir ??= ""),
         filename: (options.filename ??= ""),
         namespace: (options.namespace ??= ""),
+        internalsNamespace: (options.namespace ??= ""),
         async: options.async,
     };
 
@@ -147,20 +148,18 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
               var promise = $.load(
                   _async.endpoint,
                   $$props[_async.propId],
-                  ($$data) => ($$props[_async.propId] = $$data)
+                  ($$data) => Object.assign($$props, $$data)
               );
 
-              $.await(
+              $.if(
                   // @ts-ignore
                   node,
-                  promise.get,
-                  null,
-                  ($$anchor, $$data) => {
+                  () => !promise.loading,
+                  ($$anchor) => {
                       var fragment = $.comment();
                       // @ts-ignore
                       var node = $.first_child(fragment);
 
-                      $$props[_async.propId] = $$data;
                       component(node, $$props, promise.refresh);
                       // @ts-ignore
                       $.append($$anchor, fragment);

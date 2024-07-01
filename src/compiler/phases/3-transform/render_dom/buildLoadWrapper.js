@@ -37,36 +37,23 @@ export function buildLoadWrapper({
                     b.member(b.id("$$props"), propId),
                     b.arrow(
                         [b.id("$$data")],
-                        b.assignment(
-                            "=",
-                            b.member(b.id("$$props"), propId),
-                            b.id("$$data")
-                        )
+                        b.call("Object.assign", b.id("$$props"), b.id("$$data"))
                     )
                 )
             ),
             b.stmt(
                 b.call(
-                    "$.await",
+                    "$.if",
                     b.id("node"),
-                    b.id("promise.get"),
-                    // await
-                    pendingId ?? b.literal(null),
+                    b.thunk(b.unary("!", b.id("promise.loading"))),
                     // then
                     b.arrow(
-                        [b.id("$$anchor"), b.id("$$data")],
+                        [b.id("$$anchor")],
                         b.block([
                             b.var("fragment", b.call("$.comment")),
                             b.var(
                                 "node",
                                 b.call("$.first_child", b.id("fragment"))
-                            ),
-                            b.stmt(
-                                b.assignment(
-                                    "=",
-                                    b.member(b.id("$$props"), propId),
-                                    b.id("$$data")
-                                )
                             ),
                             b.stmt(
                                 b.call(
@@ -85,8 +72,8 @@ export function buildLoadWrapper({
                             ),
                         ])
                     ),
-                    // catch
-                    errorId ?? b.literal(null)
+                    // await
+                    pendingId ?? b.literal(null)
                 )
             ),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),

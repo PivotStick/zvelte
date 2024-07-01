@@ -1,9 +1,11 @@
 import * as $ from "svelte/internal/client";
 import { filters } from "./filters.js";
+import { getInitialLoad } from "./hydration.js";
 
 export { mount, hydrate } from "svelte";
 export { append_styles } from "../shared.js";
 export * from "svelte/internal/client";
+export { setInitialLoads } from "./hydration.js";
 
 /**
  * @param {Record<string, any>[]} scopes
@@ -139,12 +141,32 @@ export function load(endpoint, payload, setter) {
         return response.json();
     }
 
-    let promise = $.source(get());
+    const initialLoad = getInitialLoad();
+
+    let promise = $.source(initialLoad ? Promise.resolve(initialLoad) : get());
+    let loading = $.source(!initialLoad);
+
+    let initialLoading = $.unwrap(loading);
+
+    if (initialLoad) {
+        setter(initialLoad);
+    }
+
+    $.user_effect(() => {
+        $.set(loading, initialLoading);
+        $.get(promise)
+            .then(setter)
+            .finally(() => {
+                $.set(loading, false);
+                initialLoading = true;
+            });
+    });
 
     return {
-        get() {
-            return $.get(promise);
+        get loading() {
+            return $.get(loading);
         },
+
         /**
          * @type {import("../types.js").ComponentInitAsyncArgs<any>["refresh"]}
          */

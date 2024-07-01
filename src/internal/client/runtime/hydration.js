@@ -1,14 +1,16 @@
-export let hydration = false;
-
-export function setHydration(value = true) {
-    hydration = value;
-}
+/**
+ * @type {any[]}
+ */
+let initialLoads = [];
+let initialLoadsIndex = 0;
 
 /**
- * @type {{ [x: string]: any; props: any; }}
+ * @param {any[]} value
  */
-let context;
+export function setInitialLoads(value) {
+    initialLoads = value;
+}
 
-export function initProps(props) {
-    return context;
+export function getInitialLoad() {
+    return initialLoads[initialLoadsIndex++];
 }
