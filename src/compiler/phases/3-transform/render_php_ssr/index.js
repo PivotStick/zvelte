@@ -106,7 +106,7 @@ function renderBlock({ path, state, visit }, nodes) {
     state.block.children.push(outputAssign);
 
     if (!path.length && state.options.async) {
-        state.appendText("<!--[-->");
+        state.appendText("<!--[--><!--[-->");
     }
 
     for (const node of nodes) {
@@ -114,7 +114,7 @@ function renderBlock({ path, state, visit }, nodes) {
     }
 
     if (!path.length && state.options.async) {
-        state.appendText("<!--]-->");
+        state.appendText("<!--]--><!--]-->");
     }
 
     let returned;
