@@ -16,12 +16,12 @@ export default defineTest({
         };
     },
 
-    html: "<p>Bar 0</p><!---->",
+    html: "<p>Bar 0</p>",
 
     async test({ props, target }) {
         props.x = 1;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>Foo 1</p><!---->");
+        expect(target.innerHTML).toEqual("<p>Foo 1</p>");
     },
 });

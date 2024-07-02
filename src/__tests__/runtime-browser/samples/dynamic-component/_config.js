@@ -16,12 +16,12 @@ export default defineTest({
         };
     },
 
-    html: "<p>true, therefore Foo</p><!---->",
+    html: "<p>true, therefore Foo</p>",
 
     async test({ props, target }) {
         props.x = false;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>false, therefore Bar</p><!---->");
+        expect(target.innerHTML).toEqual("<p>false, therefore Bar</p>");
     },
 });

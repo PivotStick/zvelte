@@ -169,9 +169,7 @@ export function renderDom(ast, analysis, options, meta) {
     );
 
     template.body.unshift(
-        ...[...analysis.bindingGroups].map(([, id]) =>
-            b.const(id, b.array([])),
-        ),
+        ...[...analysis.bindingGroups].map(([, id]) => b.var(id, b.array([]))),
     );
 
     const component = b.function_declaration(
@@ -207,12 +205,12 @@ export function renderDom(ast, analysis, options, meta) {
                 ),
             ),
             b.stmt(b.call("$.push", b.id("$$props"), b.true)),
-            b.const("$$els", b.object([])),
-            b.const(
+            b.var("$$els", b.object([])),
+            b.var(
                 "$$scope",
                 b.logical(b.optionalCall("js.scope"), "??", b.object([])),
             ),
-            b.const(
+            b.var(
                 "$$methods",
                 b.logical(
                     b.optionalCall("js.default", initArgs),
@@ -220,7 +218,7 @@ export function renderDom(ast, analysis, options, meta) {
                     b.object([]),
                 ),
             ),
-            b.const(
+            b.var(
                 "$$prop",
                 b.call("$.scope", b.array([b.id("$$scope"), b.id("$$props")])),
             ),
@@ -273,7 +271,7 @@ export function renderDom(ast, analysis, options, meta) {
 
         body.push(
             b.exportNamed(
-                b.const(
+                b.var(
                     "$$fetch",
                     b.call("$.create_load", b.literal(options.async.endpoint)),
                 ),
@@ -339,8 +337,21 @@ function createBlock(parent, name, nodes, context) {
         return [];
     }
 
+    const isSingleElement =
+        trimmed.length === 1 && trimmed[0].type === "RegularElement";
+
+    const is_single_child_not_needing_template =
+        trimmed.length === 1 &&
+        // @ts-expect-error
+        (trimmed[0].type === "ZvelteFragment" ||
+            // @ts-expect-error
+            trimmed[0].type === "TitleElement");
+
     /** @type {import('estree').Statement[]} */
     const body = [];
+
+    /** @type {import('estree').Statement | undefined} */
+    let close = undefined;
 
     /** @type {import('./types.js').ComponentClientTransformState} */
     const state = {
@@ -362,46 +373,124 @@ function createBlock(parent, name, nodes, context) {
     };
 
     const templateName = context.state.scope.root.unique(name);
-    const nodeId = (context.state.node = b.id("fragment"));
-
-    state.before_init.push(b.const(nodeId, b.call(templateName)));
 
     for (const node of hoisted) {
         context.visit(node, state);
     }
 
-    processChildren(
-        trimmed,
-        (isText) =>
-            isText
-                ? b.call("$.first_child", nodeId, b.true)
-                : b.call("$.first_child", nodeId),
-        {
-            ...context,
-            state,
-        },
-    );
+    /**
+     * @param {import('estree').Identifier} template_name
+     * @param {import('estree').Expression[]} args
+     */
+    const addTemplate = (template_name, args) => {
+        let call = b.call(getTemplateFunction(namespace, state), ...args);
+        context.state.hoisted.push(b.var(template_name, call));
+    };
 
-    // adds the 'const root = $.template(`...`, true)'
-    state.hoisted.push(
-        b.const(
-            templateName,
-            b.call(
-                "$.template",
-                b.template([b.templateElement(state.template.join(""))], []),
-                b.true,
-            ),
-        ),
-    );
+    if (isSingleElement) {
+        const element = /** @type {import('#ast').RegularElement} */ (
+            trimmed[0]
+        );
 
-    state.after_update.push(
-        b.stmt(b.call("$.append", b.id("$$anchor"), nodeId)),
-    );
+        const id = b.id(context.state.scope.generate(element.name));
 
-    body.push(...state.before_init);
-    body.push(...state.init);
-    body.push(...state.update);
+        context.visit(element, {
+            ...state,
+            node: id,
+        });
+
+        /** @type {import('estree').Expression[]} */
+        const args = [b.template([b.quasi(state.template.join(""), true)], [])];
+
+        if (state.metadata.context.template_needs_import_node) {
+            args.push(b.literal(TEMPLATE_USE_IMPORT_NODE));
+        }
+
+        addTemplate(templateName, args);
+
+        body.push(
+            b.var(id, b.call(templateName)),
+            ...state.before_init,
+            ...state.init,
+        );
+        close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
+    } else if (is_single_child_not_needing_template) {
+        context.visit(trimmed[0], state);
+        body.push(...state.before_init, ...state.init);
+    } else if (trimmed.length > 0) {
+        const id = b.id(context.state.scope.generate("fragment"));
+
+        const use_space_template =
+            trimmed.some((node) => node.type === "ExpressionTag") &&
+            trimmed.every(
+                (node) => node.type === "Text" || node.type === "ExpressionTag",
+            );
+
+        if (use_space_template) {
+            // special case — we can use `$.text` instead of creating a unique template
+            const id = b.id(context.state.scope.generate("text"));
+
+            processChildren(trimmed, () => id, false, {
+                ...context,
+                state,
+            });
+
+            body.push(
+                b.var(id, b.call("$.text", b.id("$$anchor"))),
+                ...state.before_init,
+                ...state.init,
+            );
+            close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
+        } else {
+            /** @type {(is_text: boolean) => import('estree').Expression} */
+            const expression = (is_text) =>
+                is_text
+                    ? b.call("$.first_child", id, b.true)
+                    : b.call("$.first_child", id);
+
+            processChildren(trimmed, expression, false, { ...context, state });
+
+            const use_comment_template =
+                state.template.length === 1 && state.template[0] === "<!>";
+
+            if (use_comment_template) {
+                // special case — we can use `$.comment` instead of creating a unique template
+                body.push(b.var(id, b.call("$.comment")));
+            } else {
+                let flags = TEMPLATE_FRAGMENT;
+
+                if (state.metadata.context.template_needs_import_node) {
+                    flags |= TEMPLATE_USE_IMPORT_NODE;
+                }
+
+                addTemplate(templateName, [
+                    b.template([b.quasi(state.template.join(""), true)], []),
+                    b.literal(flags),
+                ]);
+
+                body.push(b.var(id, b.call(templateName)));
+            }
+
+            body.push(...state.before_init, ...state.init);
+
+            close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
+        }
+    } else {
+        body.push(...state.before_init, ...state.init);
+    }
+
+    if (state.update.length > 0) {
+        body.push(serializeRenderStmt(state));
+    }
+
     body.push(...state.after_update);
+
+    if (close !== undefined) {
+        // It's important that close is the last statement in the block, as any previous statements
+        // could contain element insertions into the template, which the close statement needs to
+        // know of when constructing the list of current inner elements.
+        body.push(close);
+    }
 
     return body;
 }
@@ -413,9 +502,10 @@ function createBlock(parent, name, nodes, context) {
  *
  * @param {import('#ast').ZvelteNode[]} nodes
  * @param {(is_text: boolean) => import('estree').Expression} expression
+ * @param {boolean} isElement
  * @param {import('./types.js').ComponentContext} context
  */
-function processChildren(nodes, expression, { visit, state }) {
+function processChildren(nodes, expression, isElement, { visit, state }) {
     /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag>} Sequence */
 
     /** @type {Sequence} */
@@ -432,7 +522,7 @@ function processChildren(nodes, expression, { visit, state }) {
         } else {
             const id = b.id(state.scope.generate("text"));
             state.template.push(" ");
-            state.init.push(b.const(id, expression(true)));
+            state.init.push(b.var(id, expression(true)));
 
             expression = () => b.call("$.sibling", id);
 
@@ -1102,6 +1192,7 @@ const templateVisitors = {
                         ? b.member(context.state.node, b.id("content"))
                         : context.state.node,
                 ),
+            true,
             context,
         );
 
@@ -1604,11 +1695,11 @@ const templateVisitors = {
         const loopInit = [];
 
         if (isInForBlock) {
-            state.init.push(b.const(b.id("parentLoop"), b.id("loop")));
+            state.init.push(b.var(b.id("parentLoop"), b.id("loop")));
         }
 
         loopInit.push(
-            b.const(
+            b.var(
                 b.id("loop"),
                 b.call(
                     "$.loop",
@@ -1632,7 +1723,7 @@ const templateVisitors = {
             );
 
             loopInit.push(
-                b.const(
+                b.var(
                     node.index.name,
                     b.call("$.derived", b.thunk(expression)),
                 ),
@@ -1999,7 +2090,7 @@ function getNodeId(expression, state, name) {
     if (id.type !== "Identifier") {
         id = b.id(state.scope.generate(name));
 
-        state.init.push(b.const(id, expression));
+        state.init.push(b.var(id, expression));
     }
     return id;
 }
@@ -2121,4 +2212,47 @@ function serializeFunction(node, context) {
     );
 
     return b.call(name, ...args);
+}
+
+/**
+ *
+ * @param {string} namespace
+ * @param {import('./types.js').ComponentClientTransformState} state
+ * @returns
+ */
+function getTemplateFunction(namespace, state) {
+    const contains_script_tag =
+        state.metadata.context.template_contains_script_tag;
+    return namespace === "svg"
+        ? contains_script_tag
+            ? "$.svg_template_with_script"
+            : "$.ns_template"
+        : namespace === "mathml"
+          ? "$.mathml_template"
+          : contains_script_tag
+            ? "$.template_with_script"
+            : "$.template";
+}
+
+/**
+ *
+ * @param {import('./types.js').ComponentClientTransformState} state
+ */
+function serializeRenderStmt(state) {
+    return state.update.length === 1
+        ? serializeUpdate(state.update[0])
+        : b.stmt(b.call("$.template_effect", b.thunk(b.block(state.update))));
+}
+
+/**
+ *
+ * @param {import('estree').Statement} statement
+ */
+function serializeUpdate(statement) {
+    const body =
+        statement.type === "ExpressionStatement"
+            ? statement.expression
+            : b.block([statement]);
+
+    return b.stmt(b.call("$.template_effect", b.thunk(body)));
 }

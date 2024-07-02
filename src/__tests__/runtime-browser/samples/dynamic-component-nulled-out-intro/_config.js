@@ -9,12 +9,12 @@ export default defineTest({
         };
     },
 
-    html: "<!---->",
+    html: "",
 
     async test({ props, target }) {
         props.visible = true;
         await tick();
 
-        expect(target.innerHTML).toEqual("<!----><!---->");
+        expect(target.innerHTML).toEqual("");
     },
 });

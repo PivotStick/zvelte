@@ -12,44 +12,44 @@ export default defineTest({
         };
     },
 
-    html: "<!----><!----><!----><!----><!---->",
+    html: "",
 
     async test({ props, target }) {
         props.active = "default";
         await tick();
         expect(window.document.activeElement, "1").toStrictEqual(
-            target.querySelector('input[title="default"]')
+            target.querySelector('input[title="default"]'),
         );
 
         props.active = "dynamic-false";
         await tick();
         expect(window.document.activeElement, "2").not.toStrictEqual(
-            target.querySelector('input[title="dynamic-false"]')
+            target.querySelector('input[title="dynamic-false"]'),
         );
 
         // when dynamically set autofocus to true, don't autofocus
         props.autofocusFalse = true;
         await tick();
         expect(window.document.activeElement, "3").not.toStrictEqual(
-            target.querySelector('input[title="dynamic-false"]')
+            target.querySelector('input[title="dynamic-false"]'),
         );
 
         props.active = "dynamic-true";
         await tick();
         expect(window.document.activeElement, "4").toStrictEqual(
-            target.querySelector('input[title="dynamic-true"]')
+            target.querySelector('input[title="dynamic-true"]'),
         );
 
         props.active = "spread";
         await tick();
         expect(window.document.activeElement, "5").toStrictEqual(
-            target.querySelector('input[title="spread"]')
+            target.querySelector('input[title="spread"]'),
         );
 
         props.active = "spread-override";
         await tick();
         expect(window.document.activeElement, "6").not.toStrictEqual(
-            target.querySelector('input[title="spread-override"]')
+            target.querySelector('input[title="spread-override"]'),
         );
     },
 });

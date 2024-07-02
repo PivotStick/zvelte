@@ -12,7 +12,7 @@ export default defineTest({
         return { x: true, y: undefined, z: undefined, Foo, Bar };
     },
 
-    html: "<p>foo</p> <input><!---->",
+    html: "<p>foo</p> <input>",
 
     async test({ props, target }) {
         let input = target.querySelector("input");
@@ -27,9 +27,7 @@ export default defineTest({
         props.x = false;
         await tick();
 
-        expect(target.innerHTML).toEqual(
-            '<p>bar</p> <input type="checkbox"><!---->'
-        );
+        expect(target.innerHTML).toEqual('<p>bar</p> <input type="checkbox">');
 
         input = target.querySelector("input");
         ok(input);

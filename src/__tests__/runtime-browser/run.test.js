@@ -1,7 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { proxy } from "../../internal/client/index.js";
 import { raf } from "../animation-helpers.js";
-import samples from "./all.samples.js";
+
+/**
+ * @type {Record<string, () => Promise<any>>}
+ */
+// @ts-ignore
+const samples = await import.meta.glob("./samples/**/_config.js");
 
 /**
  * @typedef {Array<{
@@ -15,21 +20,22 @@ import samples from "./all.samples.js";
  */
 
 /**
- * @param {typeof samples[keyof typeof samples]} samples
+ * @param {typeof samples} samples
  */
 async function toTests(samples) {
     /** @type {Tests} */
     const tests = [];
 
-    for (const { _config, main } of samples) {
-        const name = _config.split("/").at(-2) ?? "";
-        const module = await import(_config);
+    for (const key in samples) {
+        const module = await samples[key]();
+        const name = key.split("/").at(-2) ?? "";
+        const main = key.replace(/_config\.js$/, "main.twig");
 
         tests.push({
             name,
             get: (options) => {
                 const search = new URLSearchParams(options ?? {});
-                const separator = main.endsWith("?legacy=true") ? "&" : "?";
+                const separator = "?";
                 return import(main + separator + search);
             },
             config: module.default,
@@ -91,8 +97,6 @@ function run(tests) {
     }
 }
 
-const legacy = await toTests(samples.legacy);
-const modern = await toTests(samples.modern);
+const modern = await toTests(samples);
 
-describe("runtime-legacy-browser", () => run(legacy));
 describe("runtime-browser", () => run(modern));

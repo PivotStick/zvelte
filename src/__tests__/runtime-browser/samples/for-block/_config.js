@@ -9,17 +9,17 @@ export default defineTest({
         };
     },
 
-    html: "<p>alpaca</p><p>baboon</p><p>capybara</p><!---->",
+    html: "<p>alpaca</p><p>baboon</p><p>capybara</p>",
 
     async test({ props, target }) {
         props.animals = ["alpaca", "baboon", "caribou", "dogfish"];
         await tick();
         expect(target.innerHTML).toEqual(
-            "<p>alpaca</p><p>baboon</p><p>caribou</p><p>dogfish</p><!---->"
+            "<p>alpaca</p><p>baboon</p><p>caribou</p><p>dogfish</p>",
         );
 
         props.animals = [];
         await tick();
-        expect(target.innerHTML).toEqual("<!---->");
+        expect(target.innerHTML).toEqual("");
     },
 });

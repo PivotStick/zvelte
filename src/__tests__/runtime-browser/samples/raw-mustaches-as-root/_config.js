@@ -13,7 +13,7 @@ export default defineTest({
         };
     },
 
-    html: "<button>Switch</button> <p>Another first line</p><!----><!----> <p>This line should be last.</p>",
+    html: "<button>Switch</button> <p>Another first line</p><!----> <p>This line should be last.</p>",
 
     async test({ target }) {
         const btn = target.querySelector("button");
@@ -25,14 +25,14 @@ export default defineTest({
         await tick();
 
         expect(target.innerHTML).toEqual(
-            "<button>Switch</button> <p>First line</p><!----><!----> <p>This line should be last.</p>"
+            "<button>Switch</button> <p>First line</p><!----> <p>This line should be last.</p>",
         );
 
         btn.dispatchEvent(clickEvent);
         await tick();
 
         expect(target.innerHTML).toEqual(
-            "<button>Switch</button> <p>Another first line</p><!----><!----> <p>This line should be last.</p>"
+            "<button>Switch</button> <p>Another first line</p><!----> <p>This line should be last.</p>",
         );
     },
 });

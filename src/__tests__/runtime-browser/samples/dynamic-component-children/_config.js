@@ -21,10 +21,10 @@ export default defineTest({
         "<div>what goes up must come down</div><!---->",
         "<p>element</p>",
         "you're it",
-        "<p>neither foo nor bar</p><!----><!---->",
+        "<p>neither foo nor bar</p><!---->",
         "text",
         "<span>a</span><span>b</span><span>c</span><!---->",
-        "<div>baz</div><!----><!----><!---->",
+        "<div>baz</div><!----><!---->",
     ].join(" "),
 
     async test({ props, target }) {
@@ -36,12 +36,12 @@ export default defineTest({
                 "<h1>Bar</h1>",
                 "<p>element</p>",
                 "you're it",
-                "<p>neither foo nor bar</p><!----><!---->",
+                "<p>neither foo nor bar</p><!---->",
                 "text",
                 "<span>a</span><span>b</span><span>c</span><!---->",
                 "<div>baz</div><!----><!---->",
-                "<div>what goes up must come down</div><!----><!---->",
-            ].join(" ")
+                "<div>what goes up must come down</div><!---->",
+            ].join(" "),
         );
     },
 });

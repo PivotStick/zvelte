@@ -9,10 +9,9 @@ export default defineTest({
         },
     },
 
-    html:
-        [
-            "<p>firstName: john</p>",
-            "<p>lastName: doe</p>",
-            "<p>age: 23</p>",
-        ].join("") + "<!---->",
+    html: [
+        "<p>firstName: john</p>",
+        "<p>lastName: doe</p>",
+        "<p>age: 23</p>",
+    ].join(""),
 });

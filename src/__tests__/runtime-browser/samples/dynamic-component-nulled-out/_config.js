@@ -12,17 +12,17 @@ export default defineTest({
         };
     },
 
-    html: "<p>Foo</p><!---->",
+    html: "<p>Foo</p>",
 
     async test({ props, target }) {
         props.Bar = null;
         await tick();
 
-        expect(target.innerHTML).toEqual("<!---->");
+        expect(target.innerHTML).toEqual("");
 
         props.Bar = Foo;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>Foo</p><!---->");
+        expect(target.innerHTML).toEqual("<p>Foo</p>");
     },
 });

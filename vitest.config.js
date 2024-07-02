@@ -37,7 +37,7 @@ export default defineConfig({
                 if (
                     id.endsWith(".zvelte") &&
                     id.startsWith(
-                        join(root, "./src/__tests__/runtime-php-ssr/")
+                        join(root, "./src/__tests__/runtime-php-ssr/"),
                     )
                 ) {
                     const optionsPath = id.replace(/\.zvelte$/, ".json");
@@ -56,76 +56,13 @@ export default defineConfig({
 
                     const output = await runPHP(
                         result.code,
-                        params.get("props")
+                        params.get("props"),
                     );
 
                     return `export default ${JSON.stringify({
                         output,
                         code: result.code,
                     })};`;
-                }
-
-                if (id.endsWith("all.samples.js")) {
-                    const legacy = [];
-                    const modern = [];
-
-                    async function glob(dir = "") {
-                        for (const entry of await readdir(dir, {
-                            withFileTypes: true,
-                        })) {
-                            if (entry.isFile() && entry.name === "_config.js") {
-                                legacy.push({
-                                    _config: join(
-                                        dir,
-                                        "_config.js?legacy=true"
-                                    ),
-                                    main: join(dir, "main.twig?legacy=true"),
-                                });
-
-                                modern.push({
-                                    _config: join(dir, "_config.js"),
-                                    main: join(dir, "main.twig"),
-                                });
-                            } else if (entry.isDirectory()) {
-                                await glob(join(dir, entry.name));
-                            }
-                        }
-                    }
-
-                    await glob(join(dirname(id), "samples"));
-
-                    return `
-export default {
-    legacy: ${JSON.stringify(legacy)},
-    modern: ${JSON.stringify(modern)},
-};
-`.trim();
-                }
-
-                if (id.endsWith(".js") && params.get("legacy") === "true") {
-                    const ast = acorn.parse(code, {
-                        ecmaVersion: 2023,
-                        sourceType: "module",
-                    });
-
-                    walk(
-                        /** @type {import("estree").Node} */ (ast),
-                        {},
-                        {
-                            ImportDeclaration(node) {
-                                if (
-                                    typeof node.source.value === "string" &&
-                                    (node.source.value.endsWith(".twig") ||
-                                        node.source.value.endsWith(".js"))
-                                ) {
-                                    node.source.value += "?legacy=true";
-                                    node.source.raw = `"${node.source.value}"`;
-                                }
-                            },
-                        }
-                    );
-
-                    return print(ast);
                 }
 
                 if (id.endsWith(".twig")) {
@@ -165,57 +102,27 @@ export default {
                             Component(node, { next }) {
                                 const key = join(
                                     dirname(id),
-                                    node.key.data
+                                    node.key.data,
                                 ).replace(root, "");
 
                                 imports.add(
-                                    `import "${node.key.data}${search}";`
+                                    `import "${node.key.data}${search}";`,
                                 );
                                 node.key.data = key;
                                 next();
                             },
-                        }
+                        },
                     );
 
-                    if (params.get("legacy") === "true") {
-                        const key = id.replace(root, "");
+                    const result = compile(code, options);
 
-                        if (hasJS) {
-                            imports.add(
-                                `import * as js from "./${basename(id).replace(
-                                    ".twig",
-                                    ".js" + search
-                                )}";`
-                            );
-                        }
-
-                        let output = `
-import { createComponent } from "@pivotass/zvelte";
-${[...imports].join("\n")}
-
-export const mount = createComponent({
-    ast: ${JSON.stringify(ast)},
-    key: "${key}",
-    init: ${hasJS ? "js.default" : "undefined"},
-    initScope: ${hasJS ? "js.scope" : "undefined"},
-    options: ${JSON.stringify(options)}
-});
-
-export default mount.component;
-`;
-
-                        return output;
-                    } else {
-                        const result = compile(code, options);
-
-                        if (imports.size) {
-                            result.code = `${[...imports].join("\n")}\n${
-                                result.code
-                            }`;
-                        }
-
-                        return result;
+                    if (imports.size) {
+                        result.code = `${[...imports].join("\n")}\n${
+                            result.code
+                        }`;
                     }
+
+                    return result;
                 }
             },
         },
