@@ -148,7 +148,7 @@ export function create_load(endpoint, payload) {
  */
 export function init_load(endpoint, payload, setter) {
     const get = create_load(endpoint, payload);
-    const initialLoad = getInitialLoad();
+    const initialLoad = getInitialLoad() ?? payload?.$$initialLoad;
 
     let promise = $.source(initialLoad ? Promise.resolve(initialLoad) : get());
     let loading = $.source(!initialLoad);

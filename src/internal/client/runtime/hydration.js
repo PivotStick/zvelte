@@ -12,5 +12,7 @@ export function setInitialLoads(value) {
 }
 
 export function getInitialLoad() {
-    return initialLoads[initialLoadsIndex++];
+    if (initialLoadsIndex < initialLoads.length) {
+        return initialLoads[initialLoadsIndex++];
+    }
 }
