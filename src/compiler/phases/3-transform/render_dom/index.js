@@ -1963,8 +1963,8 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
 
     const out = {
         props:
-            args.length === 1
-                ? /** @type {import('estree').ObjectExpression} */ (args[0])
+            args.length === 1 && args[0].type === "ObjectExpression"
+                ? args[0]
                 : b.call("$.spread_props", ...args),
         bindThis,
         /**
