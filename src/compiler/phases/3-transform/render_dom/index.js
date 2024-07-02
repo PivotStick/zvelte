@@ -1569,7 +1569,7 @@ const templateVisitors = {
 
         const count = Math.abs(node.to.value - node.from.value);
 
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i <= count; i++) {
             const add = node.step * i;
             array.elements.push(b.literal(node.from.value + add));
         }
