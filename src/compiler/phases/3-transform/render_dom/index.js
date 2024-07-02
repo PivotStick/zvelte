@@ -1251,35 +1251,7 @@ const templateVisitors = {
         }
 
         state.template.push("<!>");
-        state.update.push(b.stmt(call));
-    },
-
-    TransitionDirective(node, { state, visit }) {
-        let flags = node.modifiers.includes("global") ? TRANSITION_GLOBAL : 0;
-        if (node.intro) flags |= TRANSITION_IN;
-        if (node.outro) flags |= TRANSITION_OUT;
-
-        const args = [
-            b.literal(flags),
-            state.node,
-            b.thunk(
-                /** @type {import('estree').Expression} */ (
-                    visit(parseDirectiveName(node.name))
-                ),
-            ),
-        ];
-
-        if (node.expression) {
-            args.push(
-                b.thunk(
-                    /** @type {import('estree').Expression} */ (
-                        visit(node.expression)
-                    ),
-                ),
-            );
-        }
-
-        state.update.push(b.stmt(b.call("$.transition", ...args)));
+        state.init.push(b.stmt(call));
     },
 
     // @ts-ignore
@@ -1603,7 +1575,7 @@ const templateVisitors = {
     HtmlTag(node, { state, visit }) {
         state.template.push("<!>");
 
-        state.update.push(
+        state.init.push(
             b.call(
                 "$.html",
                 state.node,
@@ -1647,7 +1619,7 @@ const templateVisitors = {
             call.arguments.push(b.true);
         }
 
-        state.update.push(b.stmt(call));
+        state.init.push(b.stmt(call));
     },
 
     ForBlock(node, { state, visit, path }) {
@@ -1742,7 +1714,7 @@ const templateVisitors = {
             ),
         );
 
-        state.update.push(call);
+        state.init.push(call);
     },
 
     KeyBlock(node, { visit, state }) {
@@ -1763,7 +1735,7 @@ const templateVisitors = {
         );
 
         state.template.push("<!>");
-        state.update.push(call);
+        state.init.push(call);
     },
 
     Component(node, context) {
