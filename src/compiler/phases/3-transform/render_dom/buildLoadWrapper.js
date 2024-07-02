@@ -35,6 +35,7 @@ export function buildLoadWrapper({
                     "$.init_load",
                     b.literal(endpoint),
                     b.member(b.id("$$props"), propId),
+                    b.member(b.id("$$props"), b.id("$$initialLoad")),
                     b.arrow(
                         [b.id("$$data")],
                         b.call(

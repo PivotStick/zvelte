@@ -148,6 +148,7 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
               var promise = $.init_load(
                   _async.endpoint,
                   $$props[_async.propId],
+                  $$props.$$initialLoad,
                   ($$data) => Object.assign($$props, $$data),
               );
 

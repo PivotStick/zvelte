@@ -144,11 +144,12 @@ export function create_load(endpoint, payload) {
 /**
  * @param {string} endpoint
  * @param {Record<string, any>} payload
+ * @param {Record<string, any> | undefined} $$initialLoad
  * @param {(data: any) => void} setter
  */
-export function init_load(endpoint, payload, setter) {
+export function init_load(endpoint, payload, $$initialLoad, setter) {
     const get = create_load(endpoint, payload);
-    const initialLoad = getInitialLoad() ?? payload?.$$initialLoad;
+    const initialLoad = getInitialLoad() ?? $$initialLoad;
 
     let promise = $.source(initialLoad ? Promise.resolve(initialLoad) : get());
     let loading = $.source(!initialLoad);
