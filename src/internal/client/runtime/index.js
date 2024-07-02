@@ -118,13 +118,12 @@ export function loop(index, array, parent) {
 
 /**
  * @param {string} endpoint
- * @param {Record<string, any>} payload
- * @param {(data: any) => void} setter
+ * @param {Record<string, any>=} payload
  */
-export function load(endpoint, payload, setter) {
-    async function get() {
-        const search = new URLSearchParams(payload);
-        const response = await fetch(endpoint + "?" + search, {
+export function create_load(endpoint, payload) {
+    return async () => {
+        const search = new URLSearchParams(payload ?? {}).toString();
+        const response = await fetch(endpoint + (search ? "?" + search : ""), {
             headers: {
                 accept: "application/json",
             },
@@ -139,8 +138,16 @@ export function load(endpoint, payload, setter) {
         }
 
         return response.json();
-    }
+    };
+}
 
+/**
+ * @param {string} endpoint
+ * @param {Record<string, any>} payload
+ * @param {(data: any) => void} setter
+ */
+export function init_load(endpoint, payload, setter) {
+    const get = create_load(endpoint, payload);
     const initialLoad = getInitialLoad();
 
     let promise = $.source(initialLoad ? Promise.resolve(initialLoad) : get());

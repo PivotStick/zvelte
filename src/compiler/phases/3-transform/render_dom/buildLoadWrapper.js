@@ -24,22 +24,26 @@ export function buildLoadWrapper({
                 b.assignment(
                     "=",
                     b.id("$$props"),
-                    b.call("$.proxy", b.id("$$props"))
-                )
+                    b.call("$.proxy", b.id("$$props")),
+                ),
             ),
             b.var(b.id("fragment"), b.call("$.comment")),
             b.var(b.id("node"), b.call("$.first_child", b.id("fragment"))),
             b.var(
                 b.id("promise"),
                 b.call(
-                    "$.load",
+                    "$.init_load",
                     b.literal(endpoint),
                     b.member(b.id("$$props"), propId),
                     b.arrow(
                         [b.id("$$data")],
-                        b.call("Object.assign", b.id("$$props"), b.id("$$data"))
-                    )
-                )
+                        b.call(
+                            "Object.assign",
+                            b.id("$$props"),
+                            b.id("$$data"),
+                        ),
+                    ),
+                ),
             ),
             b.stmt(
                 b.call(
@@ -53,30 +57,30 @@ export function buildLoadWrapper({
                             b.var("fragment", b.call("$.comment")),
                             b.var(
                                 "node",
-                                b.call("$.first_child", b.id("fragment"))
+                                b.call("$.first_child", b.id("fragment")),
                             ),
                             b.stmt(
                                 b.call(
                                     componentId,
                                     b.id("node"),
                                     b.id("$$props"),
-                                    b.id("promise.refresh")
-                                )
+                                    b.id("promise.refresh"),
+                                ),
                             ),
                             b.stmt(
                                 b.call(
                                     "$.append",
                                     b.id("$$anchor"),
-                                    b.id("fragment")
-                                )
+                                    b.id("fragment"),
+                                ),
                             ),
-                        ])
+                        ]),
                     ),
                     // await
-                    pendingId ?? b.literal(null)
-                )
+                    pendingId ?? b.literal(null),
+                ),
             ),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
-        ])
+        ]),
     );
 }

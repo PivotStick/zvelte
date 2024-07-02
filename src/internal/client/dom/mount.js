@@ -46,7 +46,7 @@ export function contextualizeComponent(callback, props) {
         },
         {
             target: document.body,
-        }
+        },
     );
     return {
         flush() {
@@ -87,7 +87,7 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
     const component = (
         /** @type {any} */ $$anchor,
         /** @type {Record<string, any>} */ $$props,
-        /** @type {import("../index.js").AsyncArgs<any>["refresh"]=} */ $$refresh
+        /** @type {import("../index.js").AsyncArgs<any>["refresh"]=} */ $$refresh,
     ) => {
         if (init) $.push($$props, true);
 
@@ -138,17 +138,17 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
     const ref = _async
         ? (
               /** @type {any} */ $$anchor,
-              /** @type {Record<string, any>} */ $$props
+              /** @type {Record<string, any>} */ $$props,
           ) => {
               $$props = $.proxy($$props);
 
               var fragment = $.comment();
               // @ts-ignore
               var node = $.first_child(fragment);
-              var promise = $.load(
+              var promise = $.init_load(
                   _async.endpoint,
                   $$props[_async.propId],
-                  ($$data) => Object.assign($$props, $$data)
+                  ($$data) => Object.assign($$props, $$data),
               );
 
               $.if(
@@ -164,7 +164,7 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
                       // @ts-ignore
                       $.append($$anchor, fragment);
                   },
-                  null
+                  null,
               );
 
               $.append($$anchor, fragment);
@@ -197,6 +197,9 @@ export function createComponent({ init, ast, key, initScope, options = {} }) {
     }
 
     mount.component = ref;
+    if (options.async) {
+        mount.$$fetch = $.create_load(options.async.endpoint);
+    }
     return mount;
 }
 
@@ -301,7 +304,7 @@ const visitors = {
             /** @type {ZvelteNode[]} */ (path),
             undefined,
             state.options.preserveWhitespace,
-            state.options.preserveComments
+            state.options.preserveComments,
         );
 
         hoisted.forEach((node) => {
@@ -330,7 +333,7 @@ const visitors = {
                         child.type === "RegularElement"
                             ? `<${child.name} />`
                             : ""
-                    }`
+                    }`,
                 );
 
             state.currentNode = currentNode;
@@ -341,7 +344,7 @@ const visitors = {
     RegularElement(node, { visit, state }) {
         const element = /** @type {HTMLElement} */ (state.currentNode);
         const hasSpread = node.attributes.some(
-            (a) => a.type === "SpreadAttribute"
+            (a) => a.type === "SpreadAttribute",
         );
         /**
          * @type {Array<import("#ast").Attribute | import("#ast").SpreadAttribute | import("#ast").ClassDirective>}
@@ -389,7 +392,7 @@ const visitors = {
                     if (attr.type === "SpreadAttribute") {
                         Object.assign(
                             next,
-                            /**  @type {_} */ (visit(attr.expression))._
+                            /**  @type {_} */ (visit(attr.expression))._,
                         );
                     } else if (attr.type === "ClassDirective") {
                         const value = /**  @type {_} */ (visit(attr.expression))
@@ -408,7 +411,7 @@ const visitors = {
                     attributes,
                     next,
                     true,
-                    ""
+                    "",
                 );
 
                 afters.forEach((a) => a());
@@ -427,18 +430,18 @@ const visitors = {
                         $.toggle_class(
                             element,
                             name,
-                            /** @type {_} */ (visit(ex))._
+                            /** @type {_} */ (visit(ex))._,
                         );
                     } else {
                         if (SVGElements.includes(node.name)) {
                             $.set_svg_class(
                                 element,
-                                computeAttributeValue(attr, visit, state)
+                                computeAttributeValue(attr, visit, state),
                             );
                         } else {
                             $.set_class(
                                 element,
-                                computeAttributeValue(attr, visit, state)
+                                computeAttributeValue(attr, visit, state),
                             );
                         }
                     }
@@ -457,7 +460,7 @@ const visitors = {
         if (node.name.toLowerCase() === "autofocus") {
             $.autofocus(
                 /** @type {HTMLElement} */ (state.currentNode),
-                computeAttributeValue(node, visit, state)
+                computeAttributeValue(node, visit, state),
             );
             return;
         }
@@ -471,7 +474,7 @@ const visitors = {
             const hasBindGroup =
                 parent?.type === "RegularElement" &&
                 parent.attributes.some(
-                    (a) => a.type === "BindDirective" && a.name === "group"
+                    (a) => a.type === "BindDirective" && a.name === "group",
                 );
 
             const lowerName = node.name.toLowerCase();
@@ -508,7 +511,7 @@ const visitors = {
                     $[method](
                         element,
                         lowerName,
-                        computeAttributeValue(node, visit, state)
+                        computeAttributeValue(node, visit, state),
                     );
                 });
             }
@@ -549,7 +552,7 @@ const visitors = {
                 $.bind_this(
                     element,
                     ($$value) => setInScope($$value, ex, visit, _ctx),
-                    () => /** @type {_} */ (visit(ex, _ctx))._
+                    () => /** @type {_} */ (visit(ex, _ctx))._,
                 );
             }
 
@@ -571,7 +574,7 @@ const visitors = {
                     parent?.type === "RegularElement" &&
                     parent.attributes.find(
                         (attr) =>
-                            attr.type === "Attribute" && attr.name === "value"
+                            attr.type === "Attribute" && attr.name === "value",
                     );
 
                 /**
@@ -605,7 +608,7 @@ const visitors = {
                         getValue?.();
                         return get();
                     },
-                    set
+                    set,
                 );
             }
 
@@ -637,7 +640,7 @@ const visitors = {
             flag,
             element,
             () => searchInScope(node.name, state.scope),
-            getParams
+            getParams,
         );
     },
 
@@ -692,19 +695,19 @@ const visitors = {
 
                 $$callback?.($$node, $$action_arg);
             },
-            ex ? () => /** @type {_} */ (visit(ex))._ : undefined
+            ex ? () => /** @type {_} */ (visit(ex))._ : undefined,
         );
     },
 
     CallExpression(node, { visit }) {
         const fn = /** @type {_} */ (visit(node.callee))._;
         const args = node.arguments.map(
-            (arg) => /** @type {_} */ (visit(arg))._
+            (arg) => /** @type {_} */ (visit(arg))._,
         );
 
         if (typeof fn !== "function") {
             throw new Error(
-                `${expressionToString(node.callee)} is not a function`
+                `${expressionToString(node.callee)} is not a function`,
             );
         }
 
@@ -715,12 +718,12 @@ const visitors = {
         const fn =
             /** @type {_} */ (visit(node.name))._ ?? getFilter(node.name.name);
         const args = node.arguments.map(
-            (arg) => /** @type {_} */ (visit(arg))._
+            (arg) => /** @type {_} */ (visit(arg))._,
         );
 
         if (typeof fn !== "function") {
             throw new Error(
-                `${expressionToString(node.name)} is not a function`
+                `${expressionToString(node.name)} is not a function`,
             );
         }
 
@@ -779,7 +782,7 @@ const visitors = {
 
             default:
                 throw new Error(
-                    `Unhandled LogicalExpression operator "${node.operator}"`
+                    `Unhandled LogicalExpression operator "${node.operator}"`,
                 );
         }
     },
@@ -824,7 +827,7 @@ const visitors = {
 
             default:
                 throw new Error(
-                    `Unhandled BinaryExpression operator "${node.operator}"`
+                    `Unhandled BinaryExpression operator "${node.operator}"`,
                 );
         }
     },
@@ -866,7 +869,7 @@ const visitors = {
                         throw new Error(
                             `"... is${
                                 node.not ? " not" : ""
-                            } defined" expressions can only be done on an Identifier or a MemberExpression`
+                            } defined" expressions can only be done on an Identifier or a MemberExpression`,
                         );
                     }
 
@@ -921,7 +924,7 @@ const visitors = {
 
             default:
                 throw new Error(
-                    `Unhandled UnaryExpression operator "${node.operator}"`
+                    `Unhandled UnaryExpression operator "${node.operator}"`,
                 );
         }
     },
@@ -977,7 +980,7 @@ const visitors = {
             anchor,
             () => /** @type {_} */ (visit(node.expression))._,
             false,
-            false
+            false,
         );
     },
 
@@ -994,7 +997,7 @@ const visitors = {
                     get: () => $.get(signal),
                     set: (value) => $.set(signal, value),
                 });
-            }
+            },
         );
 
         $.render_effect(() => {
@@ -1006,7 +1009,7 @@ const visitors = {
         const text = /** @type {Element} */ (state.currentNode);
 
         $.template_effect(() =>
-            $.set_text(text, /** @type {_} */ (visit(node.expression))._)
+            $.set_text(text, /** @type {_} */ (visit(node.expression))._),
         );
     },
 
@@ -1035,7 +1038,7 @@ const visitors = {
                       $.append($$anchor, fragment);
                   }
                 : undefined,
-            node.elseif
+            node.elseif,
         );
     },
 
@@ -1073,7 +1076,7 @@ const visitors = {
                     loop: $.loop(
                         index,
                         array,
-                        searchInScope("loop", state.scope) ?? null
+                        searchInScope("loop", state.scope) ?? null,
                     ),
                 };
 
@@ -1081,7 +1084,7 @@ const visitors = {
                     Object.defineProperty(scope, node.index.name, {
                         get() {
                             return Object.keys(
-                                /** @type {_} */ (visit(node.expression))._
+                                /** @type {_} */ (visit(node.expression))._,
                             )[index()];
                         },
                     });
@@ -1101,7 +1104,7 @@ const visitors = {
                       // @ts-ignore
                       $.append($$anchor, fragment);
                   }
-                : undefined
+                : undefined,
         );
     },
 
@@ -1138,9 +1141,9 @@ const visitors = {
                       $.bind_this(
                           $$component(anchor, props),
                           bindThis.set,
-                          bindThis.get
+                          bindThis.get,
                       )
-                : ($$component) => $$component(anchor, props)
+                : ($$component) => $$component(anchor, props),
         );
     },
 
@@ -1154,7 +1157,7 @@ const visitors = {
         $.snippet(
             () => /** @type {_} */ (visit(callee))._,
             anchor,
-            ...node.expression.arguments.map((arg) => () => visit(arg))
+            ...node.expression.arguments.map((arg) => () => visit(arg)),
         );
     },
 
@@ -1193,7 +1196,7 @@ const visitors = {
 
                 // @ts-ignore
                 $.append($$anchor, fragment);
-            }
+            },
         );
     },
 };
@@ -1214,7 +1217,7 @@ function handleComponentProps(node, { visit, state }) {
                     props[attr.name] = computeAttributeValue(
                         attr,
                         visit,
-                        state
+                        state,
                     );
                 });
                 break;
@@ -1251,7 +1254,7 @@ function handleComponentProps(node, { visit, state }) {
                 $.render_effect(() => {
                     Object.assign(
                         props,
-                        /** @type {_} */ (visit(attr.expression))._
+                        /** @type {_} */ (visit(attr.expression))._,
                     );
                 });
                 break;
@@ -1263,13 +1266,13 @@ function handleComponentProps(node, { visit, state }) {
                     (props.$$events ??= {})[attr.name] = visit(expression);
                 } else {
                     (props.$$events ??= {})[attr.name] = function (
-                        /** @type {any} */ $$args
+                        /** @type {any} */ $$args,
                     ) {
                         $.bubble_event.call(
                             this,
                             // @ts-ignore
                             ctx.scope.at(1),
-                            $$args
+                            $$args,
                         );
                     };
                 }
@@ -1280,7 +1283,7 @@ function handleComponentProps(node, { visit, state }) {
             default:
                 throw new Error(
                     // @ts-expect-error
-                    `"${attr.type}" attribute not handled yet on components`
+                    `"${attr.type}" attribute not handled yet on components`,
                 );
         }
     }
@@ -1299,7 +1302,7 @@ function handleComponentProps(node, { visit, state }) {
     if (node.fragment.nodes.length) {
         props.children = (
             /** @type {Element | Comment | Text} */ $$anchor,
-            /** @type {any} */ $$slotProps
+            /** @type {any} */ $$slotProps,
         ) => {
             const fragment = getRoot(node.fragment);
 
