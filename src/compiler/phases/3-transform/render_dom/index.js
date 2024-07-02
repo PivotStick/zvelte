@@ -480,7 +480,7 @@ function createBlock(parent, name, nodes, context) {
     }
 
     if (state.update.length > 0) {
-        body.push(serializeRenderStmt(state));
+        body.push(...state.update);
     }
 
     body.push(...state.after_update);
@@ -1806,7 +1806,7 @@ const templateVisitors = {
             (props, bindThis) => bindThis(b.call(id, nodeId, props)),
         );
 
-        context.state.update.push(statement);
+        context.state.init.push(statement);
     },
 
     ZvelteComponent(node, context) {
@@ -1835,7 +1835,7 @@ const templateVisitors = {
                 ),
         );
 
-        context.state.update.push(statement);
+        context.state.init.push(statement);
     },
 };
 
