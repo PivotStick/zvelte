@@ -87,6 +87,7 @@ export type ForEach = {
 
 export type Expression =
     | Cast
+    | Silent
     | Name
     | Primary
     | Call
@@ -281,6 +282,11 @@ export type New = {
     kind: "new";
     what: Name;
     arguments: Expression[];
+};
+
+export type Silent = {
+    kind: "silent";
+    expr: Expression;
 };
 
 export type Node = Literal | Expression | UseGroup | UseItem;

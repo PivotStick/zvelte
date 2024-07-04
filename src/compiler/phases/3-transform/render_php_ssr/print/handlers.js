@@ -132,6 +132,10 @@ const handlers = {
         return [c(`${node.value}`)];
     },
 
+    silent(node, state) {
+        return [c("@"), ...handle(node.expr, state)];
+    },
+
     class(node, state) {
         const chunks = [c("class ")];
 
@@ -359,7 +363,7 @@ const handlers = {
                 if (i < arr.length - 1) {
                     chunks.push(c(", "));
                 }
-            }
+            },
         );
 
         chunks.push(c(")"));
@@ -503,13 +507,13 @@ const handlers = {
                     handle(entry, {
                         ...state,
                         indent,
-                    })
+                    }),
                 );
 
                 const last = i === arr.length - 1;
 
                 chunks.push(c(`,\n${last ? indent.slice(1) : indent}`));
-            }
+            },
         );
 
         chunks.push(c("]"));
@@ -664,8 +668,8 @@ const handle_body = (nodes, state) => {
                 c(
                     needs_padding || needed_padding
                         ? `\n\n${state.indent}`
-                        : `\n${state.indent}`
-                )
+                        : `\n${state.indent}`,
+                ),
             );
         }
 

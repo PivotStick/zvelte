@@ -1,4 +1,16 @@
 /**
+ * @param {import("./type.js").Expression} expr
+ *
+ * @returns {import("./type.js").Silent}
+ */
+export function silent(expr) {
+    return {
+        kind: "silent",
+        expr,
+    };
+}
+
+/**
  * @param {import("./type.js").Program["children"]} children
  *
  * @returns {import("./type.js").Program}
@@ -229,8 +241,8 @@ export function name(name) {
         resolution: name.startsWith("\\")
             ? "fqn"
             : name.includes("\\")
-            ? "qn"
-            : "uqn",
+              ? "qn"
+              : "uqn",
     };
 }
 
@@ -418,7 +430,7 @@ export function object(map = new Map()) {
 
     return cast(
         array(entries.map(([key, value]) => entry(value, key))),
-        "object"
+        "object",
     );
 }
 
@@ -540,7 +552,7 @@ export function closure(
     isStatic = false,
     args = [],
     uses = [],
-    type = undefined
+    type = undefined,
 ) {
     return {
         kind: "closure",

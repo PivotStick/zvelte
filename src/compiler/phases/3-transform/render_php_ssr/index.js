@@ -886,10 +886,14 @@ const visitors = {
         }
 
         if (state.scopeVars.includes(node.name)) {
-            return b.propertyLookup(b.variable("scope"), b.id(node.name));
+            return b.silent(
+                b.propertyLookup(b.variable("scope"), b.id(node.name)),
+            );
         }
 
-        return b.propertyLookup(b.variable(propsName), b.id(node.name));
+        return b.silent(
+            b.propertyLookup(b.variable(propsName), b.id(node.name)),
+        );
     },
 
     // @ts-ignore
@@ -907,9 +911,13 @@ const visitors = {
 
         if (member.what.kind === "identifier") {
             if (!state.nonPropVars.includes(member.what.name)) {
-                member = b.propertyLookup(b.variable(propsName), member);
+                member = b.silent(
+                    b.propertyLookup(b.variable(propsName), member),
+                );
             } else if (state.scopeVars.includes(member.what.name)) {
-                member = b.propertyLookup(b.variable("scope"), member);
+                member = b.silent(
+                    b.propertyLookup(b.variable("scope"), member),
+                );
             } else {
                 member.what = b.variable(member.what.name);
             }
