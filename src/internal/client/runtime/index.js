@@ -119,10 +119,12 @@ export function loop(index, array, parent) {
 
 /**
  * @param {string} endpoint
- * @param {Record<string, any>=} payload
  */
-export function create_load(endpoint, payload) {
-    return async () => {
+export function create_load(endpoint) {
+    /**
+     * @param {Record<string, any>=} payload
+     */
+    return async (payload) => {
         const search = new URLSearchParams(payload ?? {}).toString();
         const response = await fetch(endpoint + (search ? "?" + search : ""), {
             headers: {
@@ -147,12 +149,15 @@ export function create_load(endpoint, payload) {
  * @param {Record<string, any>} payload
  * @param {Record<string, any> | undefined} $$initialLoad
  * @param {(data: any) => void} setter
+ * @param {string=} key
  */
-export function init_load(endpoint, payload, $$initialLoad, setter) {
-    const get = create_load(endpoint, payload);
-    const initialLoad = getInitialLoad() ?? $$initialLoad;
+export function init_load(endpoint, payload, $$initialLoad, setter, key) {
+    const get = create_load(endpoint);
+    const initialLoad = (key ? getInitialLoad(key) : null) ?? $$initialLoad;
 
-    let promise = $.source(initialLoad ? Promise.resolve(initialLoad) : get());
+    let promise = $.source(
+        initialLoad ? Promise.resolve(initialLoad) : get(payload),
+    );
     let loading = $.source(!initialLoad);
 
     let initialLoading = $.unwrap(loading);
@@ -183,12 +188,12 @@ export function init_load(endpoint, payload, $$initialLoad, setter) {
             payload = newPayload;
 
             if (!full) {
-                const data = await get();
+                const data = await get(payload);
                 setter(data);
                 return data;
             }
 
-            return await $.set(promise, get());
+            return await $.set(promise, get(payload));
         },
     };
 }

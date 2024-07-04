@@ -1,18 +1,20 @@
 /**
- * @type {any[]}
+ * @type {Record<string, any>}
  */
-let initialLoads = [];
-let initialLoadsIndex = 0;
+let initialLoads = {};
 
 /**
- * @param {any[]} value
+ * @param {typeof initialLoads} value
  */
 export function setInitialLoads(value) {
     initialLoads = value;
 }
 
-export function getInitialLoad() {
-    if (initialLoadsIndex < initialLoads.length) {
-        return initialLoads[initialLoadsIndex++];
-    }
+/**
+ * @param {string} key
+ */
+export function getInitialLoad(key) {
+    const init = initialLoads[key];
+    initialLoads[key] = undefined;
+    return init;
 }

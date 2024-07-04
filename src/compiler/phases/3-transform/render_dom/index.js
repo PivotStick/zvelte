@@ -274,6 +274,7 @@ export function renderDom(ast, analysis, options, meta) {
             pendingId,
             errorId,
             propId: b.id(options.async.propId ?? "data"),
+            key: options.async.key,
         });
 
         body.push(
