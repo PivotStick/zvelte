@@ -202,13 +202,16 @@ export function renderDom(ast, analysis, options, meta) {
 
         component.body.body.unshift(
             b.stmt(
-                b.assignment(
-                    "=",
-                    b.id("$$props"),
-                    b.call("$.proxy", b.id("$$props")),
+                b.call(
+                    "$.push",
+                    b.assignment(
+                        "=",
+                        b.id("$$props"),
+                        b.call("$.proxy", b.id("$$props")),
+                    ),
+                    b.true,
                 ),
             ),
-            b.stmt(b.call("$.push", b.id("$$props"), b.true)),
             b.var("$$els", b.object([])),
             b.var(
                 "$$scope",
@@ -287,18 +290,6 @@ export function renderDom(ast, analysis, options, meta) {
         body.push(b.exportDefault(component));
         exportDefaultId = component.id;
     }
-
-    body.push(
-        b.exportNamed(
-            b.function_declaration(
-                b.id("mount"),
-                [b.id("args")],
-                b.block([
-                    b.return(b.call("$.mount", exportDefaultId, b.id("args"))),
-                ]),
-            ),
-        ),
-    );
 
     return print({
         type: "Program",

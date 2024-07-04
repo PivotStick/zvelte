@@ -17,7 +17,8 @@ export function scope(scopes) {
     return (key, fallback = scopes[0]) => {
         for (let i = scopes.length - 1; i >= 0; i--) {
             const scope = scopes[i];
-            if (key in scope || scope[key] !== undefined) return scope;
+            const notUndefined = scope[key] !== undefined;
+            if (key in scope || notUndefined) return scope;
         }
 
         return fallback;
