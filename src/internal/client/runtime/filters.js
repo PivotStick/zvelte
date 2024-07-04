@@ -86,7 +86,7 @@ export const filters = {
      */
     json_encode: (value, flags) => {
         if ((flags & constants.JSON_PRETTY_PRINT) !== 0) {
-            return JSON.stringify(value, null, 2);
+            return JSON.stringify(value, null, 4);
         }
         return JSON.stringify(value);
     },
@@ -115,7 +115,7 @@ export const filters = {
     number_format: notImplemented("number_format"),
     raw: () => {
         throw new Error(
-            `"raw" filter should not be used, please use {{ @html ... }} instead`
+            `"raw" filter should not be used, please use {{ @html ... }} instead`,
         );
     },
     reduce: notImplemented("reduce"),
@@ -201,7 +201,7 @@ export const filters = {
         // espace regex characyers
         characterMask = characterMask.replace(
             /[-[\]{}()*+?.,\\^$|#\s]/g,
-            "\\$&"
+            "\\$&",
         );
 
         const start = new RegExp(`$${characterMask}+`);

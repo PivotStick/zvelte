@@ -10,5 +10,5 @@ const value = {
 export default defineTest({
     props: { value },
 
-    html: JSON.stringify(value, null, 2),
+    html: JSON.stringify(value, null, 4),
 });
