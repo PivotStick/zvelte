@@ -138,22 +138,24 @@ export function renderDom(ast, analysis, options, meta) {
         },
     };
 
-    if (analysis.css && options.css === "injected") {
+    if (analysis.css) {
         const result = renderStylesheet(analysis.css.code, analysis, {
             dev: false,
             filename: options.filename + ".css",
         });
 
-        state.hoisted.push(
-            b.stmt(
-                b.call(
-                    "$.append_styles",
-                    b.literal(null),
-                    b.literal(analysis.css.hash),
-                    b.literal(result.code),
+        if (options.css === "injected") {
+            state.hoisted.push(
+                b.stmt(
+                    b.call(
+                        "$.append_styles",
+                        b.literal(null),
+                        b.literal(analysis.css.hash),
+                        b.literal(result.code),
+                    ),
                 ),
-            ),
-        );
+            );
+        }
     }
 
     // @ts-ignore
