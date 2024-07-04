@@ -1140,7 +1140,7 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
         if (node.type === "Text") {
             texts.push(node.data);
         } else if (node.type === "ExpressionTag") {
-            texts.push("%");
+            texts.push("%s");
             let expression = /** @type {any} */ (visit(node.expression, state));
 
             if (attributeValue.length !== 1 && isElement) {
@@ -1150,9 +1150,9 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
             expressions.push(expression);
         } else if (node.type === "ClassDirective") {
             if (texts[texts.length - 1]) {
-                texts.push(" %");
+                texts.push(" %s");
             } else {
-                texts.push("%");
+                texts.push("%s");
             }
 
             let expression = /** @type {any} */ (visit(node.expression, state));
@@ -1166,7 +1166,7 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
         }
     }
 
-    return texts.filter((t) => t !== "%").length
+    return texts.filter((t) => t !== "%s").length
         ? !expressions.length
             ? b.string(texts[0])
             : b.call("sprintf", [b.string(texts.join("")), ...expressions])
