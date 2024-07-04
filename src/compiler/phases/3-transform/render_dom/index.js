@@ -896,8 +896,8 @@ const templateVisitors = {
                             );
                         }
 
-                        if (attr.modifiers.includes("self")) {
-                            handler = b.call("$.self", handler);
+                        for (const modifier of [...attr.modifiers].reverse()) {
+                            handler = b.call(`$.${modifier}`, handler);
                         }
 
                         call = b.call(
