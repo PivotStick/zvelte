@@ -29,6 +29,7 @@ export function compile(source, options = {}, meta = {}) {
     options.generate = options.generate ?? "dom";
     options.hydratable = options.hydratable ?? false;
     options.dev ??= false;
+    options.css ??= "injected";
     options.namespace ??= "Zvelte\\Components";
     options.internalsNamespace ??= "Zvelte\\Core";
     options.filename ??= "Component.twig";
@@ -59,8 +60,9 @@ export function compile(source, options = {}, meta = {}) {
             async: options.async,
             preserveWhitespace: false,
             preserveComments: true,
+            css: options.css,
         },
-        meta
+        meta,
     );
 }
 

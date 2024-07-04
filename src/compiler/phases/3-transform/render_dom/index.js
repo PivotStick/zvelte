@@ -138,7 +138,7 @@ export function renderDom(ast, analysis, options, meta) {
         },
     };
 
-    if (analysis.css) {
+    if (analysis.css && options.css === "injected") {
         const result = renderStylesheet(analysis.css.code, analysis, {
             dev: false,
             filename: options.filename + ".css",
