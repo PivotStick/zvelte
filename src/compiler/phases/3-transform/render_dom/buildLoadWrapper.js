@@ -7,7 +7,6 @@ import * as b from "./builders.js";
  *  propId: import('estree').Identifier;
  *  pendingId?: import('estree').Identifier;
  *  errorId?: import('estree').Identifier;
- *  key?: string;
  * }} args
  */
 export function buildLoadWrapper({
@@ -16,7 +15,6 @@ export function buildLoadWrapper({
     pendingId,
     errorId,
     propId,
-    key,
 }) {
     return b.function_declaration(
         b.id("$$load"),
@@ -46,7 +44,6 @@ export function buildLoadWrapper({
                             b.id("$$data"),
                         ),
                     ),
-                    key ? b.literal(key) : b.id("undefined"),
                 ),
             ),
             b.stmt(
