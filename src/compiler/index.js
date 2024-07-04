@@ -48,7 +48,7 @@ export function compile(source, options = {}, meta = {}) {
         });
     }
 
-    return render(
+    const out = render(
         ast,
         analysis,
         {
@@ -64,6 +64,11 @@ export function compile(source, options = {}, meta = {}) {
         },
         meta,
     );
+
+    return {
+        code: out.code,
+        css: analysis.css?.generated,
+    };
 }
 
 export { hash } from "./utils/hash.js";

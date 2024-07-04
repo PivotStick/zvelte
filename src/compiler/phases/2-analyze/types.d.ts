@@ -9,6 +9,7 @@ export interface ComponentAnalysis extends Analysis {
         hash: string;
         ast: CssNodePlain;
         code: string;
+        generated?: { code: string };
     };
 
     template: {

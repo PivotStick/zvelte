@@ -144,6 +144,8 @@ export function renderDom(ast, analysis, options, meta) {
             filename: options.filename + ".css",
         });
 
+        analysis.css.generated = result;
+
         if (options.css === "injected") {
             state.hoisted.push(
                 b.stmt(
