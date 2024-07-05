@@ -1709,6 +1709,15 @@ const templateVisitors = {
             ),
         );
 
+        if (node.fallback) {
+            // @ts-ignore
+            const fallback = /** @type {import('estree').BlockStatement} */ (
+                visit(node.fallback)
+            );
+
+            call.arguments.push(b.arrow([b.id("$$anchor")], fallback));
+        }
+
         state.init.push(call);
     },
 
