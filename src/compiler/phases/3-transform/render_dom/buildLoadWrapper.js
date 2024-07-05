@@ -33,7 +33,7 @@ export function buildLoadWrapper({
                 b.id("promise"),
                 b.call(
                     "$.init_load",
-                    b.literal(endpoint),
+                    b.id("$$fetch"),
                     b.member(b.id("$$props"), propId),
                     b.member(b.id("$$props"), b.id("$$initialLoad")),
                     b.arrow(
@@ -54,28 +54,12 @@ export function buildLoadWrapper({
                     // then
                     b.arrow(
                         [b.id("$$anchor")],
-                        b.block([
-                            b.var("fragment", b.call("$.comment")),
-                            b.var(
-                                "node",
-                                b.call("$.first_child", b.id("fragment")),
-                            ),
-                            b.stmt(
-                                b.call(
-                                    componentId,
-                                    b.id("node"),
-                                    b.id("$$props"),
-                                    b.id("promise.refresh"),
-                                ),
-                            ),
-                            b.stmt(
-                                b.call(
-                                    "$.append",
-                                    b.id("$$anchor"),
-                                    b.id("fragment"),
-                                ),
-                            ),
-                        ]),
+                        b.call(
+                            componentId,
+                            b.id("$$anchor"),
+                            b.id("$$props"),
+                            b.id("promise.refresh"),
+                        ),
                     ),
                     // await
                     pendingId ?? b.literal(null),

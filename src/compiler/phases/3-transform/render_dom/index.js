@@ -274,12 +274,11 @@ export function renderDom(ast, analysis, options, meta) {
             pendingId,
             errorId,
             propId: b.id(options.async.propId ?? "data"),
-            key: options.async.key,
         });
 
         body.push(
             b.exportNamed(
-                b.var(
+                b.const(
                     "$$fetch",
                     b.call("$.create_load", b.literal(options.async.endpoint)),
                 ),
