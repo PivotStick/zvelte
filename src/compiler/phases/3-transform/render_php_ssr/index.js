@@ -662,7 +662,7 @@ const visitors = {
             b.entry(
                 b.objectFromLiteral({
                     key: b.string(node.key.data),
-                    props,
+                    props: b.object(),
                 }),
             ),
         );
@@ -877,18 +877,18 @@ const visitors = {
     Identifier(node, { state, path }) {
         const parent = path[path.length - 1];
 
+        if (state.scopeVars.includes(node.name)) {
+            return b.silent(
+                b.propertyLookup(b.variable("scope"), b.id(node.name)),
+            );
+        }
+
         if (parent.type === "MemberExpression" && !parent.computed) {
             return b.id(node.name);
         }
 
         if (state.nonPropVars.includes(node.name)) {
             return b.variable(node.name);
-        }
-
-        if (state.scopeVars.includes(node.name)) {
-            return b.silent(
-                b.propertyLookup(b.variable("scope"), b.id(node.name)),
-            );
         }
 
         return b.silent(
@@ -907,6 +907,7 @@ const visitors = {
             offset = b.encapsedPart(offset);
         }
 
+        /** @type {import("./type.js").Expression} */
         let member = b.propertyLookup(what, offset);
 
         if (member.what.kind === "identifier") {
@@ -975,7 +976,10 @@ function getComponentProps(node, context) {
  */
 function createSnippetClosure(context, parameters, nodes) {
     const parent = context.path[context.path.length - 1];
-    const scopeVars = [...new Set(context.state.nonPropVars)];
+    const scopeVars = [
+        ...context.state.scopeVars,
+        ...new Set(context.state.nonPropVars),
+    ];
     const nonPropVars = [...context.state.nonPropVars];
 
     const params = [b.parameter(propsName), b.parameter("scope")];
