@@ -1092,10 +1092,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
         props:
             args.length === 1 && args[0].kind === "cast"
                 ? args[0]
-                : state.internal(
-                      "spread_props",
-                      b.array(args.map((arg) => b.entry(arg))),
-                  ),
+                : state.internal("spread_props", ...args),
         /**
          * @param {import("./type.js").Entry[]} props
          */
