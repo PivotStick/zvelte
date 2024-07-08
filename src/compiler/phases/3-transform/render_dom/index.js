@@ -1293,8 +1293,8 @@ const templateVisitors = {
 
         if (
             !state.ignoreScope &&
-            path.at(-1)?.type !== "MemberExpression" &&
-            member.object.type === "Identifier"
+            member.object.type === "Identifier" &&
+            member.property.type === "Identifier"
         ) {
             if (state.nonPropSources.includes(member.object.name)) {
                 member = b.member(b.call("$.get", member.object), property);
