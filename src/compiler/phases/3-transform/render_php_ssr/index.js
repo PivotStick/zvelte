@@ -254,7 +254,7 @@ const visitors = {
     },
 
     Comment(node, { state }) {
-        state.appendText(node.data);
+        state.appendText(`<!--${node.data}-->`);
     },
 
     IfBlock(node, { state, visit }) {
