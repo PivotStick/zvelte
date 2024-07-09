@@ -64,6 +64,7 @@ export function renderDom(ast, analysis, options, meta) {
         nonPropVars: [],
         nonPropSources: [],
         nonPropGetters: [],
+        nonPropUnwraps: [],
         ignoreScope: false,
         els: false,
         // these should be set by create_block - if they're called outside, it's a bug
@@ -601,6 +602,98 @@ const templateVisitors = {
 
     RegularElement(node, context) {
         context.state.template.push(`<${node.name}`);
+        let optionValue;
+
+        if (node.name === "option") {
+            let attr = /** @type {undefined | import("#ast").Attribute} */ (
+                node.attributes.find(
+                    (a) => a.type === "Attribute" && a.name === "value",
+                )
+            )?.value;
+
+            if (
+                !attr &&
+                node.fragment.nodes.length === 1 &&
+                node.fragment.nodes[0].type === "ExpressionTag"
+            ) {
+                attr = [node.fragment.nodes[0]];
+            }
+
+            if (attr) {
+                optionValue = b.id(context.state.node.name + "_value");
+                const value = serializeAttributeValue(attr, true, {
+                    visit: context.visit,
+                    state: {
+                        ...context.state,
+                        nonPropUnwraps: [
+                            ...context.state.nonPropUnwraps,
+                            ...context.state.nonPropSources,
+                        ],
+                    },
+                });
+
+                /** @type {import("estree").Expression} */
+                let expr = b.assignment(
+                    "=",
+                    b.member(context.state.node, b.id("value")),
+                    b.conditional(
+                        b.binary(
+                            b.id("null"),
+                            "==",
+
+                            b.assignment(
+                                "=",
+                                b.member(context.state.node, b.id("__value")),
+                                value,
+                            ),
+                        ),
+                        b.literal(""),
+                        value,
+                    ),
+                );
+
+                const dynamic =
+                    attr !== true &&
+                    attr.some((n) => {
+                        if (n.type === "ExpressionTag") {
+                            let hasIdentifier = false;
+
+                            walk(n.expression, null, {
+                                Identifier(_, { stop }) {
+                                    hasIdentifier = true;
+                                    stop();
+                                },
+                            });
+
+                            return hasIdentifier;
+                        }
+                    });
+
+                if (dynamic) {
+                    context.state.init.push(
+                        b.var(optionValue.name, b.object([])),
+                    );
+                    expr = b.call(
+                        "$.template_effect",
+                        b.arrow(
+                            [],
+                            b.block([
+                                b.if(
+                                    b.binary(
+                                        optionValue,
+                                        "!==",
+                                        b.assignment("=", optionValue, value),
+                                    ),
+                                    b.block([b.stmt(expr)]),
+                                ),
+                            ]),
+                        ),
+                    );
+                }
+
+                context.state[dynamic ? "update" : "init"].push(b.stmt(expr));
+            }
+        }
 
         /** @type {(import("#ast").SpreadAttribute | import("#ast").Attribute | import("#ast").ClassDirective)[]} */
         const spreadAttributes = [];
@@ -623,6 +716,10 @@ const templateVisitors = {
                 case "Attribute": {
                     if (hasSpread) {
                         spreadAttributes.push(attr);
+                        break;
+                    }
+
+                    if (attr.name === "value" && optionValue) {
                         break;
                     }
 
@@ -726,8 +823,14 @@ const templateVisitors = {
 
                     switch (attr.name) {
                         case "value": {
+                            let method = "$.bind_value";
+
+                            if (node.name === "select") {
+                                method = "$.bind_select_value";
+                            }
+
                             const call = b.call(
-                                "$.bind_value",
+                                method,
                                 context.state.node,
                                 get,
                                 set,
@@ -1313,7 +1416,9 @@ const templateVisitors = {
             member.object.type === "Identifier" &&
             member.property.type === "Identifier"
         ) {
-            if (state.nonPropSources.includes(member.object.name)) {
+            if (state.nonPropUnwraps.includes(member.object.name)) {
+                member = b.member(b.call("$.unwrap", member.object), property);
+            } else if (state.nonPropSources.includes(member.object.name)) {
                 member = b.member(b.call("$.get", member.object), property);
             } else if (state.nonPropGetters.includes(member.object.name)) {
                 member = b.member(b.call(member.object), property);
@@ -1342,7 +1447,9 @@ const templateVisitors = {
             !state.ignoreScope &&
             (parent.type !== "MemberExpression" || parent.computed)
         ) {
-            if (state.nonPropSources.includes(id.name)) {
+            if (state.nonPropUnwraps.includes(id.name)) {
+                id = b.call("$.unwrap", id);
+            } else if (state.nonPropSources.includes(id.name)) {
                 id = b.call("$.get", id);
             } else if (state.nonPropGetters.includes(id.name)) {
                 id = b.call(id);

@@ -470,6 +470,16 @@ function new_builder(callee, ...args) {
     };
 }
 
+/**
+ * @param {import('estree').Expression} test
+ * @param {import('estree').Statement} consequent
+ * @param {import('estree').Statement} [alternate]
+ * @returns {import('estree').IfStatement}
+ */
+function if_builder(test, consequent, alternate) {
+    return { type: "IfStatement", test, consequent, alternate };
+}
+
 const true_instance = literal(true);
 const false_instance = literal(false);
 
@@ -489,4 +499,5 @@ export {
     this_instance as this,
     import_builder as import,
     new_builder as new,
+    if_builder as if,
 };

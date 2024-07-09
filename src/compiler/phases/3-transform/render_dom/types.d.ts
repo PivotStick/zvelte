@@ -29,6 +29,7 @@ export type ComponentClientTransformState = {
     };
     nonPropVars: string[];
     nonPropSources: string[];
+    nonPropUnwraps: string[];
     nonPropGetters: string[];
     els: boolean;
     ignoreScope: boolean;

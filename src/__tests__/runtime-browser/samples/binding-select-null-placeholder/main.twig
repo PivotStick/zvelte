@@ -1,0 +1,6 @@
+<select bind:value={{ foo }} required>
+	<option value={{ null }} disabled>Select an option</option>
+	{% for item in items %}
+		<option value={{ item }}>{{ item.id }}</option>
+	{% endfor %}
+</select>
