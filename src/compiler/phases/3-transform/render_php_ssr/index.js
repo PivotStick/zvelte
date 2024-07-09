@@ -892,7 +892,10 @@ const visitors = {
     Identifier(node, { state, path }) {
         const parent = path[path.length - 1];
 
-        if (state.scopeVars.includes(node.name)) {
+        if (
+            state.scopeVars.includes(node.name) &&
+            (parent.type !== "MemberExpression" || parent.computed)
+        ) {
             return b.silent(
                 b.propertyLookup(b.variable("scope"), b.id(node.name)),
             );
@@ -927,16 +930,16 @@ const visitors = {
 
         if (member.what.kind === "identifier") {
             if (!state.nonPropVars.includes(member.what.name)) {
-                member = b.silent(
-                    b.propertyLookup(b.variable(propsName), member),
-                );
+                member = b.propertyLookup(b.variable(propsName), member);
             } else if (state.scopeVars.includes(member.what.name)) {
-                member = b.silent(
-                    b.propertyLookup(b.variable("scope"), member),
-                );
+                member = b.propertyLookup(b.variable("scope"), member);
             } else {
                 member.what = b.variable(member.what.name);
             }
+        }
+
+        if (parent.type !== "MemberExpression" || parent.computed) {
+            member = b.silent(member);
         }
 
         return member;
