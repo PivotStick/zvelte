@@ -648,10 +648,8 @@ const visitors = {
     },
 
     Variable(node, { state, visit }) {
-        const name = /** @type {any} */ (visit(node.name));
-        const value = /** @type {any} */ (visit(node.value));
-
-        state.block.children.push(b.assign(name, "=", value));
+        const assignment = /** @type {any} */ (visit(node.assignment));
+        state.block.children.push(assignment);
     },
 
     Component(node, context) {
@@ -687,6 +685,23 @@ const visitors = {
             b.ternary(callee, b.call(callee, [props], true), b.string("")),
         );
         context.state.appendText("<!--]-->");
+    },
+
+    // @ts-ignore
+    AssignmentExpression(node, { visit }) {
+        return b.assign(
+            /** @type {any} */ (visit(node.left)),
+            node.operator === "~=" ? ".=" : node.operator,
+            /** @type {any} */ (visit(node.right)),
+        );
+    },
+
+    // @ts-ignore
+    UpdateExpression(node, { visit }) {
+        const type = node.operator === "++" ? "+" : "-";
+        const what = /** @type {any} */ (visit(node.argument));
+
+        return node.prefix ? b.pre(type, what) : b.post(type, what);
     },
 
     // @ts-ignore

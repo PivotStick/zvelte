@@ -488,6 +488,10 @@ const handlers = {
         return [...handle(node.what, state), c(node.type.repeat(2))];
     },
 
+    pre(node, state) {
+        return [c(node.type.repeat(2)), ...handle(node.what, state)];
+    },
+
     cast(node, state) {
         return [c("("), c(node.type), c(")"), ...handle(node.expr, state)];
     },

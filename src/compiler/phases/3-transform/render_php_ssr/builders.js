@@ -193,6 +193,32 @@ export function assign(left, operator, right) {
 }
 
 /**
+ * @param {import("./type.js").Post["type"]} type
+ * @param {import("./type.js").Post["what"]} what
+ * @returns {import("./type.js").Post}
+ */
+export function post(type, what) {
+    return {
+        kind: "post",
+        type,
+        what,
+    };
+}
+
+/**
+ * @param {import("./type.js").Pre["type"]} type
+ * @param {import("./type.js").Pre["what"]} what
+ * @returns {import("./type.js").Pre}
+ */
+export function pre(type, what) {
+    return {
+        kind: "pre",
+        type,
+        what,
+    };
+}
+
+/**
  * @template {import("./type.js").Expression} T
  *
  * @param {T} expression

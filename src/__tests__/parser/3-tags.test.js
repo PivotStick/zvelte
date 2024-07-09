@@ -80,7 +80,7 @@ describe("Parser: will test tags", () => {
                             ],
                         },
                     },
-                ]
+                ],
             );
         });
 
@@ -162,7 +162,7 @@ describe("Parser: will test tags", () => {
                             ],
                         },
                     },
-                ]
+                ],
             );
         });
 
@@ -231,7 +231,7 @@ describe("Parser: will test tags", () => {
                             ],
                         },
                     },
-                ]
+                ],
             );
         });
     });
@@ -327,7 +327,7 @@ describe("Parser: will test tags", () => {
                             ],
                         },
                     },
-                ]
+                ],
             );
         });
 
@@ -419,7 +419,7 @@ describe("Parser: will test tags", () => {
                                 ],
                             },
                         },
-                    ]
+                    ],
                 );
             });
 
@@ -478,7 +478,7 @@ describe("Parser: will test tags", () => {
                                 ],
                             },
                         },
-                    ]
+                    ],
                 );
             });
         });
@@ -495,7 +495,7 @@ describe("Parser: will test tags", () => {
             "expect an Identifier or MemberExpression only for key",
             () => {
                 parse(`{% for context in array #("key") %}{% endfor %}`);
-            }
+            },
         );
     });
 
@@ -506,18 +506,24 @@ describe("Parser: will test tags", () => {
                     type: "Variable",
                     start: 0,
                     end: 23,
-                    name: {
-                        type: "Identifier",
-                        name: "foo",
+                    assignment: {
+                        type: "AssignmentExpression",
                         start: 7,
-                        end: 10,
-                    },
-                    value: {
-                        type: "StringLiteral",
-                        raw: '"value"',
-                        value: "value",
-                        start: 13,
                         end: 20,
+                        left: {
+                            type: "Identifier",
+                            name: "foo",
+                            start: 7,
+                            end: 10,
+                        },
+                        operator: "=",
+                        right: {
+                            type: "StringLiteral",
+                            raw: '"value"',
+                            value: "value",
+                            start: 13,
+                            end: 20,
+                        },
                     },
                 },
             ]);
@@ -529,30 +535,36 @@ describe("Parser: will test tags", () => {
                     type: "Variable",
                     start: 0,
                     end: 27,
-                    name: {
-                        type: "MemberExpression",
+                    assignment: {
+                        type: "AssignmentExpression",
                         start: 7,
-                        end: 14,
-                        computed: false,
-                        object: {
-                            type: "Identifier",
-                            name: "foo",
-                            start: 7,
-                            end: 10,
-                        },
-                        property: {
-                            type: "Identifier",
-                            name: "bar",
-                            start: 11,
-                            end: 14,
-                        },
-                    },
-                    value: {
-                        type: "StringLiteral",
-                        raw: '"value"',
-                        value: "value",
-                        start: 17,
                         end: 24,
+                        left: {
+                            type: "MemberExpression",
+                            start: 7,
+                            end: 14,
+                            computed: false,
+                            object: {
+                                type: "Identifier",
+                                name: "foo",
+                                start: 7,
+                                end: 10,
+                            },
+                            property: {
+                                type: "Identifier",
+                                name: "bar",
+                                start: 11,
+                                end: 14,
+                            },
+                        },
+                        operator: "=",
+                        right: {
+                            type: "StringLiteral",
+                            raw: '"value"',
+                            value: "value",
+                            start: 17,
+                            end: 24,
+                        },
                     },
                 },
             ]);
@@ -562,7 +574,7 @@ describe("Parser: will test tags", () => {
             "expected Identifer or MemberExpression ONLY as for the name",
             () => {
                 parse(`{% set "foo" = "bar" %}`);
-            }
+            },
         );
     });
 
@@ -685,7 +697,7 @@ describe("Parser: will test tags", () => {
                             ],
                         },
                     },
-                ]
+                ],
             );
         });
 
@@ -807,7 +819,7 @@ describe("Parser: will test tags", () => {
             "@render tag expect FilterExpression or CallExpression",
             () => {
                 parse(`{{ @render "some other value" }}`);
-            }
+            },
         );
     });
 

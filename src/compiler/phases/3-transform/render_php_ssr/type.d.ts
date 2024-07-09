@@ -99,6 +99,8 @@ export type Expression =
     | Closure
     | RetIf
     | ArrowFunc
+    | Pre
+    | Post
     | New;
 
 export type Closure = {
@@ -123,7 +125,7 @@ export type Assign = {
     kind: "assign";
     left: Expression;
     right: Expression;
-    operator: "=" | "+=" | "-=" | "??=";
+    operator: "=" | "+=" | "-=" | "??=" | ".=" | "/=" | "*=";
 };
 
 export type Return = {
@@ -287,6 +289,18 @@ export type New = {
 export type Silent = {
     kind: "silent";
     expr: Expression;
+};
+
+export type Post = {
+    kind: "post";
+    type: "+" | "-";
+    what: Expression;
+};
+
+export type Pre = {
+    kind: "pre";
+    type: "+" | "-";
+    what: Expression;
 };
 
 export type Node = Literal | Expression | UseGroup | UseItem;

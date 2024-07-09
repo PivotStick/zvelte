@@ -1,5 +1,6 @@
 import { Parser } from "../index.js";
 import {
+    parseAssignmentExpression,
     parseChainableExpression,
     parseExpression,
     parseIdentifier,
@@ -43,7 +44,7 @@ function expressionTag(parser) {
     ) {
         throw parser.error(
             "`{{ @render ... }` tags can only contain call expressions",
-            expression.start
+            expression.start,
         );
     }
 
@@ -130,7 +131,7 @@ function open(parser, start) {
             key = parseChainableExpression(parser);
             if (key?.type !== "Identifier" && key?.type !== "MemberExpression")
                 throw parser.error(
-                    "Expected an Identifier or a MemberExpression"
+                    "Expected an Identifier or a MemberExpression",
                 );
 
             parser.eat(")", true);
@@ -162,14 +163,11 @@ function open(parser, start) {
     if (parser.eat("set")) {
         parser.requireWhitespace();
 
-        let name = parseExpression(parser);
-        if (name.type !== "Identifier" && name.type !== "MemberExpression") {
-            throw parser.error(`Unexpected ${name.type}`);
-        }
-        parser.allowWhitespace();
-        parser.eat("=", true);
-        parser.allowWhitespace();
-        let value = parseExpression(parser);
+        const assignment = parseAssignmentExpression(parser);
+
+        if (assignment.type !== "AssignmentExpression")
+            throw parser.error("AssignmentExpression expected");
+
         parser.allowWhitespace();
         parser.eat("%}", true);
 
@@ -178,9 +176,8 @@ function open(parser, start) {
                 type: "Variable",
                 start,
                 end: parser.index,
-                name,
-                value,
-            })
+                assignment,
+            }),
         );
 
         return;
@@ -320,7 +317,7 @@ function next(parser, start) {
     }
 
     throw parser.error(
-        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)"
+        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)",
     );
 }
 

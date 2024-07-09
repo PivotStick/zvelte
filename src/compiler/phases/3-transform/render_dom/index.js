@@ -542,17 +542,12 @@ function processChildren(nodes, expression, isElement, { visit, state }) {
             sequence.push(node);
         } else {
             if (node.type === "Variable") {
-                const name = /** @type {import("estree").Pattern} */ (
-                    visit(node.name, state)
-                );
+                const expression =
+                    /** @type {import("estree").AssignmentExpression} */ (
+                        visit(node.assignment)
+                    );
 
-                const value = /** @type {import("estree").Expression} */ (
-                    visit(node.value, state)
-                );
-
-                const assign = b.assignment("=", name, value);
-
-                state.update.push(b.stmt(assign));
+                state.update.push(b.stmt(expression));
             }
 
             if (sequence.length > 0) {
@@ -1277,6 +1272,17 @@ const templateVisitors = {
         } else {
             return serializeFunction(node, context);
         }
+    },
+
+    // @ts-ignore
+    AssignmentExpression(node, context) {
+        return b.assignment(
+            node.operator === "~=" ? "+=" : node.operator,
+            /** @type {import("estree").Pattern} */ (context.visit(node.left)),
+            /** @type {import("estree").Expression} */ (
+                context.visit(node.right)
+            ),
+        );
     },
 
     // @ts-ignore

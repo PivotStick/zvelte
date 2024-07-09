@@ -41,7 +41,9 @@ export type Expression =
     | IsExpression
     | InExpression
     | RangeExpression
-    | CallExpression;
+    | CallExpression
+    | AssignmentExpression
+    | UpdateExpression;
 
 export interface ClassDirective extends BaseNode {
     type: "ClassDirective";
@@ -125,8 +127,7 @@ export interface Text extends BaseNode {
 
 export interface VariableTag extends BaseNode {
     type: "Variable";
-    name: Identifier | MemberExpression;
-    value: Expression;
+    assignment: AssignmentExpression;
 }
 
 export interface IfBlock extends BaseNode {
@@ -270,6 +271,20 @@ export type Literal =
     | BooleanLiteral
     | StringLiteral
     | NumericLiteral;
+
+export interface AssignmentExpression extends BaseNode {
+    type: "AssignmentExpression";
+    left: Identifier | MemberExpression;
+    operator: "=" | "+=" | "-=" | "/=" | "*=" | "~=";
+    right: Expression;
+}
+
+export interface UpdateExpression extends BaseNode {
+    type: "UpdateExpression";
+    argument: Identifier | MemberExpression;
+    operator: "++" | "--";
+    prefix: boolean;
+}
 
 export interface LogicalExpression extends BaseNode {
     type: "LogicalExpression";

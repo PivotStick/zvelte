@@ -4,7 +4,46 @@ import { Parser } from "../index.js";
  * @param {Parser} parser
  */
 export function parseExpression(parser) {
-    return parseArrowFunctionExpression(parser);
+    return parseAssignmentExpression(parser);
+}
+
+/**
+ * @param {Parser} parser
+ * @returns {import("#ast").Expression}
+ */
+export function parseAssignmentExpression(parser) {
+    const start = parser.index;
+    let left = parseArrowFunctionExpression(parser);
+    parser.allowWhitespace();
+
+    /**
+     * @type {import("#ast").AssignmentExpression["operator"] | null}
+     */
+    // @ts-ignore
+    const operator = parser.read(/^(=|\+=|-=|\/=|\*=|~=)/);
+
+    if (operator) {
+        if (left.type !== "Identifier" && left.type !== "MemberExpression")
+            throw parser.error(
+                `Invalid left-hand side in assignment`,
+                left.start,
+            );
+
+        parser.allowWhitespace();
+        // @ts-ignore
+        const right = parseExpression(parser);
+
+        left = {
+            type: "AssignmentExpression",
+            start,
+            end: right.end,
+            operator,
+            right,
+            left,
+        };
+    }
+
+    return left;
 }
 
 /**
@@ -257,7 +296,7 @@ export function parseConcatenation(parser) {
 
     parser.allowWhitespace();
 
-    while (parser.eat("~")) {
+    while (!parser.match("~=") && parser.eat("~")) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
         const end = right.end;
@@ -290,7 +329,7 @@ export function parseAdditive(parser) {
     let operator;
 
     // @ts-ignore
-    while ((operator = parser.read(/^(\+|-)/))) {
+    while ((operator = parser.read(/^(\+|-)(?!=)/))) {
         parser.allowWhitespace();
         const right = parseMultiplicative(parser);
         const end = right.end;
@@ -323,7 +362,7 @@ export function parseMultiplicative(parser) {
     let operator;
 
     // @ts-ignore
-    while ((operator = parser.read(/^(\*|\/)/))) {
+    while ((operator = parser.read(/^(\*|\/)(?!=)/))) {
         parser.allowWhitespace();
         const right = parseChainableExpression(parser);
         const end = right.end;
@@ -479,7 +518,7 @@ export function parseChainableExpression(parser) {
  */
 export function parseRangeExpression(parser) {
     const start = parser.index;
-    let from = parsePrimary(parser);
+    let from = parseUpdateExpression(parser);
 
     parser.allowWhitespace();
 
@@ -488,13 +527,13 @@ export function parseRangeExpression(parser) {
             throw parser.error("Expected NumericLiteral", from.start);
         }
         parser.allowWhitespace();
-        const to = parsePrimary(parser);
+        const to = parseUpdateExpression(parser);
 
         if (to.type !== "NumericLiteral") {
             throw parser.error("Expected NumericLiteral");
         }
 
-        const end = parser.index;
+        const end = to.end;
 
         from = {
             type: "RangeExpression",
@@ -507,6 +546,53 @@ export function parseRangeExpression(parser) {
     }
 
     return from;
+}
+
+/**
+ * @param {Parser} parser
+ * @returns {import("#ast").Expression}
+ */
+export function parseUpdateExpression(parser) {
+    const regex = /^(\+\+|--)/;
+    const start = parser.index;
+
+    /**
+     * @type {import("#ast").UpdateExpression["operator"] | null}
+     */
+    let operator = null;
+    let prefix = false;
+
+    // @ts-ignore
+    if ((operator = parser.read(regex))) {
+        parser.allowWhitespace();
+        prefix = true;
+    }
+
+    const argument = parsePrimary(parser);
+    parser.allowWhitespace();
+
+    // @ts-ignore
+    if ((operator ??= parser.read(regex))) {
+        if (
+            argument.type !== "Identifier" &&
+            argument.type !== "MemberExpression"
+        )
+            throw parser.error(
+                `Invalid ${prefix ? "right-hand" : "left-hand"} side expression in prefix operator`,
+                argument.start,
+            );
+
+        return {
+            type: "UpdateExpression",
+            operator,
+            start,
+            end: prefix ? argument.end : parser.index,
+            prefix,
+            argument,
+        };
+    }
+
+    return argument;
 }
 
 /**

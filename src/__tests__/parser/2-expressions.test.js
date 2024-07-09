@@ -1035,6 +1035,198 @@ describe("Parser: will test expressions", () => {
         });
     });
 
+    describe("AssignmentExpression", () => {
+        test("=", () => {
+            ExpressionTagOf(`{{ left = right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 15,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 10,
+                    end: 15,
+                },
+            });
+        });
+
+        test("+=", () => {
+            ExpressionTagOf(`{{ left += right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "+=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 11,
+                    end: 16,
+                },
+            });
+        });
+
+        test("-=", () => {
+            ExpressionTagOf(`{{ left -= right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "-=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 11,
+                    end: 16,
+                },
+            });
+        });
+
+        test("~=", () => {
+            ExpressionTagOf(`{{ left ~= right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "~=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 11,
+                    end: 16,
+                },
+            });
+        });
+
+        test("*=", () => {
+            ExpressionTagOf(`{{ left *= right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "*=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 11,
+                    end: 16,
+                },
+            });
+        });
+
+        test("/=", () => {
+            ExpressionTagOf(`{{ left /= right }}`, {
+                type: "AssignmentExpression",
+                start: 3,
+                end: 16,
+                left: {
+                    type: "Identifier",
+                    name: "left",
+                    start: 3,
+                    end: 7,
+                },
+                operator: "/=",
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 11,
+                    end: 16,
+                },
+            });
+        });
+    });
+
+    describe("UpdateExpression", () => {
+        test("++ suffix", () => {
+            ExpressionTagOf(`{{ foo++ }}`, {
+                type: "UpdateExpression",
+                start: 3,
+                end: 8,
+                argument: {
+                    type: "Identifier",
+                    name: "foo",
+                    start: 3,
+                    end: 6,
+                },
+                operator: "++",
+                prefix: false,
+            });
+        });
+        test("-- suffix", () => {
+            ExpressionTagOf(`{{ foo-- }}`, {
+                type: "UpdateExpression",
+                start: 3,
+                end: 8,
+                argument: {
+                    type: "Identifier",
+                    name: "foo",
+                    start: 3,
+                    end: 6,
+                },
+                operator: "--",
+                prefix: false,
+            });
+        });
+
+        test("++ prefix", () => {
+            ExpressionTagOf(`{{ ++foo }}`, {
+                type: "UpdateExpression",
+                start: 3,
+                end: 8,
+                argument: {
+                    type: "Identifier",
+                    name: "foo",
+                    start: 5,
+                    end: 8,
+                },
+                operator: "++",
+                prefix: true,
+            });
+        });
+        test("-- prefix", () => {
+            ExpressionTagOf(`{{ --foo }}`, {
+                type: "UpdateExpression",
+                start: 3,
+                end: 8,
+                argument: {
+                    type: "Identifier",
+                    name: "foo",
+                    start: 5,
+                    end: 8,
+                },
+                operator: "--",
+                prefix: true,
+            });
+        });
+    });
+
     describe("CallExpression", () => {
         /**
          * @param {string} source
