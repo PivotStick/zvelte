@@ -2049,11 +2049,7 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
         props:
             args.length === 1 && args[0].type === "ObjectExpression"
                 ? args[0]
-                : b.call(
-                      "$.rest_props",
-                      b.call("$.spread_props", ...args),
-                      b.array(),
-                  ),
+                : b.call("$.spread_props", ...args),
         bindThis,
         /**
          * @param {import("estree").ObjectExpression["properties"]} props
