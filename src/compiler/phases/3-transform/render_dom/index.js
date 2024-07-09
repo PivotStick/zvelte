@@ -779,6 +779,17 @@ const templateVisitors = {
                             break;
                         }
 
+                        case "files": {
+                            const call = b.call(
+                                "$.bind_files",
+                                context.state.node,
+                                get,
+                                set,
+                            );
+                            context.state.update.push(b.stmt(call));
+                            break;
+                        }
+
                         case "group": {
                             /** @type {import('estree').CallExpression[]} */
                             const indexes = [];

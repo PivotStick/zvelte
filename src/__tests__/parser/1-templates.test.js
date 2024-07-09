@@ -455,7 +455,7 @@ describe("Parser: will test template nodes", () => {
                         "type attribute on inputs ONLY cannot be dynamic",
                         () => {
                             parse(`<input type="{{ foo }}" bind:value />`);
-                        }
+                        },
                     );
 
                     test("type can be dynamic on textarea and selects", () => {
@@ -485,6 +485,20 @@ describe("Parser: will test template nodes", () => {
 
                     test.fails("should crash on other other element", () => {
                         parse(`<div bind:checked />`);
+                    });
+                });
+
+                describe("bind:files", () => {
+                    test("should work on input of type file", () => {
+                        parse(`<input type="file" bind:files />`);
+                    });
+
+                    test.fails("should crash on input of other type", () => {
+                        parse(`<input type="text" bind:files />`);
+                    });
+
+                    test.fails("should crash on other other element", () => {
+                        parse(`<div bind:files />`);
                     });
                 });
             });
@@ -526,7 +540,7 @@ describe("Parser: will test template nodes", () => {
                             start: 5,
                             end: 49,
                         },
-                    ]
+                    ],
                 );
             });
 
@@ -821,7 +835,7 @@ describe("Parser: will test template nodes", () => {
             "cannot use non identifier expression directly in attributes",
             () => {
                 parse(`<div {{ "random expression" }} />`);
-            }
+            },
         );
     });
 
