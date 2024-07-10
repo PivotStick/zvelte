@@ -398,6 +398,11 @@ const visitors = {
         forEach.body.children.push(b.assign(index, "+=", b.number(1)));
     },
 
+    AwaitBlock(node, { state }) {
+        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(`<!--${HYDRATION_END}-->`);
+    },
+
     RegularElement(node, { state, path, visit }) {
         const parent = path[path.length - 1];
 
