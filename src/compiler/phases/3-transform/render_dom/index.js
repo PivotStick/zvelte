@@ -67,6 +67,7 @@ export function renderDom(ast, analysis, options, meta) {
         nonPropSources: [],
         nonPropGetters: [],
         nonPropUnwraps: [],
+        overrides: {},
         ignoreScope: false,
         els: false,
         // these should be set by create_block - if they're called outside, it's a bug
@@ -136,7 +137,7 @@ export function renderDom(ast, analysis, options, meta) {
                 template_needs_import_node: false,
                 template_contains_script_tag: false,
             },
-            namespace: options.namespace,
+            namespace: "html",
             bound_contenteditable: false,
         },
     };
@@ -1427,7 +1428,10 @@ const templateVisitors = {
             member.object.type === "Identifier" &&
             member.property.type === "Identifier"
         ) {
-            if (state.nonPropUnwraps.includes(member.object.name)) {
+            if (state.overrides[member.object.name]) {
+                const o = state.overrides[member.object.name];
+                member = b.member(o, property);
+            } else if (state.nonPropUnwraps.includes(member.object.name)) {
                 member = b.member(b.call("$.unwrap", member.object), property);
             } else if (state.nonPropSources.includes(member.object.name)) {
                 member = b.member(b.call("$.get", member.object), property);
@@ -1458,7 +1462,9 @@ const templateVisitors = {
             !state.ignoreScope &&
             (parent.type !== "MemberExpression" || parent.computed)
         ) {
-            if (state.nonPropUnwraps.includes(id.name)) {
+            if (state.overrides[id.name]) {
+                id = state.overrides[id.name];
+            } else if (state.nonPropUnwraps.includes(id.name)) {
                 id = b.call("$.unwrap", id);
             } else if (state.nonPropSources.includes(id.name)) {
                 id = b.call("$.get", id);
@@ -1913,6 +1919,77 @@ const templateVisitors = {
 
         state.template.push("<!>");
         state.init.push(call);
+    },
+
+    AwaitBlock(node, context) {
+        context.state.template.push("<!>");
+
+        let then_block;
+        let catch_block;
+
+        if (node.then) {
+            /** @type {import('estree').Pattern[]} */
+            const args = [b.id("$$anchor")];
+            const overrides = { ...context.state.overrides };
+
+            if (node.value) {
+                args.push(node.value);
+                overrides[node.value.name] = node.value;
+            }
+
+            const block = /** @type {import('estree').BlockStatement} */ (
+                context.visit(node.then, {
+                    ...context.state,
+                    overrides,
+                })
+            );
+
+            then_block = b.arrow(args, block);
+        }
+
+        if (node.catch) {
+            /** @type {import('estree').Pattern[]} */
+            const args = [b.id("$$anchor")];
+            const overrides = { ...context.state.overrides };
+
+            if (node.error) {
+                args.push(node.error);
+                overrides[node.error.name] = node.error;
+            }
+
+            const block = /** @type {import('estree').BlockStatement} */ (
+                context.visit(node.catch, {
+                    ...context.state,
+                    overrides,
+                })
+            );
+
+            catch_block = b.arrow(args, block);
+        }
+
+        context.state.init.push(
+            b.stmt(
+                b.call(
+                    "$.await",
+                    context.state.node,
+                    b.thunk(
+                        /** @type {import('estree').Expression} */ (
+                            context.visit(node.expression)
+                        ),
+                    ),
+                    node.pending
+                        ? b.arrow(
+                              [b.id("$$anchor")],
+                              /** @type {import('estree').BlockStatement} */ (
+                                  context.visit(node.pending)
+                              ),
+                          )
+                        : b.literal(null),
+                    then_block,
+                    catch_block,
+                ),
+            ),
+        );
     },
 
     Component(node, context) {
@@ -2404,4 +2481,79 @@ function serializeUpdate(statement) {
             : b.block([statement]);
 
     return b.stmt(b.call("$.template_effect", b.thunk(body)));
+}
+
+/**
+ * Extracts all identifiers from a pattern.
+ * @param {import("#ast").Expression} param
+ * @param {import("#ast").Identifier[]} [nodes]
+ * @returns {import("#ast").Identifier[]}
+ */
+export function extract_identifiers(param, nodes = []) {
+    switch (param.type) {
+        case "Identifier":
+            nodes.push(param);
+            break;
+
+        case "AssignmentExpression":
+            extract_identifiers(param.left, nodes);
+            break;
+    }
+
+    return nodes;
+}
+/**
+ * @param {import("estree").Pattern} node
+ * @param {import("zimmerframe").Context<import("#ast").ZvelteNode, import("./types.js").ComponentClientTransformState>} context
+ * @returns {{ id: import("estree").Pattern, declarations: null | import("estree").Statement[] }}
+ */
+export function create_derived_block_argument(node, context) {
+    if (node.type === "Identifier") {
+        return { id: node, declarations: null };
+    }
+
+    const pattern = /** @type {import('estree').Pattern} */ (
+        context.visit(node)
+    );
+    const identifiers = extract_identifiers(node);
+
+    const id = b.id("$$source");
+    const value = b.id("$$value");
+
+    const block = b.block([
+        b.var(pattern, b.call("$.get", id)),
+        b.return(
+            b.object(
+                identifiers.map((identifier) =>
+                    b.prop("init", identifier, identifier),
+                ),
+            ),
+        ),
+    ]);
+
+    const declarations = [
+        b.var(value, create_derived(context.state, b.thunk(block))),
+    ];
+
+    for (const id of identifiers) {
+        declarations.push(
+            b.var(
+                id,
+                create_derived(
+                    context.state,
+                    b.thunk(b.member(b.call("$.get", value), id)),
+                ),
+            ),
+        );
+    }
+
+    return { id, declarations };
+}
+
+/**
+ * @param {import('./types.js').ComponentClientTransformState} state
+ * @param {import('estree').Expression} arg
+ */
+export function create_derived(state, arg) {
+    return b.call("$.derived", arg);
 }

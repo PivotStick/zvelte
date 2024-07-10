@@ -7,6 +7,8 @@ import {
 } from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 
+const regex_whitespace_with_closing_curly_brace = /^\s*%}/;
+
 /**
  * @param {Parser} parser
  */
@@ -69,7 +71,9 @@ function block(parser) {
     const start = parser.index - 2;
     parser.allowWhitespace();
 
-    if (parser.eat("else")) return next(parser, start);
+    if (parser.eat("else") || parser.match("then") || parser.match("catch"))
+        return next(parser, start);
+
     if (parser.eat("end")) return close(parser, start);
 
     return open(parser, start);
@@ -252,6 +256,61 @@ function open(parser, start) {
         return;
     }
 
+    if (parser.eat("await")) {
+        parser.requireWhitespace();
+        const expression = parseExpression(parser);
+        parser.allowWhitespace();
+
+        /** @type {ReturnType<typeof parser.append<import('#ast').AwaitBlock>>} */
+        const block = parser.append({
+            type: "AwaitBlock",
+            start,
+            end: -1,
+            expression,
+            error: null,
+            pending: null,
+            value: null,
+            then: null,
+            catch: null,
+        });
+
+        if (parser.eat("then")) {
+            if (parser.matchRegex(regex_whitespace_with_closing_curly_brace)) {
+                parser.allowWhitespace();
+            } else {
+                parser.requireWhitespace();
+                const value = parseIdentifier(parser);
+                if (!value) throw parser.error(`Expected Identifier`);
+                block.value = value;
+                parser.allowWhitespace();
+            }
+
+            block.then = createFragment();
+            parser.fragments.push(block.then);
+        } else if (parser.eat("catch")) {
+            if (parser.matchRegex(regex_whitespace_with_closing_curly_brace)) {
+                parser.allowWhitespace();
+            } else {
+                parser.requireWhitespace();
+                const value = parseIdentifier(parser);
+                if (!value) throw parser.error(`Expected Identifier`);
+                block.error = value;
+                parser.allowWhitespace();
+            }
+
+            block.catch = createFragment();
+            parser.fragments.push(block.catch);
+        } else {
+            block.pending = createFragment();
+            parser.fragments.push(block.pending);
+        }
+
+        parser.eat("%}", true);
+        parser.fragments[parser.fragments.length - 1].start = parser.index;
+        parser.stack.push(block);
+        return;
+    }
+
     throw parser.error(`Unknown block type`);
 }
 
@@ -262,6 +321,59 @@ function open(parser, start) {
 function next(parser, start) {
     const block = parser.current();
     parser.currentFrag().end = start;
+
+    if (block.type === "AwaitBlock") {
+        if (parser.eat("then")) {
+            if (block.then) {
+                throw parser.error(
+                    `{% then %} cannot appear more than once within a block`,
+                );
+            }
+
+            if (!parser.matchRegex(regex_whitespace_with_closing_curly_brace)) {
+                parser.requireWhitespace();
+                const value = parseIdentifier(parser);
+                if (!value) throw parser.error(`Expected an Indentifier`);
+                block.value = value;
+                parser.allowWhitespace();
+                parser.eat("%}", true);
+            }
+
+            block.then = createFragment();
+            block.then.start = parser.index;
+            parser.fragments.pop();
+            parser.fragments.push(block.then);
+            return;
+        }
+
+        if (parser.eat("catch")) {
+            if (block.catch) {
+                throw parser.error(
+                    `{% catch %} cannot appear more than once within a block`,
+                );
+            }
+
+            if (!parser.matchRegex(regex_whitespace_with_closing_curly_brace)) {
+                parser.requireWhitespace();
+                const value = parseIdentifier(parser);
+                if (!value) throw parser.error(`Expected an Indentifier`);
+                block.error = value;
+                parser.allowWhitespace();
+                parser.eat("%}", true);
+            }
+
+            block.catch = createFragment();
+            block.catch.start = parser.index;
+            parser.fragments.pop();
+            parser.fragments.push(block.catch);
+            return;
+        }
+
+        throw parser.error(
+            "Expected token {% then ... %} or {% catch ... %}",
+            start,
+        );
+    }
 
     if (block.type === "IfBlock") {
         block.alternate = createFragment();
@@ -373,6 +485,16 @@ function close(parser, start) {
 
         case "KeyBlock": {
             parser.eat("key", true);
+            parser.allowWhitespace();
+            parser.eat("%}", true);
+
+            block.end = parser.index;
+            parser.pop();
+            break;
+        }
+
+        case "AwaitBlock": {
+            parser.eat("await", true);
             parser.allowWhitespace();
             parser.eat("%}", true);
 

@@ -31,6 +31,7 @@ export type ComponentClientTransformState = {
     nonPropSources: string[];
     nonPropUnwraps: string[];
     nonPropGetters: string[];
+    overrides: Record<string, import("estree").Expression>;
     els: boolean;
     ignoreScope: boolean;
 };

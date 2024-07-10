@@ -742,6 +742,175 @@ describe("Parser: will test tags", () => {
         });
     });
 
+    describe("await tag", () => {
+        test("simple form", () => {
+            TemplateRootOf(`{% await foo then bar %}markup{% endawait %}`, [
+                {
+                    type: "AwaitBlock",
+                    start: 0,
+                    end: 44,
+                    expression: {
+                        type: "Identifier",
+                        start: 9,
+                        end: 12,
+                        name: "foo",
+                    },
+                    value: {
+                        type: "Identifier",
+                        start: 18,
+                        end: 21,
+                        name: "bar",
+                    },
+                    error: null,
+                    pending: null,
+                    then: {
+                        type: "Fragment",
+                        start: 24,
+                        end: 30,
+                        transparent: false,
+                        nodes: [
+                            {
+                                type: "Text",
+                                data: "markup",
+                                start: 24,
+                                end: 30,
+                            },
+                        ],
+                    },
+                    catch: null,
+                },
+            ]);
+        });
+
+        test("with pending", () => {
+            TemplateRootOf(
+                `{% await foo %}pending{% then bar %}markup{% endawait %}`,
+                [
+                    {
+                        type: "AwaitBlock",
+                        start: 0,
+                        end: 56,
+                        expression: {
+                            type: "Identifier",
+                            start: 9,
+                            end: 12,
+                            name: "foo",
+                        },
+                        value: {
+                            type: "Identifier",
+                            start: 30,
+                            end: 33,
+                            name: "bar",
+                        },
+                        error: null,
+                        pending: {
+                            type: "Fragment",
+                            start: 15,
+                            end: 22,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "pending",
+                                    start: 15,
+                                    end: 22,
+                                },
+                            ],
+                        },
+                        then: {
+                            type: "Fragment",
+                            start: 36,
+                            end: 42,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "markup",
+                                    start: 36,
+                                    end: 42,
+                                },
+                            ],
+                        },
+                        catch: null,
+                    },
+                ],
+            );
+        });
+
+        test("with pending & catch", () => {
+            TemplateRootOf(
+                `{% await foo %}pending{% then bar %}markup{% catch err %}error{% endawait %}`,
+                [
+                    {
+                        type: "AwaitBlock",
+                        start: 0,
+                        end: 76,
+                        expression: {
+                            type: "Identifier",
+                            start: 9,
+                            end: 12,
+                            name: "foo",
+                        },
+                        value: {
+                            type: "Identifier",
+                            start: 30,
+                            end: 33,
+                            name: "bar",
+                        },
+                        pending: {
+                            type: "Fragment",
+                            start: 15,
+                            end: 22,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "pending",
+                                    start: 15,
+                                    end: 22,
+                                },
+                            ],
+                        },
+                        then: {
+                            type: "Fragment",
+                            start: 36,
+                            end: 42,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "markup",
+                                    start: 36,
+                                    end: 42,
+                                },
+                            ],
+                        },
+                        error: {
+                            type: "Identifier",
+                            name: "err",
+                            start: 51,
+                            end: 54,
+                        },
+                        catch: {
+                            type: "Fragment",
+                            start: 57,
+                            end: 62,
+                            transparent: false,
+                            nodes: [
+                                {
+                                    type: "Text",
+                                    data: "error",
+                                    start: 57,
+                                    end: 62,
+                                },
+                            ],
+                        },
+                    },
+                ],
+            );
+        });
+    });
+
     describe("expression tag", () => {
         test("@html tag", () => {
             TemplateRootOf(`{{ @html foo }}`, [

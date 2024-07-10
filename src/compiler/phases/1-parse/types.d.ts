@@ -25,7 +25,7 @@ export type Directive =
     | ClassDirective;
 export type ElementLike = RegularElement | Component | ZvelteComponent;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
-export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock;
+export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock | AwaitBlock;
 export type Expression =
     | ArrowFunctionExpression
     | ConditionalExpression
@@ -159,6 +159,16 @@ export interface KeyBlock extends BaseNode {
     type: "KeyBlock";
     expression: Expression;
     fragment: Fragment;
+}
+
+export interface AwaitBlock extends BaseNode {
+    type: "AwaitBlock";
+    expression: Expression;
+    value: null | Identifier;
+    pending: null | Fragment;
+    then: null | Fragment;
+    error: null | Identifier;
+    catch: null | Fragment;
 }
 
 export interface ExpressionTag extends BaseNode {

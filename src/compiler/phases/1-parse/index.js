@@ -208,19 +208,19 @@ export class Parser {
             0,
             `${red}${"-".repeat(Math.max(0, col - 1))}^ ${message} at ${
                 ln + 1
-            }:${col + 1}${reset}${dim}`
+            }:${col + 1}${reset}${dim}`,
         );
 
         lines[ln] = `${lines[ln].replace(
             /[^\s]/,
-            `${underline}${bold}$&`
+            `${underline}${bold}$&`,
         )}${reset}`;
 
         return new SyntaxError(
             "\n" +
                 reset +
                 lines.slice(Math.max(0, ln - 4)).join("\n") +
-                `...${reset}`
+                `...${reset}`,
         );
     }
 
