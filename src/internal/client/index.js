@@ -1,9 +1,19 @@
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
-export { onMount, onDestroy, tick } from "svelte";
-export { user_effect as effect } from "svelte/internal/client";
+export { onMount, onDestroy, beforeUpdate, afterUpdate, tick } from "svelte";
 import * as $ from "svelte/internal/client";
+
+/**
+ * @param {Parameters<typeof $.user_effect>[0]} fn
+ */
+export function effect(fn) {
+    return $.user_effect(fn);
+}
+
+effect.pre = $.user_pre_effect;
+effect.root = $.effect_root;
+effect.tracking = $.effect_tracking;
 
 /**
  * @template T
@@ -25,17 +35,20 @@ export function source(initial) {
 
 /**
  * @template T
- * @param {() => T} fn
- * @returns {{ value: T }}
+ * @template {keyof T} K
+ *
+ * @param {T} props
+ * @param {K} key
+ * @param {() => T[K]} fn
  */
-export function derived(fn) {
+export function derived(props, key, fn) {
     const signal = $.derived(fn);
 
-    return {
-        get value() {
+    Object.defineProperty(props, key, {
+        get() {
             return $.get(signal);
         },
-    };
+    });
 }
 
 /**

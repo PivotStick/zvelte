@@ -1,3 +1,5 @@
+import { user_effect, user_pre_effect } from "svelte/internal/client";
+
 export {
     ComponentInitArgs as Args,
     ComponentInitAsyncArgs as AsyncArgs,
@@ -7,9 +9,14 @@ export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
 export { onMount, onDestroy, tick } from "svelte";
-export { user_effect as effect } from "svelte/internal/client";
 
 export function source<T>(initial: T): { value: T };
 export function derived<T>(fn: () => T): { readonly value: T };
 export function proxy<T>(object: T): T;
 export function is(a: any, b: any): boolean;
+
+export function effect(fn: () => void | (() => void)): void;
+
+effect.pre = (fn: () => void | (() => void)) => {};
+effect.root = (fn: () => void | (() => void)) => {};
+effect.tracking = () => true;
