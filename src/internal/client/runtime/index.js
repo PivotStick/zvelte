@@ -15,6 +15,18 @@ export { setInitialLoads } from "./hydration.js";
  * @type {ProxyHandler<{ props: Array<T | (() => T)>, default: any; }>}}
  */
 const spread_props_handler = {
+    defineProperty(target, key, attributes) {
+        for (let p of target.props) {
+            if (typeof p === "function") p = p();
+            if (p != null && key in p) {
+                Object.defineProperty(p, key, attributes);
+                return true;
+            }
+        }
+
+        Object.defineProperty(target.default, key, attributes);
+        return true;
+    },
     get(target, key) {
         let i = target.props.length;
         while (i--) {
