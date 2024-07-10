@@ -4,6 +4,11 @@ import * as b from "./builders.js";
 import { print } from "./print/index.js";
 import { cleanNodes } from "../utils.js";
 import { DOMBooleanAttributes } from "../constants.js";
+import {
+    HYDRATION_END,
+    HYDRATION_END_ELSE,
+    HYDRATION_START,
+} from "../../constants.js";
 
 const outputName = "html";
 const propsName = "props";
@@ -106,7 +111,7 @@ function renderBlock({ path, state, visit }, nodes) {
     state.block.children.push(outputAssign);
 
     if (!path.length && state.options.async) {
-        state.appendText("<!--[-->");
+        state.appendText(`<!--${HYDRATION_START}-->`);
     }
 
     for (const node of nodes) {
@@ -114,7 +119,7 @@ function renderBlock({ path, state, visit }, nodes) {
     }
 
     if (!path.length && state.options.async) {
-        state.appendText("<!--]-->");
+        state.appendText(`<!--${HYDRATION_END}-->`);
     }
 
     let returned;
@@ -258,7 +263,7 @@ const visitors = {
     },
 
     IfBlock(node, { state, visit }) {
-        state.appendText("<!--[-->");
+        state.appendText(`<!--${HYDRATION_START}-->`);
 
         // @ts-ignore
         const test = /** @type {import("./type.js").Expression} */ (
@@ -274,8 +279,8 @@ const visitors = {
             visit(node.alternate, alternate);
         }
 
-        consequent.appendText("<!--]-->");
-        alternate.appendText("<!--]!-->");
+        consequent.appendText(`<!--${HYDRATION_END}-->`);
+        alternate.appendText(`<!--${HYDRATION_END_ELSE}-->`);
 
         state.block.children.push(
             b.ifStatement(test, consequent.block, alternate.block),
@@ -283,7 +288,7 @@ const visitors = {
     },
 
     ForBlock(node, { state, path, visit }) {
-        state.appendText("<!--[-->");
+        state.appendText(`<!--${HYDRATION_START}-->`);
 
         const hasParent = path.some((n) => n.type === "ForBlock");
 
@@ -331,11 +336,11 @@ const visitors = {
             state.block.children.push(ifBlock);
 
             visit(node.fallback, fallbackState);
-            ifState.appendText("<!--]-->");
-            fallbackState.appendText("<!--]!-->");
+            ifState.appendText(`<!--${HYDRATION_END}-->`);
+            fallbackState.appendText(`<!--${HYDRATION_END_ELSE}-->`);
         } else {
             state.block.children.push(forEach);
-            state.appendText("<!--]-->");
+            state.appendText(`<!--${HYDRATION_END}-->`);
         }
 
         forEach.body.children.push(
@@ -386,9 +391,9 @@ const visitors = {
             ...nonPropVars,
         ];
 
-        forEachState.appendText("<!--[-->");
+        forEachState.appendText(`<!--${HYDRATION_START}-->`);
         visit(node.body, forEachState);
-        forEachState.appendText("<!--]-->");
+        forEachState.appendText(`<!--${HYDRATION_END}-->`);
 
         forEach.body.children.push(b.assign(index, "+=", b.number(1)));
     },
@@ -613,9 +618,9 @@ const visitors = {
         const call = b.call(callee, args, true);
         const test = b.call(b.id("is_callable"), [callee]);
 
-        state.appendText("<!--[-->");
+        state.appendText(`<!--${HYDRATION_START}-->`);
         state.append(b.ternary(test, call, b.string("")));
-        state.appendText("<!--]-->");
+        state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
     HtmlTag(node, { state, visit }) {
@@ -623,9 +628,9 @@ const visitors = {
     },
 
     KeyBlock(node, { state, visit }) {
-        state.appendText("<!--[-->");
+        state.appendText(`<!--${HYDRATION_START}-->`);
         visit(node.fragment);
-        state.appendText("<!--]-->");
+        state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
     SnippetBlock(node, context) {
@@ -665,7 +670,7 @@ const visitors = {
             ),
         );
 
-        context.state.appendText("<!--[-->");
+        context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.append(
             context.state.internal(
                 "component",
@@ -673,18 +678,18 @@ const visitors = {
                 props,
             ),
         );
-        context.state.appendText("<!--]-->");
+        context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
     ZvelteComponent(node, context) {
         const callee = /** @type {any} */ (context.visit(node.expression));
         const props = getComponentProps(node, context);
 
-        context.state.appendText("<!--[-->");
+        context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.append(
             b.ternary(callee, b.call(callee, [props], true), b.string("")),
         );
-        context.state.appendText("<!--]-->");
+        context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
     // @ts-ignore

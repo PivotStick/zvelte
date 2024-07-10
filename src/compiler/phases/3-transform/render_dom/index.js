@@ -4,6 +4,8 @@ import { walk } from "zimmerframe";
 import { cleanNodes } from "../utils.js";
 import {
     EACH_INDEX_REACTIVE,
+    EACH_IS_CONTROLLED,
+    EACH_IS_STRICT_EQUALS,
     EACH_ITEM_REACTIVE,
     EACH_KEYED,
     TEMPLATE_FRAGMENT,
@@ -562,21 +564,30 @@ function processChildren(nodes, expression, isElement, { visit, state }) {
                 // get hoisted inside clean_nodes?
                 visit(node, state);
             } else if (node.type !== "Variable") {
-                const id = getNodeId(
-                    expression(false),
-                    state,
-                    node.type === "RegularElement" ? node.name : "node",
-                );
+                if (
+                    node.type === "ForBlock" &&
+                    nodes.length === 1 &&
+                    isElement
+                ) {
+                    node.metadata.is_controlled = true;
+                    visit(node, state);
+                } else {
+                    const id = getNodeId(
+                        expression(false),
+                        state,
+                        node.type === "RegularElement" ? node.name : "node",
+                    );
 
-                expression = (isText) =>
-                    isText
-                        ? b.call("$.sibling", id, b.true)
-                        : b.call("$.sibling", id);
+                    expression = (isText) =>
+                        isText
+                            ? b.call("$.sibling", id, b.true)
+                            : b.call("$.sibling", id);
 
-                visit(node, {
-                    ...state,
-                    node: id,
-                });
+                    visit(node, {
+                        ...state,
+                        node: id,
+                    });
+                }
             }
         }
     }
@@ -1742,23 +1753,37 @@ const templateVisitors = {
     },
 
     ForBlock(node, { state, visit, path }) {
-        state.template.push("<!>");
+        const meta = node.metadata;
+        if (!meta.is_controlled) {
+            state.template.push("<!>");
+        }
 
         const call = b.call("$.each", state.node);
 
-        let flags = EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE;
+        // The runtime needs to know what kind of for block this is in order to optimize for the
+        // key === item (we avoid extra allocations). In that case, the item doesn't need to be reactive.
+        // We can guarantee this by knowing that in order for the item of the for block to change, they
+        // would need to mutate the key/item directly in the array. Given that in runes mode we use ===
+        // equality, we can apply a fast-path (as long as the index isn't reactive).
+        let forType =
+            EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE | EACH_IS_STRICT_EQUALS;
+
         /**
          * @type {import('estree').Expression}
          */
         let key = b.id("$.index");
 
         if (node.key !== null) {
-            flags |= EACH_KEYED;
+            forType |= EACH_KEYED;
 
             key = b.arrow(
                 [b.id("$$key"), b.id("$$index")],
                 b.call("$.unwrap", b.id("$$key")),
             );
+        }
+
+        if (meta.is_controlled) {
+            forType |= EACH_IS_CONTROLLED;
         }
 
         const nonPropSources = [...state.nonPropSources, node.context.name];
@@ -1824,7 +1849,7 @@ const templateVisitors = {
         body.body.unshift(...loopInit);
 
         call.arguments.push(
-            b.literal(flags),
+            b.literal(forType),
             b.thunk(array),
             key,
             b.arrow(
