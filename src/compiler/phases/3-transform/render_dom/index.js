@@ -1765,21 +1765,45 @@ const templateVisitors = {
         // We can guarantee this by knowing that in order for the item of the for block to change, they
         // would need to mutate the key/item directly in the array. Given that in runes mode we use ===
         // equality, we can apply a fast-path (as long as the index isn't reactive).
-        let forType =
-            EACH_ITEM_REACTIVE | EACH_INDEX_REACTIVE | EACH_IS_STRICT_EQUALS;
+        let forType = EACH_IS_STRICT_EQUALS;
+        let for_item_is_reactive = true;
 
         /**
          * @type {import('estree').Expression}
          */
         let key = b.id("$.index");
 
-        if (node.key !== null) {
+        if (
+            node.key &&
+            (node.key.type !== "Identifier" ||
+                !node.index ||
+                node.key.name !== node.index.name)
+        ) {
             forType |= EACH_KEYED;
 
             key = b.arrow(
                 [b.id("$$key"), b.id("$$index")],
                 b.call("$.unwrap", b.id("$$key")),
             );
+
+            // If there's a destructuring, then we likely need the generated $$index
+            if (node.index || node.context.type !== "Identifier") {
+                forType |= EACH_INDEX_REACTIVE;
+            }
+
+            if (
+                node.key.type === "Identifier" &&
+                node.context.type === "Identifier" &&
+                node.context.name === node.key.name &&
+                (forType & EACH_INDEX_REACTIVE) === 0
+            ) {
+                // Fast-path for when the key === item
+                for_item_is_reactive = false;
+            } else {
+                forType |= EACH_ITEM_REACTIVE;
+            }
+        } else {
+            forType |= EACH_ITEM_REACTIVE;
         }
 
         if (meta.is_controlled) {

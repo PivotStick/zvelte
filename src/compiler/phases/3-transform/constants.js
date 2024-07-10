@@ -206,3 +206,15 @@ export const SVGElements = [
     "view",
     "vkern",
 ];
+
+export const LoadErrorElements = [
+    "body",
+    "embed",
+    "iframe",
+    "img",
+    "link",
+    "object",
+    "script",
+    "style",
+    "track",
+];

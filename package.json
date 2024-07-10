@@ -33,15 +33,19 @@
         },
         "./easing": {
             "default": "./src/internal/client/easing/index.js",
-            "types": "./src/internal/client/easing/index.d.js"
+            "types": "./src/internal/client/easing/index.d.ts"
         },
         "./transition": {
             "default": "./src/internal/client/transition/index.js",
-            "types": "./src/internal/client/transition/index.d.js"
+            "types": "./src/internal/client/transition/index.d.ts"
+        },
+        "./motion": {
+            "default": "./src/internal/client/motion/index.js",
+            "types": "./src/internal/client/motion/index.d.ts"
         },
         "./reactivity": {
             "default": "./src/reactivity/index.js",
-            "types": "./src/reactivity/index.d.js"
+            "types": "./src/reactivity/index.d.ts"
         },
         "./types": {
             "default": "./src/types/index.d.ts"

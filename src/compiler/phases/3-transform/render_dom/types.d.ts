@@ -24,7 +24,7 @@ export type ComponentClientTransformState = {
             template_needs_import_node: boolean;
             template_contains_script_tag: boolean;
         };
-        namespace: string;
+        namespace: import("#ast").Namespace;
         bound_contenteditable: boolean;
     };
     nonPropVars: string[];

@@ -11,7 +11,11 @@ export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
 export { onMount, onDestroy, tick } from "svelte";
 
 export function source<T>(initial: T): { value: T };
-export function derived<T>(fn: () => T): { readonly value: T };
+export function derived<T, K extends keyof T>(
+    props: T,
+    key: K,
+    fn: () => T[K],
+): void;
 export function proxy<T>(object: T): T;
 export function is(a: any, b: any): boolean;
 
