@@ -398,8 +398,11 @@ const visitors = {
         forEach.body.children.push(b.assign(index, "+=", b.number(1)));
     },
 
-    AwaitBlock(node, { state }) {
+    AwaitBlock(node, { state, visit }) {
         state.appendText(`<!--${HYDRATION_START}-->`);
+        if (node.pending) {
+            visit(node.pending);
+        }
         state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
