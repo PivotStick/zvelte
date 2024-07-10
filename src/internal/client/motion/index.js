@@ -9,7 +9,7 @@ import { source, get, set } from "svelte/internal/client";
  * @param {T} props
  * @param {K} key
  * @param {T[K]} value
- * @param {$.TweenedOptions<T[K]>} opts
+ * @param {$.TweenedOptions<T[K]>=} opts
  */
 export function tweened(props, key, value, opts) {
     const store = $.tweened(value, opts);
@@ -38,7 +38,7 @@ export function tweened(props, key, value, opts) {
  * @param {T} props
  * @param {K} key
  * @param {T[K]} value
- * @param {$.SpringOpts} opts
+ * @param {$.SpringOpts=} opts
  */
 export function spring(props, key, value, opts) {
     const store = $.spring(value, opts);
