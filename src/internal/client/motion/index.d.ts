@@ -1,13 +1,11 @@
-export function tweened<T, K extends keyof T>(
-    props: T,
-    key: K,
-    value: T[K],
-    opts: import("svelte/motion").TweenedOptions<T[K]>,
+export function tweened<T>(
+    fn: (value: T) => void,
+    value: T,
+    opts: import("svelte/motion").TweenedOptions<T>,
 ): import("svelte/motion").Tweened;
 
-export function spring<T, K extends keyof T>(
-    props: T,
-    key: K,
-    value: T[K],
+export function spring<T>(
+    fn: (value: T) => void,
+    value: T,
     opts: import("svelte/motion").SpringOpts,
 ): import("svelte/motion").Spring;
