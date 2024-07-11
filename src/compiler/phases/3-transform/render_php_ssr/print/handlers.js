@@ -401,14 +401,17 @@ const handlers = {
         const chunks = [];
 
         if (node.name) {
-            chunks.push(c(`use ${node.name}\\{`));
+            chunks.push(c(`use ${node.name}\\`));
+            if (node.items.length > 1) chunks.push(c("{"));
+
             node.items.forEach((item, i, arr) => {
                 push_array(chunks, handle(item, state));
                 if (i < arr.length - 1) {
                     chunks.push(c(", "));
                 }
             });
-            chunks.push(c("}"));
+
+            if (node.items.length > 1) chunks.push(c("}"));
         }
 
         chunks.push(c(";"));

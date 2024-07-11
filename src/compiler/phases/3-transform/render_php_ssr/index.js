@@ -25,6 +25,7 @@ const propsName = "props";
  *  counter: number;
  *  import(name: string): void;
  *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
+ *  componentName: string;
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -46,6 +47,8 @@ export function renderPhpSSR(ast, analysis, options, meta) {
     param.nullable = true;
     param.value = b.nullKeyword();
 
+    const componentName = options.filename.replace(/\..*$/, "");
+
     /**
      * @type {Set<string>}
      */
@@ -57,6 +60,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
             scopeVars: [],
             usedComponents: [],
             counter: 0,
+            componentName,
             import(name) {
                 internalImports.add(name);
             },
@@ -78,7 +82,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
         b.returnExpression(b.array(state.usedComponents)),
     );
 
-    const renderer = b.declareClass(options.filename.replace(/\..*$/, ""), [
+    const renderer = b.declareClass(componentName, [
         renderMethod,
         getAllComponentsMethod,
     ]);
@@ -700,6 +704,16 @@ const visitors = {
         context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
+    ZvelteSelf(node, context) {
+        const props = getComponentProps(node, context);
+
+        context.state.appendText(`<!--${HYDRATION_START}-->`);
+        context.state.append(
+            b.call(b.staticLookup(b.name("self"), "render"), [props]),
+        );
+        context.state.appendText(`<!--${HYDRATION_END}-->`);
+    },
+
     // @ts-ignore
     AssignmentExpression(node, { visit }) {
         return b.assign(
@@ -960,7 +974,7 @@ const visitors = {
 };
 
 /**
- * @param {import("#ast").ZvelteComponent | import("#ast").Component} node
+ * @param {import("#ast").ZvelteSelf | import("#ast").ZvelteComponent | import("#ast").Component} node
  * @param {ComponentContext} context
  */
 function getComponentProps(node, context) {

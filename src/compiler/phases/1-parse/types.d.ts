@@ -23,7 +23,12 @@ export type Directive =
     | TransitionDirective
     | UseDirective
     | ClassDirective;
-export type ElementLike = RegularElement | Component | ZvelteComponent;
+export type ElementLike =
+    | RegularElement
+    | Component
+    | ZvelteComponent
+    | ZvelteHead
+    | ZvelteSelf;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
 export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock | AwaitBlock;
 export type Expression =
@@ -107,6 +112,20 @@ export interface ZvelteComponent extends BaseNode {
     fragment: Fragment;
     name: string;
     expression: Expression;
+}
+
+export interface ZvelteSelf extends BaseNode {
+    type: "ZvelteSelf";
+    attributes: Component["attributes"];
+    fragment: Fragment;
+    name: string;
+}
+
+export interface ZvelteHead extends BaseNode {
+    type: "ZvelteHead";
+    attributes: Component["attributes"];
+    fragment: Fragment;
+    name: string;
 }
 
 export interface Comment extends BaseNode {

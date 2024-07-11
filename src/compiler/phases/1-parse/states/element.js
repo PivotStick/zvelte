@@ -53,6 +53,10 @@ export const element = (parser) => {
 
         if (right === "component") {
             type = "ZvelteComponent";
+        } else if (right === "self") {
+            type = "ZvelteSelf";
+        } else if (right === "head") {
+            type = "ZvelteHead";
         } else {
             throw parser.error(
                 `"${right}" unknown ${left} meta tag kind`,

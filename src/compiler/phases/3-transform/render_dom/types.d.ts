@@ -34,6 +34,7 @@ export type ComponentClientTransformState = {
     overrides: Record<string, import("estree").Expression>;
     els: boolean;
     ignoreScope: boolean;
+    componentId: import("estree").Identifier;
 };
 
 export type ComponentContext = import("zimmerframe").Context<

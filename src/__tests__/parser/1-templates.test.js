@@ -948,6 +948,27 @@ describe("Parser: will test template nodes", () => {
         });
     });
 
+    describe("ZvelteSelf", () => {
+        test("simplest form", () => {
+            TemplateRootOf(`<zvelte:self />`, [
+                {
+                    type: "ZvelteSelf",
+                    attributes: [],
+                    start: 0,
+                    end: 15,
+                    name: "zvelte:self",
+                    fragment: {
+                        type: "Fragment",
+                        transparent: true,
+                        nodes: [],
+                        start: 15,
+                        end: 15,
+                    },
+                },
+            ]);
+        });
+    });
+
     test.fails("should crash if unexpected meta tag found", () => {
         parse(`<zvelte:unknown />`);
     });

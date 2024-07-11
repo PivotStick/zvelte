@@ -140,6 +140,11 @@ export function renderDom(ast, analysis, options, meta) {
             namespace: "html",
             bound_contenteditable: false,
         },
+        componentId: b.id(
+            analysis.template.scope.generate(
+                options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_"),
+            ),
+        ),
     };
 
     if (analysis.css) {
@@ -181,11 +186,7 @@ export function renderDom(ast, analysis, options, meta) {
     );
 
     const component = b.function_declaration(
-        b.id(
-            state.scope.generate(
-                options.filename.replace(/\.[^\.]*$/, "").replace(/\./g, "_"),
-            ),
-        ),
+        state.componentId,
         [b.id("$$anchor"), b.id("$$props")],
         b.block(/** @type {import('estree').Statement[]} */ (template.body)),
     );
@@ -2063,10 +2064,24 @@ const templateVisitors = {
 
         context.state.init.push(statement);
     },
+
+    ZvelteSelf(node, context) {
+        context.state.template.push("<!>");
+
+        const nodeId = context.state.node;
+        const id = context.state.componentId;
+        const statement = serializeComponentProps(
+            node,
+            context,
+            (props, bindThis) => bindThis(b.call(id, nodeId, props)),
+        );
+
+        context.state.init.push(statement);
+    },
 };
 
 /**
- * @param {import("#ast").ZvelteComponent | import("#ast").Component} node
+ * @param {import("#ast").ZvelteSelf| import("#ast").ZvelteComponent | import("#ast").Component} node
  * @param {import("./types.js").ComponentContext} context
  * @param {(statement: import("estree").ObjectExpression | import("estree").CallExpression, bindThis: (expression: import("estree").Expression) => import("estree").Expression) => import("estree").Expression} wrap
  */
