@@ -599,15 +599,17 @@ const visitors = {
             )
         );
 
-        const args = node.expression.arguments.map((arg) => {
-            return /** @type {any} */ (visit(arg));
-        });
+        const args = [b.variable(outputName)];
+
+        for (const arg of node.expression.arguments) {
+            args.push(/** @type {any} */ (visit(arg)));
+        }
 
         const call = b.call(callee, args, true);
         const test = b.call(b.id("is_callable"), [callee]);
 
         state.appendText(`<!--${HYDRATION_START}-->`);
-        state.append(b.ternary(test, call, b.string("")));
+        state.block.children.push(b.ifStatement(test, b.block([b.stmt(call)])));
         state.appendText(`<!--${HYDRATION_END}-->`);
     },
 
@@ -1073,7 +1075,11 @@ function createSnippetClosure(context, parameters, nodes) {
     ];
     const nonPropVars = [...context.state.nonPropVars];
 
-    const params = [b.parameter(propsName), b.parameter("scope")];
+    const params = [
+        b.parameter(propsName),
+        b.parameter("scope"),
+        b.parameter(outputName),
+    ];
 
     for (const param of parameters) {
         nonPropVars.push(param.name);
