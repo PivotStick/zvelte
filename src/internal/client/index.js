@@ -1,7 +1,7 @@
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
-export { onMount, onDestroy, beforeUpdate, afterUpdate, tick } from "svelte";
+export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
 import * as $ from "svelte/internal/client";
 
 /**
