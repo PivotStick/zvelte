@@ -8,7 +8,7 @@ export {
 export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { mount, createComponent, contextualizeComponent } from "./dom/mount.js";
-export { onMount, onDestroy, tick } from "svelte";
+export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
 
 export function source<T>(initial: T): { value: T };
 export function derived<T, K extends keyof T>(
