@@ -25,6 +25,7 @@ export type Directive =
     | ClassDirective;
 export type ElementLike =
     | RegularElement
+    | TitleElement
     | Component
     | ZvelteComponent
     | ZvelteHead
@@ -222,6 +223,11 @@ export interface RegularElement extends BaseNode {
     attributes: Array<Attribute | Directive | SpreadAttribute>;
     fragment: Fragment;
     name: string;
+}
+
+export interface TitleElement extends RegularElement {
+    type: "TitleElement";
+    name: "title";
 }
 
 export type Attribute = BaseNode & {

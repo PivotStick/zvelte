@@ -184,7 +184,7 @@ export function arrayFromObject(o) {
  * @returns {import("./type.js").ExpressionStatement<import("./type.js").Assign>}
  */
 export function assign(left, operator, right) {
-    return statement({
+    return stmt({
         kind: "assign",
         left,
         operator,
@@ -224,7 +224,7 @@ export function pre(type, what) {
  * @param {T} expression
  * @returns {import("./type.js").ExpressionStatement<T>}
  */
-export function statement(expression) {
+export function stmt(expression) {
     return {
         kind: "expressionstatement",
         expression,

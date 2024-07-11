@@ -21,7 +21,6 @@ import {
     SVGElements,
     VoidElements,
 } from "../constants.js";
-import { regex_is_valid_identifier } from "../../patterns.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
 import { renderStylesheet } from "../css/index.js";
@@ -344,7 +343,6 @@ function createBlock(parent, name, nodes, context) {
         trimmed.length === 1 &&
         // @ts-expect-error
         (trimmed[0].type === "ZvelteFragment" ||
-            // @ts-expect-error
             trimmed[0].type === "TitleElement");
 
     /** @type {import('estree').Statement[]} */
@@ -2078,6 +2076,71 @@ const templateVisitors = {
 
         context.state.init.push(statement);
     },
+
+    ZvelteHead(node, context) {
+        context.state.init.push(
+            b.stmt(
+                b.call(
+                    "$.head",
+                    b.arrow(
+                        [b.id("$$anchor")],
+                        /** @type {import('estree').BlockStatement} */ (
+                            context.visit(node.fragment)
+                        ),
+                    ),
+                ),
+            ),
+        );
+    },
+
+    TitleElement(node, { state, visit }) {
+        // TODO throw validation error when attributes present / when children something else than text/expression tags
+        if (
+            node.fragment.nodes.length === 1 &&
+            node.fragment.nodes[0].type === "Text"
+        ) {
+            state.init.push(
+                b.stmt(
+                    b.assignment(
+                        "=",
+                        b.member(b.id("$.document"), b.id("title")),
+                        b.literal(
+                            /** @type {import('#ast').Text} */ (
+                                node.fragment.nodes[0]
+                            ).data,
+                        ),
+                    ),
+                ),
+            );
+        } else {
+            const values = [];
+            let isDynamic = false;
+            for (const child of node.fragment.nodes) {
+                if (child.type !== "Text" && child.type !== "ExpressionTag")
+                    throw new Error(
+                        "`<title>` can only contain text and {{ tags }}",
+                    );
+
+                if (child.type === "ExpressionTag") {
+                    isDynamic = true;
+                }
+
+                values.push(child);
+            }
+
+            const assignment = b.assignment(
+                "=",
+                b.member(b.id("$.document"), b.id("title")),
+                serializeAttributeValue(values, true, { visit, state }),
+            );
+
+            state.update.push(
+                isDynamic
+                    ? b.stmt(b.call("$.template_effect", b.thunk(assignment)))
+                    : b.stmt(assignment),
+            );
+        }
+    },
 };
 
 /**
@@ -2385,58 +2448,6 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
 }
 
 /**
- * For unfortunate legacy reasons, directive names can look like this `use:a.b-c`
- * This turns that string into a member expression
- * @param {string} name
- * @returns {import("#ast").Identifier | import("#ast").MemberExpression}
- */
-function parseDirectiveName(name) {
-    // this allow for accessing members of an object
-    const parts = name.split(".");
-    let part = /** @type {string} */ (parts.shift());
-
-    /** @type {import('#ast').Identifier | import('#ast').MemberExpression} */
-    let expression = {
-        type: "Identifier",
-        name: part,
-        start: -1,
-        end: -1,
-    };
-
-    while ((part = /** @type {string} */ (parts.shift()))) {
-        const computed = !regex_is_valid_identifier.test(part);
-        expression = {
-            type: "MemberExpression",
-            object: expression,
-            ...(computed === true
-                ? {
-                      computed,
-                      property: {
-                          type: "StringLiteral",
-                          value: part,
-                          raw: `"${part}"`,
-                          start: -1,
-                          end: -1,
-                      },
-                  }
-                : {
-                      computed,
-                      property: {
-                          type: "Identifier",
-                          name: part,
-                          start: -1,
-                          end: -1,
-                      },
-                  }),
-            start: -1,
-            end: -1,
-        };
-    }
-
-    return expression;
-}
-
-/**
  * @param {import("#ast").FilterExpression | import("#ast").CallExpression} node
  * @param {import("./types.js").ComponentContext} context
  */
@@ -2476,29 +2487,6 @@ function getTemplateFunction(namespace, state) {
 }
 
 /**
- *
- * @param {import('./types.js').ComponentClientTransformState} state
- */
-function serializeRenderStmt(state) {
-    return state.update.length === 1
-        ? serializeUpdate(state.update[0])
-        : b.stmt(b.call("$.template_effect", b.thunk(b.block(state.update))));
-}
-
-/**
- *
- * @param {import('estree').Statement} statement
- */
-function serializeUpdate(statement) {
-    const body =
-        statement.type === "ExpressionStatement"
-            ? statement.expression
-            : b.block([statement]);
-
-    return b.stmt(b.call("$.template_effect", b.thunk(body)));
-}
-
-/**
  * Extracts all identifiers from a pattern.
  * @param {import("#ast").Expression} param
  * @param {import("#ast").Identifier[]} [nodes]
@@ -2517,6 +2505,7 @@ export function extract_identifiers(param, nodes = []) {
 
     return nodes;
 }
+
 /**
  * @param {import("estree").Pattern} node
  * @param {import("zimmerframe").Context<import("#ast").ZvelteNode, import("./types.js").ComponentClientTransformState>} context

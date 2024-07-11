@@ -40,7 +40,9 @@ export const element = (parser) => {
      */
     let type = parser.component.name.test(name)
         ? "Component"
-        : "RegularElement";
+        : name === "title"
+          ? "TitleElement"
+          : "RegularElement";
 
     if (name.includes(":")) {
         const [left, right] = name.split(":");
@@ -275,11 +277,8 @@ export const element = (parser) => {
         if (
             (attr = element.attributes.find(
                 (attr) =>
-                    // @ts-expect-error
                     attr.type === "ClassDirective" ||
-                    // @ts-expect-error
                     attr.type === "UseDirective" ||
-                    // @ts-expect-error
                     attr.type === "TransitionDirective",
             ))
         ) {

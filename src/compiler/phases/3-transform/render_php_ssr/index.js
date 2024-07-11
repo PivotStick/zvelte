@@ -10,12 +10,14 @@ import {
     HYDRATION_START,
 } from "../../constants.js";
 
-const outputName = "html";
+const outputName = "payload";
 const propsName = "props";
 
 /**
  * @typedef {{
  *  append(value: any): void;
+ *  appendHead(value: any): void;
+ *  setTitle(value: import("./type.js").StringLiteral): void;
  *  appendText(value: string): void;
  *  options: import("../../../types.js").CompilerOptions;
  *  readonly block: import("./type.js").Block;
@@ -35,11 +37,14 @@ const propsName = "props";
  * @type {import("../types.js").Transformer}
  */
 export function renderPhpSSR(ast, analysis, options, meta) {
-    const renderMethod = b.method("render", "string");
+    const renderMethod = b.method("render", "void");
     const getAllComponentsMethod = b.method("getAllComponents", "array");
 
     renderMethod.isStatic = true;
-    renderMethod.arguments.push(b.parameter(propsName, "object"));
+    renderMethod.arguments.push(
+        b.parameter(outputName, "object"),
+        b.parameter(propsName, "object"),
+    );
 
     getAllComponentsMethod.isStatic = true;
     const param = b.parameter(propsName, "object");
@@ -109,11 +114,6 @@ export function renderPhpSSR(ast, analysis, options, meta) {
  * @param {import("#ast").ZvelteNode[]} nodes
  */
 function renderBlock({ path, state, visit }, nodes) {
-    const outputValue = b.array([]);
-    const outputAssign = b.assign(b.variable(outputName), "=", outputValue);
-
-    state.block.children.push(outputAssign);
-
     if (!path.length && state.options.async) {
         state.appendText(`<!--${HYDRATION_START}-->`);
     }
@@ -125,86 +125,62 @@ function renderBlock({ path, state, visit }, nodes) {
     if (!path.length && state.options.async) {
         state.appendText(`<!--${HYDRATION_END}-->`);
     }
-
-    let returned;
-
-    const implode = (/** @type {import("./type.js").Expression} */ expr) =>
-        b.call(b.name("implode"), [b.literal(""), expr]);
-
-    const last = state.block.children.at(-1);
-    if (
-        last?.kind === "expressionstatement" &&
-        last.expression.kind === "assign" &&
-        last.expression.left.kind === "variable" &&
-        last.expression.left.name === outputName &&
-        last.expression.operator === "=" &&
-        last.expression.right === outputValue
-    ) {
-        state.block.children.pop();
-
-        if (outputValue.items.length <= 1) {
-            returned = outputValue.items[0]?.value ?? b.string("");
-        } else {
-            returned = implode(outputAssign.expression.right);
-        }
-    } else {
-        returned = implode(outputAssign.expression.left);
-    }
-
-    state.block.children.push(b.returnExpression(returned));
 }
 
 /**
- * @param {Omit<State, "block" | "append" | "appendText">} state
+ * @param {Omit<State, "block" | "append" | "appendText" | "appendHead" | "setTitle">} state
  * @param {import("./type.js").Block} block
  * @returns {State}
  */
 function createState(state, block) {
-    return {
-        ...state,
-        get block() {
-            return block;
-        },
-        append(value) {
+    const createAppend = (/** @type {string} */ property) => {
+        return (/** @type {import("./type.js").Expression} */ value) => {
             const previous = block.children.at(-1);
 
             if (
                 value.kind === "string" &&
                 previous?.kind === "expressionstatement" &&
                 previous.expression.kind === "assign" &&
-                previous.expression.left.kind === "offsetlookup" &&
+                previous.expression.left.kind === "propertylookup" &&
                 previous.expression.left.what.kind === "variable" &&
                 previous.expression.left.what.name === outputName &&
-                previous.expression.operator === "=" &&
+                previous.expression.left.offset.kind === "identifier" &&
+                previous.expression.left.offset.name === property &&
+                previous.expression.operator === ".=" &&
                 previous.expression.right.kind === "string"
             ) {
                 previous.expression.right.value += value.value;
                 previous.expression.right.raw = `'${previous.expression.right.value}'`;
-            } else if (
-                previous?.kind === "expressionstatement" &&
-                previous.expression.kind === "assign" &&
-                previous.expression.left.kind === "variable" &&
-                previous.expression.left.name === outputName &&
-                previous.expression.operator === "=" &&
-                previous.expression.right.kind === "array"
-            ) {
-                const last = previous.expression.right.items.at(-1);
-
-                if (last?.value.kind === "string" && value.kind === "string") {
-                    last.value.value += value.value;
-                    last.value.raw = `'${last.value.value}'`;
-                } else {
-                    previous.expression.right.items.push(b.entry(value));
-                }
             } else {
                 block.children.push(
                     b.assign(
-                        b.offsetLookup(b.variable(outputName)),
-                        "=",
+                        b.propertyLookup(
+                            b.variable(outputName),
+                            b.id(property),
+                        ),
+                        ".=",
                         value,
                     ),
                 );
             }
+        };
+    };
+
+    return {
+        ...state,
+        get block() {
+            return block;
+        },
+        append: createAppend("out"),
+        appendHead: createAppend("head"),
+        setTitle(string) {
+            block.children.push(
+                b.assign(
+                    b.propertyLookup(b.variable(outputName), b.id("title")),
+                    "=",
+                    string,
+                ),
+            );
         },
         appendText(value) {
             this.append(b.string(value));
@@ -709,9 +685,79 @@ const visitors = {
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.append(
-            b.call(b.staticLookup(b.name("self"), "render"), [props]),
+            b.call(b.staticLookup(b.name("self"), "render"), [
+                b.variable(outputName),
+                props,
+            ]),
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
+    },
+
+    TitleElement(node, context) {
+        /**
+         * @type {import("./type.js").Expression[]}
+         */
+        const elements = [];
+
+        for (const child of node.fragment.nodes) {
+            switch (child.type) {
+                case "Text":
+                    let last = elements[elements.length - 1];
+                    if (!last) {
+                        elements.push((last = b.literal("")));
+                    }
+                    if (last.kind === "string") {
+                        last.value += child.data;
+                        last.raw = `'${last.value}'`;
+                    } else {
+                        elements.push(b.literal(child.data));
+                    }
+                    break;
+
+                case "ExpressionTag":
+                    const expression = /** @type {any} */ (
+                        context.visit(child.expression)
+                    );
+                    elements.push(expression);
+                    break;
+
+                default:
+                    throw new Error(
+                        "`<title>` can only contain text and {{ tags }}",
+                    );
+            }
+        }
+
+        const value = !elements.length
+            ? b.string("")
+            : elements.length === 1
+              ? elements[0]
+              : b.call(b.id("implode"), [
+                    b.literal(""),
+                    b.array(elements.map((e) => b.entry(e))),
+                ]);
+
+        context.state.block.children.push(
+            b.assign(
+                b.propertyLookup(b.variable(outputName), b.id("title")),
+                "=",
+                value,
+            ),
+        );
+    },
+
+    ZvelteHead(node, { state, visit }) {
+        const head = b.closure(
+            true,
+            [b.parameter(outputName, "object")],
+            [b.variable(propsName)],
+        );
+
+        visit(node.fragment, createState(state, head.body));
+
+        state.block.children.push(
+            b.stmt(state.internal("head", b.variable(outputName), head)),
+        );
     },
 
     // @ts-ignore
