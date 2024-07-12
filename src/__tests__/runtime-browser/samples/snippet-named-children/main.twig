@@ -1,1 +1,3 @@
-<zvelte key="./sub.twig">{% snippet some() %}foo{% endsnippet %}</zvelte>
+{% import Sub from "./sub.twig" %}
+
+<Sub>{% snippet some() %}foo{% endsnippet %}</Sub>

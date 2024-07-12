@@ -146,6 +146,12 @@ export function renderDom(ast, analysis, options, meta) {
         ),
     };
 
+    for (const node of ast.imports) {
+        state.hoisted.unshift(
+            b.importDefault(node.specifier.name, node.source.value),
+        );
+    }
+
     if (analysis.css) {
         const result = renderStylesheet(analysis.css.code, analysis, {
             dev: false,
@@ -1994,41 +2000,11 @@ const templateVisitors = {
     Component(node, context) {
         context.state.template.push("<!>");
 
-        let alreadyImported;
-
-        for (const hoist of context.state.hoisted) {
-            if (
-                hoist.type === "ImportDeclaration" &&
-                hoist.source.value === node.key.data &&
-                hoist.specifiers[0].type === "ImportDefaultSpecifier"
-            ) {
-                alreadyImported = hoist.specifiers[0].local;
-            }
-        }
-
         const nodeId = context.state.node;
-        const id =
-            alreadyImported ??
-            context.state.scope.root.unique(
-                (/([^/]+)$/.exec(node.key.data)?.[1] ?? "component").replace(
-                    /\.\w+$/,
-                    "",
-                ) + "Component",
-            );
-
-        if (!alreadyImported) {
-            context.state.hoisted.unshift(
-                b.import(node.key.data, {
-                    type: "ImportDefaultSpecifier",
-                    local: id,
-                }),
-            );
-        }
-
         const statement = serializeComponentProps(
             node,
             context,
-            (props, bindThis) => bindThis(b.call(id, nodeId, props)),
+            (props, bindThis) => bindThis(b.call(node.name, nodeId, props)),
         );
 
         context.state.init.push(statement);

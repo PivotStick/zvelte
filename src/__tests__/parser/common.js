@@ -14,6 +14,7 @@ export function TemplateRootOf(source, nodes) {
         js: null,
         start: 0,
         end: source.length,
+        imports: [],
         fragment: {
             type: "Fragment",
             start: 0,

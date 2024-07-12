@@ -777,7 +777,7 @@ describe("Parser: will test template nodes", () => {
             });
 
             test.fails("should not work on components", () => {
-                parse(`<zvelte key="foo" use:action />`);
+                parse(`<Foo use:action />`);
             });
 
             test.fails("should not work on zvelte:components", () => {
@@ -861,33 +861,19 @@ describe("Parser: will test template nodes", () => {
     });
 
     describe("Component", () => {
-        test.fails("key is required", () => {
-            parse(`<zvelte />`);
-        });
-
-        test.fails("key's value must be text", () => {
-            parse(`<zvelte key="{{ foo }}" />`);
-        });
-
         test("simplest form", () => {
-            TemplateRootOf(`<zvelte key="foo" />`, [
+            TemplateRootOf(`<Foo />`, [
                 {
                     type: "Component",
                     start: 0,
-                    end: 20,
-                    name: "zvelte",
-                    key: {
-                        type: "Text",
-                        data: "foo",
-                        start: 13,
-                        end: 16,
-                    },
+                    end: 7,
+                    name: "Foo",
                     attributes: [],
                     fragment: {
                         type: "Fragment",
                         transparent: true,
-                        start: 20,
-                        end: 20,
+                        start: 7,
+                        end: 7,
                         nodes: [],
                     },
                 },
@@ -895,11 +881,11 @@ describe("Parser: will test template nodes", () => {
         });
 
         test.fails("cannot use class directives", () => {
-            parse(`<zvelte key="foo" class:bar />`);
+            parse(`<Foo class:bar />`);
         });
 
         test.fails("cannot use transition directives", () => {
-            parse(`<zvelte key="foo" transition:scale />`);
+            parse(`<Foo transition:scale />`);
         });
     });
 

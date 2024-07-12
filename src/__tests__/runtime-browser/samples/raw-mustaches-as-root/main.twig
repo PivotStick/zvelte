@@ -1,7 +1,9 @@
+{% import RawMustache from "./RawMustache.twig" %}
+
 <button on:click={{ toggle }}>
 	Switch
 </button>
 
-<zvelte key="./RawMustache.twig" {{ content }} />
+<RawMustache {{ content }} />
 
 <p>This line should be last.</p>

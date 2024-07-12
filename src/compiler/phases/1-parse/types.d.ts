@@ -30,7 +30,7 @@ export type ElementLike =
     | ZvelteComponent
     | ZvelteHead
     | ZvelteSelf;
-export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag;
+export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag | ImportTag;
 export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock | AwaitBlock;
 export type Expression =
     | ArrowFunctionExpression
@@ -104,7 +104,6 @@ export interface Component extends BaseNode {
     >;
     fragment: Fragment;
     name: string;
-    key: Text;
 }
 
 export interface ZvelteComponent extends BaseNode {
@@ -148,6 +147,12 @@ export interface Text extends BaseNode {
 export interface VariableTag extends BaseNode {
     type: "Variable";
     assignment: AssignmentExpression;
+}
+
+export interface ImportTag extends BaseNode {
+    type: "ImportTag";
+    specifier: Identifier;
+    source: StringLiteral;
 }
 
 export interface IfBlock extends BaseNode {
@@ -209,6 +214,7 @@ export interface RenderTag extends BaseNode {
 export interface Root extends BaseNode {
     type: "Root";
     fragment: Fragment;
+    imports: Array<ImportTag>;
     js: null;
     css:
         | null

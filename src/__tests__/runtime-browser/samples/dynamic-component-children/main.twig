@@ -1,3 +1,5 @@
+{% import Baz from "./Baz.twig" %}
+
 <zvelte:component this="{{ x ? Foo : Bar }}" x='{{x}}'>
 	<p>element</p>
 
@@ -17,7 +19,7 @@
 		<span>{{ thing }}</span>
 	{% endfor %}
 
-	<zvelte key="./Baz.twig" />
+	<Baz />
 
     {% snippet other() %}
         <div>what goes up must come down</div>

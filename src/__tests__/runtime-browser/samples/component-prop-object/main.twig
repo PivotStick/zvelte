@@ -1,4 +1,6 @@
-<zvelte key="./Child.twig" x={{ x ?? {} }} />
+{% import Child from "./Child.twig" %}
+
+<Child x={{ x ?? {} }} />
  
 parent: {{ x.y }} 
 <button on:click={{ increment }}>inc x</button>

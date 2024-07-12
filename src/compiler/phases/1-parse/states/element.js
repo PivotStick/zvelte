@@ -38,7 +38,7 @@ export const element = (parser) => {
     /**
      * @type {import("#ast").ElementLike["type"]}
      */
-    let type = parser.component.name.test(name)
+    let type = /[A-Z]/.test(name[0])
         ? "Component"
         : name === "title"
           ? "TitleElement"
@@ -46,9 +46,9 @@ export const element = (parser) => {
 
     if (name.includes(":")) {
         const [left, right] = name.split(":");
-        if (!parser.component.name.test(left)) {
+        if (left !== parser.specialTag) {
             throw parser.error(
-                `"${left}" must match ${parser.component.name}`,
+                `"${left}" must match ${parser.specialTag}`,
                 start,
             );
         }
@@ -121,37 +121,6 @@ export const element = (parser) => {
 
     parser.eat(">", true);
     element.fragment.start = parser.index;
-
-    if (element.type === "Component") {
-        const keyAttrIndex = element.attributes.findIndex(
-            (attr) =>
-                attr.type === "Attribute" &&
-                attr.name === parser.component?.key,
-        );
-
-        if (keyAttrIndex === -1) {
-            throw parser.error(
-                `A component must have a '${parser.component?.key}' attribute`,
-                start,
-            );
-        }
-
-        const keyAttr = element.attributes.splice(keyAttrIndex, 1)[0];
-
-        if (
-            keyAttr.type !== "Attribute" ||
-            keyAttr.value === true ||
-            keyAttr.value.length !== 1 ||
-            keyAttr.value[0].type !== "Text"
-        ) {
-            throw parser.error(
-                `"${parser.component?.key}" is expected to have a Text value only on a component`,
-                keyAttr.start,
-            );
-        }
-
-        element.key = keyAttr.value[0];
-    }
 
     if (element.type === "RegularElement") {
         for (const attr of element.attributes) {

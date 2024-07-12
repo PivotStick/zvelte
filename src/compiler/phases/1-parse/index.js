@@ -6,17 +6,14 @@ export class Parser {
     /**
      * @param {string} template
      * @param {{
-     *  component?: { name: RegExp; key: string; }
+     *  specialTag?: string;
      * }} [options={}]
      */
     constructor(template, options = {}) {
         this.template = template;
 
         this.index = 0;
-        this.component = options.component ?? {
-            name: /^zvelte$/,
-            key: "key",
-        };
+        this.specialTag = options.specialTag ?? "zvelte";
 
         /**
          * @type {import("./types.js").Root}
@@ -27,6 +24,7 @@ export class Parser {
             end: -1,
             js: null,
             css: null,
+            imports: [],
             fragment: createFragment(),
         };
 

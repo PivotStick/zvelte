@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { TemplateRootOf } from "./common.js";
 import { parse } from "../../compiler/phases/1-parse/index.js";
 
@@ -707,6 +707,46 @@ describe("Parser: will test tags", () => {
 
         test.fails("expect only Identifiers for the parameters", () => {
             parse(`{% snippet foo("param") %}{% endsnippet %}`);
+        });
+    });
+
+    describe("import tag", () => {
+        test("simple form", () => {
+            const ast = parse(`{% import Foo from "Bar" %}`);
+            expect(ast).toEqual({
+                type: "Root",
+                js: null,
+                css: null,
+                start: 0,
+                end: 27,
+                fragment: {
+                    type: "Fragment",
+                    start: 0,
+                    end: 27,
+                    transparent: false,
+                    nodes: [],
+                },
+                imports: [
+                    {
+                        type: "ImportTag",
+                        start: 0,
+                        end: 27,
+                        specifier: {
+                            type: "Identifier",
+                            name: "Foo",
+                            start: 10,
+                            end: 13,
+                        },
+                        source: {
+                            type: "StringLiteral",
+                            start: 19,
+                            end: 24,
+                            raw: '"Bar"',
+                            value: "Bar",
+                        },
+                    },
+                ],
+            });
         });
     });
 

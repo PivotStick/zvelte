@@ -4,6 +4,7 @@ import {
     parseChainableExpression,
     parseExpression,
     parseIdentifier,
+    parseStringLiteral,
 } from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 
@@ -184,6 +185,31 @@ function open(parser, start) {
             }),
         );
 
+        return;
+    }
+
+    if (parser.eat("import")) {
+        parser.requireWhitespace();
+        const specifier = parseIdentifier(parser);
+        if (!specifier) throw parser.error(`Expected Identifier`);
+
+        parser.requireWhitespace();
+        parser.eat("from", true);
+        parser.requireWhitespace();
+
+        const source = parseStringLiteral(parser);
+        if (!source) throw parser.error(`Expected StringLiteral`);
+
+        parser.allowWhitespace();
+        parser.eat("%}", true);
+
+        parser.root.imports.push({
+            type: "ImportTag",
+            start,
+            end: parser.index,
+            source,
+            specifier,
+        });
         return;
     }
 

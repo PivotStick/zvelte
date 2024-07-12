@@ -1,15 +1,10 @@
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/compiler/index";
-import { access, readFile, readdir, rm, writeFile } from "fs/promises";
+import { access, readFile, writeFile } from "fs/promises";
 import { basename, dirname, join } from "path";
-import { parse } from "./src/compiler/phases/1-parse";
-import { walk } from "zimmerframe";
-import * as acorn from "acorn";
-import { print } from "esrap";
 import { execSync } from "child_process";
 
 let root = "";
-const safe = (str) => `\`${str.replace(/`/g, "\\`")}\``;
 
 export default defineConfig({
     test: {
@@ -66,7 +61,6 @@ export default defineConfig({
                 }
 
                 if (id.endsWith(".twig")) {
-                    let search = query ? "?" + query : "";
                     const hasJS = await access(id.replace(/\.twig$/, ".js"))
                         .then(() => true)
                         .catch(() => false);
@@ -90,39 +84,7 @@ export default defineConfig({
                         ...overrides,
                     };
 
-                    const imports = new Set([]);
-                    const ast = parse(code);
-
-                    walk(
-                        /** @type {import("./src/compiler/phases/1-parse/types").ZvelteNode} */ (
-                            ast
-                        ),
-                        {},
-                        {
-                            Component(node, { next }) {
-                                const key = join(
-                                    dirname(id),
-                                    node.key.data,
-                                ).replace(root, "");
-
-                                imports.add(
-                                    `import "${node.key.data}${search}";`,
-                                );
-                                node.key.data = key;
-                                next();
-                            },
-                        },
-                    );
-
-                    const result = compile(code, options);
-
-                    if (imports.size) {
-                        result.code = `${[...imports].join("\n")}\n${
-                            result.code
-                        }`;
-                    }
-
-                    return result;
+                    return compile(code, options);
                 }
             },
         },

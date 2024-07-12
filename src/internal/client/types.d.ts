@@ -13,7 +13,7 @@ export type ComponentInitArgs<
     Els extends Record<string, HTMLElement | Record<string, any>> = Record<
         string,
         HTMLElement
-    >
+    >,
 > = {
     /**
      * Your component's props
@@ -46,9 +46,11 @@ export type ComponentInitArgs<
      *
      * *./Widget.zvelte*
      * ```twig
+     * {% import Datatable from "./Datatable.zvelte" %}
+     *
      * <button on:click={{ refresh }}>Refresh!</button>
      *
-     * <zvelte key="Datatable" bind:this={{ table }} />
+     * <Datatable bind:this={{ table }} />
      * ```
      *
      * *./Widget.js*
@@ -81,7 +83,7 @@ export type ComponentInitAsyncArgs<
     Els extends Record<string, HTMLElement | Record<string, any>> = Record<
         string,
         HTMLElement
-    >
+    >,
 > = ComponentInitArgs<T, Els> & {
     /**
      * Looks like this component is defined as an `async` component!

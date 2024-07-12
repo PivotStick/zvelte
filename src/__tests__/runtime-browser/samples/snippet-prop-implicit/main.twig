@@ -1,5 +1,7 @@
-<zvelte key="./Counter.twig">
+{% import Counter from "./Counter.twig" %}
+
+<Counter>
 	{% snippet foo(n) %}
 		<p>clicks: {{ n }}</p>
 	{% endsnippet %}
-</zvelte>
+</Counter>

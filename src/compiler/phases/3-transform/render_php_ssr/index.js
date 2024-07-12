@@ -28,6 +28,7 @@ const propsName = "props";
  *  import(name: string): void;
  *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
  *  componentName: string;
+ *  imports: import("#ast").Root["imports"];
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -64,6 +65,7 @@ export function renderPhpSSR(ast, analysis, options, meta) {
             nonPropVars: [],
             scopeVars: [],
             usedComponents: [],
+            imports: ast.imports,
             counter: 0,
             componentName,
             import(name) {
@@ -648,13 +650,21 @@ const visitors = {
     },
 
     Component(node, context) {
-        const className = b.name(node.key.data);
+        const source = context.state.imports.find(
+            (i) => i.specifier.name === node.name,
+        )?.source.value;
+        if (!source)
+            throw new Error(
+                `Component ${node.name} not found, forgot an import tag?`,
+            );
+
+        const className = b.name(source);
         const props = getComponentProps(node, context);
 
         context.state.usedComponents.push(
             b.entry(
                 b.objectFromLiteral({
-                    key: b.string(node.key.data),
+                    key: b.string(source),
                     props: b.object(),
                 }),
             ),
