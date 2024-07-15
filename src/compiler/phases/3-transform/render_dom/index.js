@@ -214,11 +214,13 @@ export function renderDom(ast, analysis, options, meta) {
             b.stmt(
                 b.call(
                     "$.push",
-                    b.assignment(
-                        "=",
-                        b.id("$$props"),
-                        b.call("$.proxy", b.id("$$props")),
-                    ),
+                    options.async
+                        ? b.id("$$props")
+                        : b.assignment(
+                              "=",
+                              b.id("$$props"),
+                              b.call("$.proxy", b.id("$$props")),
+                          ),
                     b.true,
                 ),
             ),
