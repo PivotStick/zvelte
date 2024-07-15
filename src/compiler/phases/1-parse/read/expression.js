@@ -399,11 +399,14 @@ export function parseChainableExpression(parser) {
     }
 
     function parseMemberExpression() {
-        if (parser.matchRegex(/^(\.|\[)/)) {
+        if (parser.matchRegex(/^(\.|\[|\?\.)/)) {
             const computed = parser.eat("[");
+            const optional = parser.eat("?");
+
             if (!computed) {
                 parser.eat(".", true);
             }
+
             parser.allowWhitespace();
 
             const property = computed
@@ -429,6 +432,7 @@ export function parseChainableExpression(parser) {
                 object: left,
                 property,
                 computed,
+                optional,
                 start,
                 end,
             };

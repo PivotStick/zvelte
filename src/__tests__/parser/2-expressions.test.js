@@ -791,6 +791,7 @@ describe("Parser: will test expressions", () => {
                     end: 6,
                 },
                 computed: false,
+                optional: false,
                 property: {
                     type: "Identifier",
                     name: "bar",
@@ -812,12 +813,35 @@ describe("Parser: will test expressions", () => {
                     end: 6,
                 },
                 computed: true,
+                optional: false,
                 property: {
                     type: "StringLiteral",
                     value: "bar",
                     raw: "'bar'",
                     start: 7,
                     end: 12,
+                },
+            });
+        });
+
+        test("optional form", () => {
+            ExpressionTagOf(`{{ foo?.bar }}`, {
+                type: "MemberExpression",
+                start: 3,
+                end: 11,
+                object: {
+                    type: "Identifier",
+                    name: "foo",
+                    start: 3,
+                    end: 6,
+                },
+                computed: false,
+                optional: true,
+                property: {
+                    type: "Identifier",
+                    name: "bar",
+                    start: 8,
+                    end: 11,
                 },
             });
         });
@@ -1245,6 +1269,7 @@ describe("Parser: will test expressions", () => {
                     start: 3,
                     end: 8,
                     computed: false,
+                    optional: false,
                     object: {
                         type: "Identifier",
                         name: "_",

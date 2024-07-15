@@ -302,7 +302,9 @@ const handlers = {
             what.push(c(")"));
         }
 
-        return [...what, c("->"), ...handle(node.offset, state)];
+        const arrow = node.optional ? c("?->") : c("->");
+
+        return [...what, arrow, ...handle(node.offset, state)];
     },
 
     propertystatement(node, state) {

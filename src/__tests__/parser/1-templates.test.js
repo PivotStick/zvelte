@@ -400,6 +400,7 @@ describe("Parser: will test template nodes", () => {
                             start: 19,
                             end: 26,
                             computed: false,
+                            optional: false,
                             object: {
                                 type: "Identifier",
                                 name: "foo",

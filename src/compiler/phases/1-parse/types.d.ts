@@ -278,6 +278,7 @@ export interface FilterExpression extends BaseNode {
 export type MemberExpression = BaseNode & {
     type: "MemberExpression";
     object: Expression;
+    optional: boolean;
 } & (
         | { computed: false; property: Identifier }
         | { computed: true; property: Expression }

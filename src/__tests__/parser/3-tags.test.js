@@ -436,6 +436,7 @@ describe("Parser: will test tags", () => {
                             key: {
                                 type: "MemberExpression",
                                 computed: false,
+                                optional: false,
                                 start: 23,
                                 end: 31,
                                 object: {
@@ -544,6 +545,7 @@ describe("Parser: will test tags", () => {
                             start: 7,
                             end: 14,
                             computed: false,
+                            optional: false,
                             object: {
                                 type: "Identifier",
                                 name: "foo",
@@ -1003,6 +1005,7 @@ describe("Parser: will test tags", () => {
                             start: 11,
                             end: 18,
                             computed: false,
+                            optional: false,
                             object: {
                                 type: "Identifier",
                                 name: "foo",

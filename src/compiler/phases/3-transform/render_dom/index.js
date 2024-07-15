@@ -1441,7 +1441,7 @@ const templateVisitors = {
             visit(node.property)
         );
 
-        let member = b.member(object, property, node.computed);
+        let member = b.member(object, property, node.computed, node.optional);
 
         if (
             !state.ignoreScope &&

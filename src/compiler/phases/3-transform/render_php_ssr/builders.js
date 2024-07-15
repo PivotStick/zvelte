@@ -376,13 +376,15 @@ export function offsetLookup(what, offset = false) {
 /**
  * @param {import("./type.js").PropertyLookup["what"]} what
  * @param {import("./type.js").PropertyLookup["offset"]} offset
+ * @param {import("./type.js").PropertyLookup["optional"]} optional
  * @returns {import("./type.js").PropertyLookup}
  */
-export function propertyLookup(what, offset) {
+export function propertyLookup(what, offset, optional = false) {
     return {
         kind: "propertylookup",
         what,
         offset,
+        optional,
     };
 }
 

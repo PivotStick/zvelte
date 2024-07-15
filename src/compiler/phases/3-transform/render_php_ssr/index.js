@@ -1011,7 +1011,7 @@ const visitors = {
         }
 
         /** @type {import("./type.js").Expression} */
-        let member = b.propertyLookup(what, offset);
+        let member = b.propertyLookup(what, offset, node.optional);
 
         if (member.what.kind === "identifier") {
             if (!state.nonPropVars.includes(member.what.name)) {

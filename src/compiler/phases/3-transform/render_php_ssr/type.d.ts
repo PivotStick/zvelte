@@ -169,6 +169,7 @@ export type PropertyLookup = {
     kind: "propertylookup";
     what: Expression;
     offset: Expression;
+    optional: boolean;
 };
 
 export type EncapsedPart = {
