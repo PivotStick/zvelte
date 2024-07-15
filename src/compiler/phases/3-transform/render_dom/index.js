@@ -853,7 +853,7 @@ const templateVisitors = {
                                 set,
                             );
 
-                            context.state.update.push(b.stmt(call));
+                            context.state.after_update.push(b.stmt(call));
                             break;
                         }
                         case "this": {
@@ -883,7 +883,7 @@ const templateVisitors = {
                                 get,
                             );
 
-                            context.state.update.push(b.stmt(call));
+                            context.state.init.push(b.stmt(call));
                             break;
                         }
 
@@ -895,7 +895,7 @@ const templateVisitors = {
                                 set,
                             );
 
-                            context.state.update.push(b.stmt(call));
+                            context.state.after_update.push(b.stmt(call));
                             break;
                         }
 
@@ -906,7 +906,7 @@ const templateVisitors = {
                                 get,
                                 set,
                             );
-                            context.state.update.push(b.stmt(call));
+                            context.state.after_update.push(b.stmt(call));
                             break;
                         }
 
@@ -973,6 +973,21 @@ const templateVisitors = {
                                 "$.bind_group",
                                 attr.metadata.binding_group_name,
                                 b.array(indexes),
+                                context.state.node,
+                                get,
+                                set,
+                            );
+
+                            context.state.after_update.push(b.stmt(call));
+                            break;
+                        }
+
+                        case "textContent":
+                        case "innerText":
+                        case "innerHTML": {
+                            const call = b.call(
+                                "$.bind_content_editable",
+                                b.literal(attr.name),
                                 context.state.node,
                                 get,
                                 set,
