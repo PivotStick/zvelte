@@ -32,35 +32,3 @@ export function searchInScope(identifier, scope) {
 export function pushNewScope(scope, newScope = {}) {
     return [...scope, newScope];
 }
-
-/**
- * @param {Node | undefined} target
- * @param {string} styleSheetId
- * @param {string} styles
- */
-export async function append_styles(target, styleSheetId, styles) {
-    const appendStylesTo = getRootForStyle(target);
-
-    if (!appendStylesTo.getElementById(styleSheetId)) {
-        const style = document.createElement("style");
-        style.id = styleSheetId;
-        style.textContent = styles;
-
-        /** @type {Document} */ (
-            // @ts-ignore
-            appendStylesTo.head || appendStylesTo
-        ).appendChild(style);
-    }
-}
-
-/**
- * @param {Node=} node
- */
-function getRootForStyle(node) {
-    if (!node) return document;
-    const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
-    if (root && /** @type {ShadowRoot} */ (root).host) {
-        return /** @type {ShadowRoot} */ (root);
-    }
-    return /** @type {Document} */ (node.ownerDocument);
-}

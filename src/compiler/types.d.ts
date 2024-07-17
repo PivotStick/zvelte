@@ -17,7 +17,6 @@ export type CompilerOptions = {
         propId?: string;
         pendingComponent?: string;
         errorComponent?: string;
-        key?: string;
     };
     transformers?: {
         ast?: Visitors<ZvelteNode, {}>;

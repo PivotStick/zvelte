@@ -3,7 +3,6 @@ import { filters } from "./filters.js";
 import { getInitialLoad } from "./hydration.js";
 
 export { mount, hydrate } from "svelte";
-export { append_styles } from "../shared.js";
 export * from "svelte/internal/client";
 export { setInitialLoads } from "./hydration.js";
 

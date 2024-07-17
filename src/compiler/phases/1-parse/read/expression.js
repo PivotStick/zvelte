@@ -400,10 +400,10 @@ export function parseChainableExpression(parser) {
 
     function parseMemberExpression() {
         if (parser.matchRegex(/^(\.|\[|\?\.)/)) {
+            const optional = parser.eat("?.");
             const computed = parser.eat("[");
-            const optional = parser.eat("?");
 
-            if (!computed) {
+            if (!computed && !optional) {
                 parser.eat(".", true);
             }
 

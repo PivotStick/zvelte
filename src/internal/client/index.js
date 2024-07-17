@@ -35,14 +35,35 @@ export function source(initial) {
  * @template T
  * @template {keyof T} K
  *
- * @param {T} props
+ * @param {T} scope
+ * @param {K} key
+ * @param {T[K]} initial
+ */
+export function state(scope, key, initial) {
+    const signal = $.mutable_source(initial);
+
+    Object.defineProperty(scope, key, {
+        get() {
+            return $.get(signal);
+        },
+        set(value) {
+            return $.set(signal, value);
+        },
+    });
+}
+
+/**
+ * @template T
+ * @template {keyof T} K
+ *
+ * @param {T} scope
  * @param {K} key
  * @param {() => T[K]} fn
  */
-export function derived(props, key, fn) {
+export function derived(scope, key, fn) {
     const signal = $.derived(fn);
 
-    Object.defineProperty(props, key, {
+    Object.defineProperty(scope, key, {
         get() {
             return $.get(signal);
         },

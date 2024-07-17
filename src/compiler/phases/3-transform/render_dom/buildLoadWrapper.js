@@ -35,7 +35,7 @@ export function buildLoadWrapper({
                     "$.init_load",
                     b.id("$$fetch"),
                     b.member(b.id("$$props"), propId),
-                    b.member(b.id("$$props"), b.id("$$initialLoad")),
+                    b.member(b.id("$$props"), b.id("__$$initialLoad")),
                     b.arrow(
                         [b.id("$$data")],
                         b.call(

@@ -152,26 +152,14 @@ export function renderDom(ast, analysis, options, meta) {
         );
     }
 
+    let renderedCss;
     if (analysis.css) {
-        const result = renderStylesheet(analysis.css.code, analysis, {
+        renderedCss = renderStylesheet(analysis.css.code, analysis, {
             dev: false,
             filename: options.filename + ".css",
         });
 
-        analysis.css.generated = result;
-
-        if (options.css === "injected") {
-            state.hoisted.push(
-                b.stmt(
-                    b.call(
-                        "$.append_styles",
-                        b.literal(null),
-                        b.literal(analysis.css.hash),
-                        b.literal(result.code),
-                    ),
-                ),
-            );
-        }
+        analysis.css.generated = renderedCss;
     }
 
     // @ts-ignore
@@ -189,6 +177,19 @@ export function renderDom(ast, analysis, options, meta) {
     template.body.unshift(
         ...[...analysis.bindingGroups].map(([, id]) => b.var(id, b.array([]))),
     );
+
+    if (options.css === "injected" && analysis.css && renderedCss) {
+        template.body.unshift(
+            b.stmt(
+                b.call(
+                    "$.append_styles",
+                    b.id("$$anchor"),
+                    b.literal(analysis.css.hash),
+                    b.literal(renderedCss.code),
+                ),
+            ),
+        );
+    }
 
     const component = b.function_declaration(
         state.componentId,

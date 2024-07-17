@@ -9,11 +9,19 @@ export { registerFilter, getFilter } from "./runtime/filters.js";
 export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
 
 export function source<T>(initial: T): { value: T };
+
+export function state<T, K extends keyof T>(
+    scope: T,
+    key: K,
+    initial: T[K],
+): void;
+
 export function derived<T, K extends keyof T>(
-    props: T,
+    scope: T,
     key: K,
     fn: () => T[K],
 ): void;
+
 export function proxy<T>(object: T): T;
 export function is(a: any, b: any): boolean;
 
