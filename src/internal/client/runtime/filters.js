@@ -225,6 +225,8 @@ export const filters = {
     constant(key) {
         return constants[key];
     },
+    min: Math.min,
+    max: Math.max,
 };
 
 /**

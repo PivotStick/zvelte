@@ -66,21 +66,19 @@ export function filter(scope, key) {
  * @param {*} value
  */
 export function iterable(value) {
-    if (value && typeof value === "object") {
-        if (Array.isArray(value)) {
-            const out = [];
-            for (const key in value) {
-                if (value.hasOwnProperty(key)) {
-                    out.push(value[key]);
-                }
-            }
-            return out;
-        }
+    if (value?.constructor === Object) return Object.values(value);
 
-        return Object.values(value);
+    if (Array.isArray(value)) {
+        const out = [];
+        for (const key in value) {
+            if (value.hasOwnProperty(key)) {
+                out.push(value[key]);
+            }
+        }
+        return out;
     }
 
-    return value;
+    return Array.from(value);
 }
 
 /**
