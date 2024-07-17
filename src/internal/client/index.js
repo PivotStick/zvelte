@@ -1,4 +1,3 @@
-export { getComponentByKey } from "./runtime/components.js";
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
 import * as $ from "svelte/internal/client";
