@@ -2241,8 +2241,12 @@ function serializeAttibutesForComponent(attributes, { visit, state }) {
             {},
             {
                 Identifier(_, { stop, path, next }) {
-                    const parent = path[path.length - 1];
-                    if (parent.type === "Property" && !parent.computed) {
+                    const parent = path.at(-1);
+                    if (
+                        parent &&
+                        parent.type === "Property" &&
+                        !parent.computed
+                    ) {
                         next();
                     } else {
                         isDynamic = true;
