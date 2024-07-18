@@ -169,7 +169,7 @@ export function init_load(get, payload, $$initialLoad, setter) {
 
         $.get(promise)
             .then(setter)
-            .catch(error)
+            .catch((/** @type {any} */ value) => $.set(error, value))
             .finally(() => {
                 $.set(loading, false);
                 initialLoading = true;
