@@ -16,14 +16,38 @@ export function buildLoadWrapper({
     errorId,
     propId,
 }) {
-    const error = b.call(
-        errorId
-            ? b.logical(b.id("$$props.__$$error"), "??", errorId)
-            : "$$props.__$$error",
-        b.id("$$anchor"),
-        b.id("promise.error"),
-        b.id("promise.refresh"),
+    /**
+     * @type {import("estree").Statement}
+     */
+    let error = b.stmt(
+        b.call(
+            "$$props.__$$error",
+            b.id("$$anchor"),
+            b.thunk(b.id("promise.error")),
+            b.thunk(b.id("promise.refresh")),
+        ),
     );
+
+    if (errorId) {
+        error = b.stmt(
+            b.call(
+                errorId,
+                b.id("$$anchor"),
+                b.object([
+                    b.prop(
+                        "get",
+                        b.id("error"),
+                        b.function(
+                            null,
+                            [],
+                            b.block([b.return(b.id("promise.error"))]),
+                        ),
+                    ),
+                ]),
+                b.id("promise.refresh"),
+            ),
+        );
+    }
 
     return b.function_declaration(
         b.id("$$load"),
@@ -66,7 +90,7 @@ export function buildLoadWrapper({
                         b.block([
                             b.if(
                                 b.id("promise.error"),
-                                b.block([b.stmt(error)]),
+                                b.block([error]),
                                 b.block([
                                     b.stmt(
                                         b.call(
