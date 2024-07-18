@@ -153,7 +153,9 @@ export function init_load(get, payload, $$initialLoad, setter) {
     let promise = $.source(
         initialLoad ? Promise.resolve(initialLoad) : get(payload),
     );
+
     let loading = $.source(!initialLoad);
+    let error = $.source(null);
 
     let initialLoading = $.unwrap(loading);
 
@@ -162,9 +164,12 @@ export function init_load(get, payload, $$initialLoad, setter) {
     }
 
     $.user_effect(() => {
+        $.set(error, null);
         $.set(loading, initialLoading);
+
         $.get(promise)
             .then(setter)
+            .catch(error)
             .finally(() => {
                 $.set(loading, false);
                 initialLoading = true;
@@ -174,6 +179,10 @@ export function init_load(get, payload, $$initialLoad, setter) {
     return {
         get loading() {
             return $.get(loading);
+        },
+
+        get error() {
+            return $.get(error);
         },
 
         /**
