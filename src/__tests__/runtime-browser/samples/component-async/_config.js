@@ -32,7 +32,7 @@ export default defineTest({
 
     get props() {
         return {
-            data: {
+            __$$payload: {
                 id: 10,
             },
         };
@@ -43,7 +43,7 @@ export default defineTest({
             ["/foo?id=10", { headers: { accept: "application/json" } }],
         ]);
 
-        expect(props).toEqual({ data: { id: 10 } });
+        expect(props).toEqual({ __$$payload: { id: 10 } });
 
         await wait(200);
         await tick();
