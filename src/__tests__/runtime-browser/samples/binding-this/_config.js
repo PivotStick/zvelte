@@ -1,11 +1,19 @@
 import { expect } from "vitest";
 import { defineTest } from "../../defineTest.js";
-import { tick } from "../../../../internal/client/index.js";
 
 export default defineTest({
     get props() {
+        /**
+         * @type {any}
+         */
+        let canvas = undefined;
         return {
-            canvas: undefined,
+            get canvas() {
+                return canvas;
+            },
+            set canvas(value) {
+                canvas = value;
+            },
         };
     },
 

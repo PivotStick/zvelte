@@ -4,8 +4,14 @@ import { defineTest, ok } from "../../defineTest.js";
 
 export default defineTest({
     get props() {
+        let inner_clicked = false;
         return {
-            inner_clicked: false,
+            get inner_clicked() {
+                return inner_clicked;
+            },
+            set inner_clicked(v) {
+                inner_clicked = v;
+            },
             f: /** @type {any} */ (undefined),
         };
     },

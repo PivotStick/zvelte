@@ -19,3 +19,8 @@ export const HYDRATION_START = "[";
 export const HYDRATION_END = "]";
 export const HYDRATION_ANCHOR = "";
 export const HYDRATION_END_ELSE = `${HYDRATION_END}!`; // used to indicate that an `{% else %}...` block was rendered
+
+export const PROPS_IS_IMMUTABLE = 1;
+export const PROPS_IS_RUNES = 1 << 1;
+export const PROPS_IS_UPDATED = 1 << 2;
+export const PROPS_IS_LAZY_INITIAL = 1 << 3;

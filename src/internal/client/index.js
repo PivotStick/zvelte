@@ -64,6 +64,8 @@ export function derived(scope, key, fn) {
     const signal = $.derived(fn);
 
     Object.defineProperty(scope, key, {
+        enumerable: true,
+        configurable: true,
         get() {
             return $.get(signal);
         },

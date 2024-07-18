@@ -57,7 +57,7 @@ export function buildLoadWrapper({
                 b.assignment(
                     "=",
                     b.id("$$props"),
-                    b.call("$.proxy", b.id("$$props")),
+                    b.call("$.wrap", b.id("$$props")),
                 ),
             ),
             b.var(b.id("fragment"), b.call("$.comment")),

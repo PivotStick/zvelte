@@ -11,7 +11,7 @@ export default defineTest({
         btn?.click();
         await tick();
         expect(target.innerHTML).toEqual(
-            "<p>clicks: 1, doubled: 2</p><!----> <button>click me</button>"
+            "<p>clicks: 1, doubled: 2</p><!----> <button>click me</button>",
         );
     },
 });

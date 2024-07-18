@@ -10,6 +10,7 @@ import { effect } from "../../../../internal/client/index.js";
  */
 export default function init({ props, scope }) {
     props.view ??= props.Comp1;
+    props.props = undefined;
 
     effect(() => {
         props.props = props.view === props.Comp1 ? { value: 1 } : { value: 2 };

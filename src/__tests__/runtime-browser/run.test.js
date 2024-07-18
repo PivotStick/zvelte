@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { proxy } from "../../internal/client/index.js";
-import { mount } from "../../internal/client/runtime/index.js";
+import { mount, wrap } from "../../internal/client/runtime/index.js";
 import { raf } from "../animation-helpers.js";
 
 /**
@@ -70,7 +69,7 @@ function run(tests) {
             }
 
             const component = await get(payload);
-            const props = proxy(config.props ?? {});
+            const props = wrap(config.props ?? {});
 
             const ref = mount(component.default, {
                 target,

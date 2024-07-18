@@ -7,9 +7,16 @@ import Foo from "./Foo.twig";
 
 export default defineTest({
     get props() {
+        /** @type {any} */
+        let test;
         return {
             Foo,
-            test: /** @type {any} */ (undefined),
+            get test() {
+                return test;
+            },
+            set test(v) {
+                test = v;
+            },
         };
     },
 

@@ -1,6 +1,11 @@
 import * as $ from "svelte/internal/client";
 import { filters } from "./filters.js";
 import { getInitialLoad } from "./hydration.js";
+import {
+    PROPS_IS_IMMUTABLE,
+    PROPS_IS_RUNES,
+    PROPS_IS_UPDATED,
+} from "../../../compiler/phases/constants.js";
 
 export { mount, hydrate } from "svelte";
 export * from "svelte/internal/client";
@@ -16,8 +21,7 @@ export function scope(scopes) {
     return (key, fallback = scopes[0]) => {
         for (let i = scopes.length - 1; i >= 0; i--) {
             const scope = scopes[i];
-            const notUndefined = scope[key] !== undefined;
-            if (key in scope || notUndefined) return scope;
+            if (key in scope) return scope;
         }
 
         return fallback;
@@ -203,3 +207,84 @@ export function init_load(get, payload, $$initialLoad, setter) {
 }
 
 export { in_expression as in };
+
+/**
+ * @param {any} $$props
+ */
+export function wrap($$props) {
+    const flags = PROPS_IS_IMMUTABLE | PROPS_IS_RUNES | PROPS_IS_UPDATED;
+
+    const cache = Object.keys($$props).reduce((o, key) => {
+        o[key] = $.prop($$props, key, flags);
+        return o;
+    }, /** @type {Record<string, any>} */ ({}));
+
+    /** @type {Record<string, any>} */
+    const custom = {};
+
+    /**
+     * @param {string} key
+     */
+    const get = (key) => {
+        if (key in custom)
+            return function (/** @type {any} */ v) {
+                if (arguments.length > 0) {
+                    return (custom[key] = v);
+                }
+
+                return custom[key];
+            };
+
+        return (cache[key] ??= $.prop($$props, key, flags));
+    };
+
+    return new Proxy($$props, {
+        defineProperty(target, property, attributes) {
+            if (typeof property === "symbol")
+                return Reflect.defineProperty(target, property, attributes);
+
+            return Reflect.defineProperty(custom, property, attributes);
+        },
+        get(target, p, receiver) {
+            if (typeof p === "symbol") return Reflect.get(target, p, receiver);
+
+            return get(p)();
+        },
+        set(target, p, newValue, receiver) {
+            if (typeof p === "symbol")
+                return Reflect.set(target, p, newValue, receiver);
+
+            get(p)($.proxy(newValue));
+            return true;
+        },
+        deleteProperty(target, p) {
+            if (typeof p === "symbol") return Reflect.deleteProperty(target, p);
+
+            custom[p] = undefined;
+            cache[p] = undefined;
+            return delete $$props[p];
+        },
+        has(target, p) {
+            return p in cache || p in custom || p in target;
+        },
+        ownKeys(_target) {
+            const keys = Object.keys({
+                ...$$props,
+                ...custom,
+                ...cache,
+            });
+
+            return keys;
+        },
+        getOwnPropertyDescriptor(target, p) {
+            if (typeof p === "symbol")
+                return Reflect.getOwnPropertyDescriptor(target, p);
+
+            return (
+                Reflect.getOwnPropertyDescriptor($$props, p) ||
+                Reflect.getOwnPropertyDescriptor(cache, p) ||
+                Reflect.getOwnPropertyDescriptor(custom, p)
+            );
+        },
+    });
+}
