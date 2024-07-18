@@ -17,35 +17,33 @@ export function buildLoadWrapper({
     propId,
 }) {
     /**
-     * @type {import("estree").Statement}
+     * @type {import("estree").Expression}
      */
-    let error = b.stmt(
-        b.call(
-            "$$props.__$$error",
-            b.id("$$anchor"),
-            b.thunk(b.id("promise.error")),
-            b.thunk(b.id("promise.refresh")),
-        ),
+    let error = b.call(
+        "$$error",
+        b.id("$$anchor"),
+        b.thunk(b.id("promise.error")),
+        b.thunk(b.id("promise.refresh")),
     );
+    // @ts-ignore
+    error.optional = true;
 
     if (errorId) {
-        error = b.stmt(
-            b.call(
-                errorId,
-                b.id("$$anchor"),
-                b.object([
-                    b.prop(
-                        "get",
-                        b.id("error"),
-                        b.function(
-                            null,
-                            [],
-                            b.block([b.return(b.id("promise.error"))]),
-                        ),
+        error = b.call(
+            errorId,
+            b.id("$$anchor"),
+            b.object([
+                b.prop(
+                    "get",
+                    b.id("error"),
+                    b.function(
+                        null,
+                        [],
+                        b.block([b.return(b.id("promise.error"))]),
                     ),
-                ]),
-                b.id("promise.refresh"),
-            ),
+                ),
+            ]),
+            b.id("promise.refresh"),
         );
     }
 
@@ -53,6 +51,8 @@ export function buildLoadWrapper({
         b.id("$$load"),
         [b.id("$$anchor"), b.id("$$props")],
         b.block([
+            b.const("$$error", b.id("$$props.__$$error")),
+            b.const("$$pending", b.id("$$props.__$$pending")),
             b.stmt(
                 b.assignment(
                     "=",
@@ -90,7 +90,7 @@ export function buildLoadWrapper({
                         b.block([
                             b.if(
                                 b.id("promise.error"),
-                                b.block([error]),
+                                b.block([b.stmt(error)]),
                                 b.block([
                                     b.stmt(
                                         b.call(
@@ -106,12 +106,8 @@ export function buildLoadWrapper({
                     ),
                     // await
                     pendingId
-                        ? b.logical(
-                              b.id("$$props.__$$pending"),
-                              "??",
-                              pendingId,
-                          )
-                        : b.id("$$props.__$$pending"),
+                        ? b.logical(b.id("$$pending"), "??", pendingId)
+                        : b.id("$$pending"),
                 ),
             ),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
