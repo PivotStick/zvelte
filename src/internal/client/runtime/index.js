@@ -128,14 +128,16 @@ export function create_load(endpoint) {
     return async (payload) => {
         const search = new URLSearchParams(payload ?? {}).toString();
         const response = await fetch(endpoint + (search ? "?" + search : ""), {
-            redirect: "manual",
             headers: {
                 accept: "application/json",
             },
         });
 
-        if (!response.ok) {
-            if (response.headers.get("content-type") === "application/json") {
+        if (response.status >= 300) {
+            if (
+                response.status >= 400 &&
+                response.headers.get("content-type") === "application/json"
+            ) {
                 throw await response.json();
             }
 

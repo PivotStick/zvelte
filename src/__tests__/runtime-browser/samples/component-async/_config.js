@@ -40,10 +40,7 @@ export default defineTest({
 
     async test({ props, target }) {
         expect(_fetch.mock.calls).toEqual([
-            [
-                "/foo?id=10",
-                { headers: { accept: "application/json" }, redirect: "manual" },
-            ],
+            ["/foo?id=10", { headers: { accept: "application/json" } }],
         ]);
 
         expect(props).toEqual({ __$$payload: { id: 10 } });
@@ -54,7 +51,6 @@ export default defineTest({
         const expectedReturn = {
             endpoint: "/foo?id=10",
             init: {
-                redirect: "manual",
                 headers: {
                     accept: "application/json",
                 },
