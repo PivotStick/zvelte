@@ -133,9 +133,9 @@ export function create_load(endpoint) {
             },
         });
 
-        if (response.status >= 300) {
+        if (!response.ok || response.redirected) {
             if (
-                response.status >= 400 &&
+                !response.redirected &&
                 response.headers.get("content-type") === "application/json"
             ) {
                 throw await response.json();
