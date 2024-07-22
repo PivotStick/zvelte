@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "module": "esnext",
+        "module": "NodeNext",
         "lib": ["esnext", "dom", "dom.iterable"],
         "target": "esnext",
         "noEmit": true,

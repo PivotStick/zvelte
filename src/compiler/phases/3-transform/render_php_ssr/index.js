@@ -37,7 +37,7 @@ const propsName = "props";
 /**
  * @type {import("../types.js").Transformer}
  */
-export function renderPhpSSR(ast, analysis, options, meta) {
+export function renderPhpSSR(source, ast, analysis, options, meta) {
     const renderMethod = b.method("render", "void");
     const getAllComponentsMethod = b.method("getAllComponents", "array");
 

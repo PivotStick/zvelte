@@ -1,5 +1,5 @@
-import type { CssNodePlain } from "css-tree";
-import type { Fragment, ZvelteNode } from "#ast";
+import type { Fragment, ZvelteNode, Css } from "#ast";
+import type { CompilerOptions } from "../../types.js";
 import { Scope, ScopeRoot } from "../3-transform/render_dom/scope.js";
 
 export interface ComponentAnalysis extends Analysis {
@@ -7,10 +7,12 @@ export interface ComponentAnalysis extends Analysis {
 
     css: null | {
         hash: string;
-        ast: CssNodePlain;
-        code: string;
+        ast: Css.StyleSheet;
+        keyframes: string[];
         generated?: { code: string };
     };
+
+    elements: Array<RegularElement | SvelteElement>;
 
     template: {
         ast: Fragment;

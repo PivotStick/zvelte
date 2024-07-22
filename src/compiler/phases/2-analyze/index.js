@@ -5,18 +5,24 @@ import {
     ScopeRoot,
     createScopes,
 } from "../3-transform/render_dom/scope.js";
+import { analyze_css } from "./css/css-analyze.js";
+import { prune } from "./css/css-prune.js";
+import { create_attribute } from "../nodes.js";
+import { MathMLElements, SVGElements } from "../3-transform/constants.js";
+import { regex_starts_with_newline } from "../patterns.js";
 
 /**
  * @param {import("#ast").Root} root
+ * @param {import("../../types.js").CompilerOptions} options
  */
-export function analyseComponent(root) {
+export function analyseComponent(root, options) {
     const scopeRoot = new ScopeRoot();
 
     const { scope, scopes } = createScopes(
         root.fragment,
         scopeRoot,
         false,
-        null
+        null,
     );
 
     /**
@@ -24,11 +30,12 @@ export function analyseComponent(root) {
      */
     const analysis = {
         root: scopeRoot,
+        elements: [],
         css: root.css
             ? {
                   hash: "zvelte-" + hash(root.css.code),
                   ast: root.css.ast,
-                  code: root.css.code,
+                  keyframes: [],
               }
             : null,
         template: {
@@ -41,20 +48,158 @@ export function analyseComponent(root) {
 
     walk(
         /** @type {import("#ast").ZvelteNode} */ (root),
-        { scope, analysis },
-        visitors
+        { scope, analysis, options },
+        visitors,
     );
+
+    if (analysis.css?.ast) {
+        analyze_css(analysis.css.ast, analysis);
+
+        // mark nodes as scoped/unused/empty etc
+        for (const element of analysis.elements) {
+            prune(analysis.css.ast, element);
+        }
+
+        outer: for (const element of analysis.elements) {
+            if (element.metadata.scoped) {
+                // Dynamic elements in dom mode always use spread for attributes and therefore shouldn't have a class attribute added to them
+                // TODO this happens during the analysis phase, which shouldn't know anything about client vs server
+                if (element.type === "ZvelteElement" && options.generate === "")
+                    continue;
+
+                /** @type {import('#ast').Attribute | undefined} */
+                let class_attribute = undefined;
+
+                for (const attribute of element.attributes) {
+                    if (attribute.type === "SpreadAttribute") {
+                        // The spread method appends the hash to the end of the class attribute on its own
+                        continue outer;
+                    }
+
+                    if (attribute.type !== "Attribute") continue;
+                    if (attribute.name.toLowerCase() !== "class") continue;
+
+                    class_attribute = attribute;
+                }
+
+                if (class_attribute && class_attribute.value !== true) {
+                    const chunks = class_attribute.value;
+
+                    if (chunks.length === 1 && chunks[0].type === "Text") {
+                        chunks[0].data += ` ${analysis.css.hash}`;
+                    } else {
+                        chunks.push({
+                            type: "Text",
+                            data: ` ${analysis.css.hash}`,
+                            start: -1,
+                            end: -1,
+                            parent: null,
+                        });
+                    }
+                } else {
+                    element.attributes.push(
+                        create_attribute("class", -1, -1, [
+                            {
+                                type: "Text",
+                                data: analysis.css.hash,
+                                parent: null,
+                                start: -1,
+                                end: -1,
+                            },
+                        ]),
+                    );
+                }
+            }
+        }
+    }
 
     return analysis;
 }
 
 /**
- * @type {import("zimmerframe").Visitors<import("#ast").ZvelteNode, { scope: Scope, analysis: import("./types.js").ComponentAnalysis }>}
+ * @type {import("zimmerframe").Visitors<import("#ast").ZvelteNode, { scope: Scope, options: import("../../types.js").CompilerOptions, analysis: import("./types.js").ComponentAnalysis }>}
  */
 const visitors = {
     _(node, { next }) {
         node.metadata ??= {};
         return next();
+    },
+    RegularElement(node, context) {
+        if (context.state.options.namespace !== "foreign") {
+            if (SVGElements.includes(node.name)) node.metadata.svg = true;
+            else if (MathMLElements.includes(node.name))
+                node.metadata.mathml = true;
+        }
+
+        determine_element_spread(node);
+
+        // Special case: Move the children of <textarea> into a value attribute if they are dynamic
+        if (
+            context.state.options.namespace !== "foreign" &&
+            node.name === "textarea" &&
+            node.fragment.nodes.length > 0
+        ) {
+            if (
+                node.fragment.nodes.length > 1 ||
+                node.fragment.nodes[0].type !== "Text"
+            ) {
+                const first = node.fragment.nodes[0];
+                if (first.type === "Text") {
+                    // The leading newline character needs to be stripped because of a qirk:
+                    // It is ignored by browsers if the tag and its contents are set through
+                    // innerHTML, but we're now setting it through the value property at which
+                    // point it is _not_ ignored, so we need to strip it ourselves.
+                    // see https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
+                    // see https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
+                    first.data = first.data.replace(
+                        regex_starts_with_newline,
+                        "",
+                    );
+                }
+
+                node.attributes.push(
+                    create_attribute(
+                        "value",
+                        /** @type {import('#ast').Text} */ (
+                            node.fragment.nodes.at(0)
+                        ).start,
+                        /** @type {import('#ast').Text} */ (
+                            node.fragment.nodes.at(-1)
+                        ).end,
+                        // @ts-ignore
+                        node.fragment.nodes,
+                    ),
+                );
+
+                node.fragment.nodes = [];
+            }
+        }
+
+        // Special case: single expression tag child of option element -> add "fake" attribute
+        // to ensure that value types are the same (else for example numbers would be strings)
+        if (
+            context.state.options.namespace !== "foreign" &&
+            node.name === "option" &&
+            node.fragment.nodes?.length === 1 &&
+            node.fragment.nodes[0].type === "ExpressionTag" &&
+            !node.attributes.some(
+                (attribute) =>
+                    attribute.type === "Attribute" &&
+                    attribute.name === "value",
+            )
+        ) {
+            const child = node.fragment.nodes[0];
+            node.attributes.push(
+                create_attribute("value", child.start, child.end, [child]),
+            );
+        }
+
+        context.state.analysis.elements.push(node);
+        context.next();
+    },
+    ZvelteElement(node, context) {
+        context.state.analysis.elements.push(node);
+        context.next();
     },
     BindDirective(node, context) {
         if (node.name !== "group") return;
@@ -72,7 +217,7 @@ const visitors = {
             const parent = context.path[i];
             if (parent.type === "ForBlock") {
                 const references = ids.filter((id) =>
-                    parent.metadata.declarations?.has(id.name)
+                    parent.metadata.declarations?.has(id.name),
                 );
                 if (references.length > 0) {
                     parent.metadata.contains_group_binding = true;
@@ -83,8 +228,8 @@ const visitors = {
                     ids = ids.filter((id) => !references.includes(id));
                     ids.push(
                         ...extract_all_identifiers_from_expression(
-                            parent.expression
-                        )[1]
+                            parent.expression,
+                        )[1],
                     );
                 }
             }
@@ -95,7 +240,7 @@ const visitors = {
         // (there's an edge case where `bind:group={a[i]}` will be in a different group than `bind:group={a[j]}` even when i == j,
         // but this is a limitation of the current static analysis we do;
         const bindings = expression_ids.map((id) =>
-            context.state.scope.get(id.name)
+            context.state.scope.get(id.name),
         );
 
         let group_name;
@@ -115,7 +260,7 @@ const visitors = {
             group_name = context.state.scope.root.unique("binding_group");
             context.state.analysis.bindingGroups.set(
                 [keypath, bindings],
-                group_name
+                group_name,
             );
         }
 
@@ -165,7 +310,7 @@ function extract_all_identifiers_from_expression(expr) {
             NullLiteral: Literal,
             BooleanLiteral: Literal,
             NumericLiteral: Literal,
-        }
+        },
     );
 
     /**
@@ -189,4 +334,19 @@ function extract_all_identifiers_from_expression(expr) {
     }
 
     return [keypath.join("."), nodes];
+}
+
+/**
+ * @param {import('#ast').RegularElement} node
+ */
+function determine_element_spread(node) {
+    let has_spread = false;
+    for (const attribute of node.attributes) {
+        if (!has_spread && attribute.type === "SpreadAttribute") {
+            has_spread = true;
+        }
+    }
+    node.metadata.has_spread = has_spread;
+
+    return node;
 }

@@ -1,11 +1,12 @@
 import type { ZvelteNode } from "#ast";
+import type { CompilerOptions } from "../../../types.js";
 import type { Transformer } from "../types.js";
 import type { Scope } from "./scope.js";
 
 export type ComponentClientTransformState = {
     readonly scope: Scope;
     readonly scopes: Map<ZvelteNode, Scope>;
-    options: Parameters<Transformer>[2];
+    options: CompilerOptions;
     hoisted: (
         | import("estree").ImportDeclaration
         | import("estree").VariableDeclaration

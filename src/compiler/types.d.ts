@@ -7,6 +7,9 @@ export type CompilerOptions = {
     namespace: string;
     internalsNamespace: string;
 
+    generate: string;
+    dev: boolean;
+
     filename: string;
     preserveWhitespace: boolean;
     preserveComments: boolean;

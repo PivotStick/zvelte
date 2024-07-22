@@ -3,6 +3,7 @@ import { parse } from "./phases/1-parse/index.js";
 import { analyseComponent } from "./phases/2-analyze/index.js";
 import { renderStylesheet } from "./phases/3-transform/css/index.js";
 import { renderDom, renderPhpSSR } from "./phases/3-transform/index.js";
+import { compileString } from "sass";
 
 const renderers = {
     dom: renderDom,
@@ -20,6 +21,7 @@ const renderers = {
  * @param {{ js?: string }} [meta]
  */
 export function compile(source, options = {}, meta = {}) {
+    source = preprocess(source);
     const ast = parse(source, options.parser);
 
     if (options.transformers?.ast) {
@@ -39,31 +41,31 @@ export function compile(source, options = {}, meta = {}) {
 
     if (!render) throw new Error(`"${options.generate}" renderer not found`);
 
-    const analysis = analyseComponent(ast);
+    const compilerOptions = {
+        dir: options.dir ?? "",
+        namespace: options.namespace,
+        internalsNamespace: options.internalsNamespace,
+        filename: options.filename,
+        hasJS: options.hasJS,
+        generate: options.generate,
+        async: options.async,
+        preserveWhitespace: false,
+        preserveComments: true,
+        css: options.css,
+        dev: options.dev,
+    };
 
-    if (analysis.css) {
-        renderStylesheet(source, analysis, {
-            filename: options.filename,
-            dev: options.dev,
-        });
+    const analysis = analyseComponent(ast, compilerOptions);
+
+    if (analysis.css && options.css === "external") {
+        analysis.css.generated = renderStylesheet(
+            source,
+            analysis,
+            compilerOptions,
+        );
     }
 
-    const out = render(
-        ast,
-        analysis,
-        {
-            dir: options.dir ?? "",
-            namespace: options.namespace,
-            internalsNamespace: options.internalsNamespace,
-            filename: options.filename,
-            hasJS: options.hasJS,
-            async: options.async,
-            preserveWhitespace: false,
-            preserveComments: true,
-            css: options.css,
-        },
-        meta,
-    );
+    const out = render(source, ast, analysis, compilerOptions, meta);
 
     return {
         code: out.code,
@@ -73,3 +75,18 @@ export function compile(source, options = {}, meta = {}) {
 
 export { hash } from "./utils/hash.js";
 export { walk } from "zimmerframe";
+
+/**
+ * @param {string} template
+ * @returns {string}
+ */
+function preprocess(template) {
+    template = template.replace(
+        /<style\s+lang\s*=\s*["'](scss|sass)["']\s*>([\s\S]*)<\/\s*style\s*>/,
+        (_, lang, code) => {
+            return `<style lang="${lang}">${compileString(code).css}</style>`;
+        },
+    );
+
+    return template;
+}

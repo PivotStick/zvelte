@@ -52,7 +52,7 @@ function combineVisitors(...array) {
 /**
  * @type {import("../types.js").Transformer}
  */
-export function renderDom(ast, analysis, options, meta) {
+export function renderDom(source, ast, analysis, options, meta) {
     /**
      * @type {import("./types.js").ComponentClientTransformState}
      */
@@ -153,13 +153,8 @@ export function renderDom(ast, analysis, options, meta) {
     }
 
     let renderedCss;
-    if (analysis.css) {
-        renderedCss = renderStylesheet(analysis.css.code, analysis, {
-            dev: false,
-            filename: options.filename + ".css",
-        });
-
-        analysis.css.generated = renderedCss;
+    if (analysis.css && options.css === "injected") {
+        renderedCss = renderStylesheet(source, analysis, options);
     }
 
     // @ts-ignore
@@ -178,7 +173,7 @@ export function renderDom(ast, analysis, options, meta) {
         ...[...analysis.bindingGroups].map(([, id]) => b.var(id, b.array([]))),
     );
 
-    if (options.css === "injected" && analysis.css && renderedCss) {
+    if (analysis.css && renderedCss) {
         template.body.unshift(
             b.stmt(
                 b.call(
@@ -1960,7 +1955,7 @@ const templateVisitors = {
                 overrides[node.value.name] = node.value;
             }
 
-            const block = /** @type {import('estree').BlockStatement} */ (
+            const block = /** @type {any} */ (
                 context.visit(node.then, {
                     ...context.state,
                     overrides,
@@ -1980,7 +1975,7 @@ const templateVisitors = {
                 overrides[node.error.name] = node.error;
             }
 
-            const block = /** @type {import('estree').BlockStatement} */ (
+            const block = /** @type {any} */ (
                 context.visit(node.catch, {
                     ...context.state,
                     overrides,
@@ -2003,9 +1998,7 @@ const templateVisitors = {
                     node.pending
                         ? b.arrow(
                               [b.id("$$anchor")],
-                              /** @type {import('estree').BlockStatement} */ (
-                                  context.visit(node.pending)
-                              ),
+                              /** @type {any} */ (context.visit(node.pending)),
                           )
                         : b.literal(null),
                     then_block,
@@ -2078,9 +2071,7 @@ const templateVisitors = {
                     "$.head",
                     b.arrow(
                         [b.id("$$anchor")],
-                        /** @type {import('estree').BlockStatement} */ (
-                            context.visit(node.fragment)
-                        ),
+                        /** @type {any} */ (context.visit(node.fragment)),
                     ),
                 ),
             ),
@@ -2515,9 +2506,9 @@ export function create_derived_block_argument(node, context) {
     }
 
     const pattern = /** @type {import('estree').Pattern} */ (
-        context.visit(node)
+        context.visit(/** @type {any} */ (node))
     );
-    const identifiers = extract_identifiers(node);
+    const identifiers = extract_identifiers(/** @type {any} */ (node));
 
     const id = b.id("$$source");
     const value = b.id("$$value");

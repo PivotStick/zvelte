@@ -851,13 +851,8 @@ describe("Parser: will test template nodes", () => {
             expect(ast.css).not.toBeNull();
         });
 
-        test("self closing", () => {
-            const ast = parse(`<style />`);
-            expect(ast.css).not.toBeNull();
-        });
-
         test.fails("only one style per components", () => {
-            parse(`<style /> <style />`);
+            parse(`<style></style> <style></style>`);
         });
     });
 

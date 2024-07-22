@@ -3,8 +3,7 @@ import { createFragment } from "../utils/createFragment.js";
 import { isVoid } from "../../../shared/utils/names.js";
 import { Parser } from "../index.js";
 
-import * as csstree from "css-tree";
-import * as sass from "sass";
+import readStyle from "../read/style.js";
 
 const validTagName = /^\!?[a-zA-Z]{1,}:?[a-zA-Z0-9\-]*/;
 const regexWhitespaceOrSlashOrClosingTag = /(\s|\/|>)/;
@@ -264,35 +263,16 @@ export const element = (parser) => {
                 "Only one style tag can be declared in a component",
             );
 
-        let code = "";
         let start = parser.index;
         let end = start;
 
-        const isScss = element.attributes.some(
-            (attr) =>
-                attr.type === "Attribute" &&
-                attr.name === "lang" &&
-                attr.value !== true &&
-                attr.value.length === 1 &&
-                attr.value[0].type === "Text" &&
-                ["scss", "sass"].includes(attr.value[0].data),
-        );
-
-        if (!selfClosing) {
-            code = parser.readUntil(/<\/style>/);
-            end = parser.index;
-            parser.eat("</style>", true);
-        }
+        const content = readStyle(parser, start, element.attributes);
 
         parser.root.css = {
             start,
             end,
-            code,
-            ast: csstree.toPlainObject(
-                csstree.parse(isScss ? sass.compileString(code).css : code, {
-                    offset: start,
-                }),
-            ),
+            code: content.content.styles,
+            ast: content,
         };
     } else {
         parser.append(element);

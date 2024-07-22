@@ -1,10 +1,17 @@
-import type { CssNodePlain } from "css-tree";
+export { Css } from "./css.d.ts";
 
 interface BaseNode {
     type: string;
     start: number;
     end: number;
     metadata?: any;
+    parent?: any;
+}
+
+interface BaseElement extends BaseNode {
+    name: string;
+    attributes: Array<Attribute | SpreadAttribute | Directive>;
+    fragment: Fragment;
 }
 
 export type TemplateNode =
@@ -29,7 +36,8 @@ export type ElementLike =
     | Component
     | ZvelteComponent
     | ZvelteHead
-    | ZvelteSelf;
+    | ZvelteSelf
+    | ZvelteElement;
 export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag | ImportTag;
 export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock | AwaitBlock;
 export type Expression =
@@ -97,7 +105,7 @@ export interface BindDirective extends BaseNode {
     modifiers: string[];
 }
 
-export interface Component extends BaseNode {
+export interface Component extends BaseElement {
     type: "Component";
     attributes: Array<
         Attribute | BindDirective | OnDirective | SpreadAttribute
@@ -112,6 +120,25 @@ export interface ZvelteComponent extends BaseNode {
     fragment: Fragment;
     name: string;
     expression: Expression;
+}
+
+export interface ZvelteElement extends BaseElement {
+    type: "ZvelteElement";
+    name: `${string}:element`;
+    tag: Expression;
+    metadata: {
+        /**
+         * `true` if this is an svg element. The boolean may not be accurate because
+         * the tag is dynamic, but we do our best to infer it from the template.
+         */
+        svg: boolean;
+        /**
+         * `true` if this is a mathml element. The boolean may not be accurate because
+         * the tag is dynamic, but we do our best to infer it from the template.
+         */
+        mathml: boolean;
+        scoped: boolean;
+    };
 }
 
 export interface ZvelteSelf extends BaseNode {
