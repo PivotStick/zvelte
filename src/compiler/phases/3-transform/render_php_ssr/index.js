@@ -904,12 +904,7 @@ const visitors = {
 
         if (node.right.type === "Identifier" && node.right.name === "empty") {
             const expression = state.internal("testEmpty", left);
-
             return node.not ? b.unary("!", expression) : expression;
-        }
-
-        if (node.right.type === "NullLiteral") {
-            return b.bin(left, node.not ? "!==" : "===", b.nullKeyword());
         }
 
         if (node.right.type === "Identifier" && node.right.name === "defined") {
@@ -917,7 +912,16 @@ const visitors = {
             return node.not ? b.unary("!", expression) : expression;
         }
 
-        throw new Error(`Unknown IsExpression kind "${node.right.type}"`);
+        if (
+            node.right.type === "Identifier" &&
+            node.right.name === "iterable"
+        ) {
+            const expression = b.call("is_iterable", left);
+            return node.not ? b.unary("!", expression) : expression;
+        }
+
+        const right = /** @type {any} */ (visit(node.right));
+        return b.bin(left, node.not ? "!==" : "===", right);
     },
 
     // @ts-ignore
