@@ -1563,17 +1563,30 @@ const templateVisitors = {
                     if (node.not) return b.unary("!", test);
                     return test;
                 }
+
+                case "iterable": {
+                    const value = /** @type {import("estree").Expression} */ (
+                        visit(node.left)
+                    );
+
+                    const iterator = b.unary(
+                        "typeof",
+                        b.member(value, b.id("Symbol.iterator"), true, true),
+                    );
+
+                    return b.binary(
+                        iterator,
+                        node.not ? "!==" : "===",
+                        b.literal("function"),
+                    );
+                }
             }
-        } else if (node.right.type === "NullLiteral") {
-            return b.binary(
-                /** @type {import("estree").Expression} */ (visit(node.left)),
-                node.not ? "!==" : "===",
-                b.literal(null),
-            );
         }
 
-        throw new Error(
-            `Unhandled kind of "IsExpression" at ${node.right.start}`,
+        return b.binary(
+            /** @type {import("estree").Expression} */ (visit(node.left)),
+            node.not ? "!==" : "===",
+            /** @type {import("estree").Expression} */ (visit(node.right)),
         );
     },
 
