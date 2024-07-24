@@ -916,7 +916,7 @@ const visitors = {
             node.right.type === "Identifier" &&
             node.right.name === "iterable"
         ) {
-            const expression = b.call("is_iterable", left);
+            const expression = b.call("is_iterable", [left]);
             return node.not ? b.unary("!", expression) : expression;
         }
 
