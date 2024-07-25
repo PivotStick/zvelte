@@ -954,7 +954,17 @@ const visitors = {
             args.push(/** @type {any} */ (visit(arg)));
         }
 
-        return b.call(what, args, true);
+        const call = b.call(what, args, true);
+
+        if (node.optional) {
+            return b.ternary(
+                b.call("is_callable", [what]),
+                call,
+                b.nullKeyword(),
+            );
+        }
+
+        return call;
     },
 
     // @ts-ignore

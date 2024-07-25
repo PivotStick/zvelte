@@ -399,7 +399,7 @@ export function parseChainableExpression(parser) {
     }
 
     function parseMemberExpression() {
-        if (parser.matchRegex(/^(\.|\[|\?\.)/)) {
+        if (parser.matchRegex(/^(\.|\[|\?\.(?!\())/)) {
             const optional = parser.eat("?.");
             const computed = parser.eat("[");
 
@@ -470,6 +470,7 @@ export function parseChainableExpression(parser) {
                 type: "FilterExpression",
                 name,
                 arguments: args,
+                optional: false,
                 start,
                 end,
             };
@@ -478,6 +479,7 @@ export function parseChainableExpression(parser) {
     }
 
     function parseCallExpression() {
+        const optional = parser.eat("?.");
         if (parser.eat("(")) {
             parser.allowWhitespace();
             const args = [];
@@ -499,6 +501,7 @@ export function parseChainableExpression(parser) {
                           type: "FilterExpression",
                           name: left,
                           arguments: args,
+                          optional,
                           start,
                           end,
                       }
@@ -506,6 +509,7 @@ export function parseChainableExpression(parser) {
                           type: "CallExpression",
                           callee: left,
                           arguments: args,
+                          optional,
                           start,
                           end,
                       };

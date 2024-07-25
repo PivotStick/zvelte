@@ -871,6 +871,7 @@ describe("Parser: will test expressions", () => {
                     start: 7,
                     end: 10,
                 },
+                optional: false,
                 arguments: [
                     {
                         type: "Identifier",
@@ -887,6 +888,7 @@ describe("Parser: will test expressions", () => {
                 type: "FilterExpression",
                 start: 3,
                 end: 12,
+                optional: false,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -909,6 +911,7 @@ describe("Parser: will test expressions", () => {
                 type: "FilterExpression",
                 start: 3,
                 end: 16,
+                optional: false,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -945,6 +948,7 @@ describe("Parser: will test expressions", () => {
                 type: "FilterExpression",
                 start: 3,
                 end: 12,
+                optional: false,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -965,6 +969,37 @@ describe("Parser: will test expressions", () => {
                         raw: "2",
                         start: 10,
                         end: 11,
+                    },
+                ],
+            });
+        });
+
+        test("optional form", () => {
+            ExpressionTagOf(`{{ bar?.(1, 2) }}`, {
+                type: "FilterExpression",
+                start: 3,
+                end: 14,
+                optional: true,
+                name: {
+                    type: "Identifier",
+                    name: "bar",
+                    start: 3,
+                    end: 6,
+                },
+                arguments: [
+                    {
+                        type: "NumericLiteral",
+                        value: 1,
+                        raw: "1",
+                        start: 9,
+                        end: 10,
+                    },
+                    {
+                        type: "NumericLiteral",
+                        value: 2,
+                        raw: "2",
+                        start: 12,
+                        end: 13,
                     },
                 ],
             });
@@ -1257,6 +1292,7 @@ describe("Parser: will test expressions", () => {
          * @param {{
          *   start: number;
          *   end: number;
+         *   optional: boolean;
          *   arguments: import("#ast").CallExpression["arguments"];
          * }} args
          */
@@ -1268,8 +1304,8 @@ describe("Parser: will test expressions", () => {
                     type: "MemberExpression",
                     start: 3,
                     end: 8,
-                    computed: false,
                     optional: false,
+                    computed: false,
                     object: {
                         type: "Identifier",
                         name: "_",
@@ -1291,6 +1327,16 @@ describe("Parser: will test expressions", () => {
                 start: 3,
                 end: 10,
                 arguments: [],
+                optional: false,
+            });
+        });
+
+        test("optional", () => {
+            CallFooOf(`{{ _.foo?.() }}`, {
+                start: 3,
+                end: 12,
+                arguments: [],
+                optional: true,
             });
         });
 
@@ -1298,6 +1344,7 @@ describe("Parser: will test expressions", () => {
             CallFooOf(`{{ _.foo("hello") }}`, {
                 start: 3,
                 end: 17,
+                optional: false,
                 arguments: [
                     {
                         type: "StringLiteral",
@@ -1314,6 +1361,7 @@ describe("Parser: will test expressions", () => {
             CallFooOf(`{{ _.foo("hello", 2, 3, 4, 20) }}`, {
                 start: 3,
                 end: 30,
+                optional: false,
                 arguments: [
                     {
                         type: "StringLiteral",

@@ -204,7 +204,7 @@ export class Parser {
         lines.splice(
             ln + 1,
             0,
-            `${red}${"-".repeat(Math.max(0, col - 1))}^ ${message} at ${
+            `${red}${"-".repeat(Math.max(0, col))}^ ${message} at ${
                 ln + 1
             }:${col + 1}${reset}${dim}`,
         );

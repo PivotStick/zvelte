@@ -294,12 +294,14 @@ export interface CallExpression extends BaseNode {
     type: "CallExpression";
     callee: Exclude<Expression, Identifier>;
     arguments: Expression[];
+    optional: boolean;
 }
 
 export interface FilterExpression extends BaseNode {
     type: "FilterExpression";
     name: Identifier;
     arguments: Expression[];
+    optional: boolean;
 }
 
 export type MemberExpression = BaseNode & {

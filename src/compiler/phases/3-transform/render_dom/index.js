@@ -1406,13 +1406,19 @@ const templateVisitors = {
                 );
             }
 
-            const call = b.call(
+            const callee = b.call(
                 "$.filter",
                 context.state.options.hasJS ? b.id("$$prop") : b.id("$$props"),
                 b.literal(node.name.name),
             );
 
-            return b.call(b.member(call, b.id(node.name.name)), ...args);
+            const call = b.call(
+                b.member(callee, b.id(node.name.name)),
+                ...args,
+            );
+            // @ts-ignore
+            call.optional = node.optional;
+            return call;
         } else {
             return serializeFunction(node, context);
         }
@@ -2465,7 +2471,10 @@ function serializeFunction(node, context) {
             /** @type {import("estree").Expression} */ (context.visit(arg)),
     );
 
-    return b.call(name, ...args);
+    const call = b.call(name, ...args);
+    // @ts-ignore
+    call.optional = node.optional;
+    return call;
 }
 
 /**

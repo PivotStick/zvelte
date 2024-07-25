@@ -978,6 +978,7 @@ describe("Parser: will test tags", () => {
                     end: 19,
                     expression: {
                         type: "FilterExpression",
+                        optional: false,
                         name: {
                             type: "Identifier",
                             name: "foo",
@@ -1000,6 +1001,7 @@ describe("Parser: will test tags", () => {
                     end: 23,
                     expression: {
                         type: "CallExpression",
+                        optional: false,
                         callee: {
                             type: "MemberExpression",
                             start: 11,
