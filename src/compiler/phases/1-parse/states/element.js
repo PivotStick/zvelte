@@ -309,10 +309,15 @@ const readAttribute = (parser, uniqueNames) => {
 
     /**
      * @param {string} name
+     * @param {number} start
      */
-    const checkUnique = (name) => {
+    const checkUnique = (name, start) => {
         if (uniqueNames.has(name)) {
-            throw parser.error(`Duplicate attribute "${name}"`);
+            throw parser.error(
+                `Duplicate attribute "${name}"`,
+                start,
+                start + name.length - 1,
+            );
         }
         uniqueNames.add(name);
     };
@@ -439,7 +444,10 @@ const readAttribute = (parser, uniqueNames) => {
                 const { expression, fallback } = validate();
 
                 if (directive.name !== "this") {
-                    checkUnique(directive.name);
+                    checkUnique(
+                        directive.name,
+                        start + directive.type.length + 1,
+                    );
                 }
 
                 if (
@@ -509,7 +517,7 @@ const readAttribute = (parser, uniqueNames) => {
         }
     }
 
-    checkUnique(name);
+    checkUnique(name, start);
 
     return {
         start,

@@ -111,7 +111,11 @@ export class Parser {
         }
 
         if (required) {
-            throw this.error(errorMessage);
+            throw this.error(
+                errorMessage,
+                this.index,
+                this.index + str.length - 1,
+            );
         }
 
         return false;
@@ -174,25 +178,11 @@ export class Parser {
      * @param {string} message
      */
     error(message, start = this.index, end = start) {
-        let col = 0;
-        let ln = 0;
-        let cursor = 0;
-
-        while (cursor <= start) {
-            col++;
-
-            if (this.template[cursor] === "\n") {
-                col = 0;
-                ln++;
-            }
-
-            cursor++;
-        }
-
+        const range = indexesToRange(start, end, this.template);
         const lines = this.template
             .replace(/\t/g, " ")
             .split("\n")
-            .slice(0, ln + 10);
+            .slice(0, range.end.ln + 10);
 
         const browser = typeof window !== "undefined";
         let red = browser ? "" : "\x1b[31m";
@@ -202,29 +192,67 @@ export class Parser {
         let underline = browser ? "" : "\x1b[4m";
 
         lines.splice(
-            ln + 1,
+            range.start.ln + 1,
             0,
-            `${red}${"-".repeat(Math.max(0, col))}^ ${message} at ${
-                ln + 1
-            }:${col + 1}${reset}${dim}`,
+            `${red}${"-".repeat(Math.max(0, range.start.col))}^ ${message} at ${
+                range.start.ln + 1
+            }:${range.start.col + 1}${reset}${dim}`,
         );
 
-        lines[ln] = `${lines[ln].replace(
+        lines[range.start.ln] = `${lines[range.start.ln].replace(
             /[^\s]/,
             `${underline}${bold}$&`,
         )}${reset}`;
 
-        return new SyntaxError(
-            "\n" +
+        return new ParseError({
+            range,
+            message,
+            preview:
+                "\n" +
                 reset +
-                lines.slice(Math.max(0, ln - 4)).join("\n") +
+                lines.slice(Math.max(0, range.start.ln - 4)).join("\n") +
                 `...${reset}`,
-        );
+        });
     }
 
     eof() {
         return this.index >= this.template.length;
     }
+}
+
+/**
+ * @param {number} index
+ * @param {string} source
+ */
+function indexToPosition(index, source) {
+    let col = 0;
+    let ln = 0;
+    let cursor = 0;
+
+    while (cursor <= index) {
+        col++;
+
+        if (source[cursor] === "\n") {
+            col = 0;
+            ln++;
+        }
+
+        cursor++;
+    }
+
+    return { col, ln };
+}
+
+/**
+ * @param {number} start
+ * @param {number} end
+ * @param {string} source
+ */
+function indexesToRange(start, end, source) {
+    return {
+        start: indexToPosition(start, source),
+        end: indexToPosition(end, source),
+    };
 }
 
 /**
@@ -234,4 +262,24 @@ export class Parser {
 export function parse(template, options) {
     const parser = new Parser(template, options);
     return parser.root;
+}
+
+/**
+ * @typedef {{ col: number; ln: number; }} Position;
+ * @typedef {{ start: Position; end: Position; }} Range;
+ */
+class ParseError extends SyntaxError {
+    /**
+     * @param {{
+     *   range: Range;
+     *   message: string;
+     *   preview: string;
+     * }} options
+     */
+    constructor({ range, message, preview }) {
+        super(preview);
+
+        this.text = message;
+        this.range = range;
+    }
 }
