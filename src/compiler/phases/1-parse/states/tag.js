@@ -47,7 +47,7 @@ function expressionTag(parser) {
     ) {
         throw parser.error(
             "`{{ @render ... }` tags can only contain call expressions",
-            expression.start,
+            expression.start
         );
     }
 
@@ -136,7 +136,7 @@ function open(parser, start) {
             key = parseChainableExpression(parser);
             if (key?.type !== "Identifier" && key?.type !== "MemberExpression")
                 throw parser.error(
-                    "Expected an Identifier or a MemberExpression",
+                    "Expected an Identifier or a MemberExpression"
                 );
 
             parser.eat(")", true);
@@ -182,7 +182,7 @@ function open(parser, start) {
                 start,
                 end: parser.index,
                 assignment,
-            }),
+            })
         );
 
         return;
@@ -337,7 +337,11 @@ function open(parser, start) {
         return;
     }
 
-    throw parser.error(`Unknown block type`);
+    throw parser.error(
+        `Unknown block type`,
+        start,
+        (parser.template.slice(start).match(/%}/)?.index ?? start) + start + 2
+    );
 }
 
 /**
@@ -352,7 +356,7 @@ function next(parser, start) {
         if (parser.eat("then")) {
             if (block.then) {
                 throw parser.error(
-                    `{% then %} cannot appear more than once within a block`,
+                    `{% then %} cannot appear more than once within a block`
                 );
             }
 
@@ -375,7 +379,7 @@ function next(parser, start) {
         if (parser.eat("catch")) {
             if (block.catch) {
                 throw parser.error(
-                    `{% catch %} cannot appear more than once within a block`,
+                    `{% catch %} cannot appear more than once within a block`
                 );
             }
 
@@ -397,7 +401,7 @@ function next(parser, start) {
 
         throw parser.error(
             "Expected token {% then ... %} or {% catch ... %}",
-            start,
+            start
         );
     }
 
@@ -455,7 +459,7 @@ function next(parser, start) {
     }
 
     throw parser.error(
-        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)",
+        "{% else %} block is invalid at this position (did you forget to close the preceeding element or block?)"
     );
 }
 
@@ -530,6 +534,12 @@ function close(parser, start) {
         }
 
         default:
-            throw parser.error(`Unexpected end block`);
+            throw parser.error(
+                `Unexpected end block`,
+                start,
+                (parser.template.slice(start).match(/%}/)?.index ?? start) +
+                    start +
+                    2
+            );
     }
 }

@@ -114,7 +114,7 @@ export class Parser {
             throw this.error(
                 errorMessage,
                 this.index,
-                this.index + str.length - 1,
+                this.index + str.length - 1
             );
         }
 
@@ -177,7 +177,7 @@ export class Parser {
     /**
      * @param {string} message
      */
-    error(message, start = this.index, end = start) {
+    error(message, start = this.index, end = start + 1) {
         const range = indexesToRange(start, end, this.template);
         const lines = this.template
             .replace(/\t/g, " ")
@@ -196,12 +196,12 @@ export class Parser {
             0,
             `${red}${"-".repeat(Math.max(0, range.start.col))}^ ${message} at ${
                 range.start.ln + 1
-            }:${range.start.col + 1}${reset}${dim}`,
+            }:${range.start.col + 1}${reset}${dim}`
         );
 
         lines[range.start.ln] = `${lines[range.start.ln].replace(
             /[^\s]/,
-            `${underline}${bold}$&`,
+            `${underline}${bold}$&`
         )}${reset}`;
 
         return new ParseError({
@@ -229,7 +229,7 @@ function indexToPosition(index, source) {
     let ln = 0;
     let cursor = 0;
 
-    while (cursor <= index) {
+    while (cursor < index) {
         col++;
 
         if (source[cursor] === "\n") {
@@ -248,7 +248,7 @@ function indexToPosition(index, source) {
  * @param {number} end
  * @param {string} source
  */
-function indexesToRange(start, end, source) {
+export function indexesToRange(start, end, source) {
     return {
         start: indexToPosition(start, source),
         end: indexToPosition(end, source),

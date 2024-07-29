@@ -26,7 +26,7 @@ export function parseAssignmentExpression(parser) {
         if (left.type !== "Identifier" && left.type !== "MemberExpression")
             throw parser.error(
                 `Invalid left-hand side in assignment`,
-                left.start,
+                left.start
             );
 
         parser.allowWhitespace();
@@ -586,8 +586,10 @@ export function parseUpdateExpression(parser) {
             argument.type !== "MemberExpression"
         )
             throw parser.error(
-                `Invalid ${prefix ? "right-hand" : "left-hand"} side expression in prefix operator`,
-                argument.start,
+                `Invalid ${
+                    prefix ? "right-hand" : "left-hand"
+                } side expression in prefix operator`,
+                argument.start
             );
 
         return {
