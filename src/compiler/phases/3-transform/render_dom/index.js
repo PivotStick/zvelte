@@ -2180,13 +2180,10 @@ function serializeComponentProps(node, context, wrap) {
                     b.id(child.expression.name),
                 ),
             );
+            context.state.nonPropVars.push(child.expression.name);
             context.visit(child, {
                 ...context.state,
                 init: privateScope,
-                nonPropVars: [
-                    ...context.state.nonPropVars,
-                    child.expression.name,
-                ],
             });
         } else {
             context.visit(child);
