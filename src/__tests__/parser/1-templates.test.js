@@ -877,6 +877,10 @@ describe("Parser: will test template nodes", () => {
             ]);
         });
 
+        test.fails("duplicate attributes on bind directives", () => {
+            parse(`<Foo content="foo" bind:content={{ foo }} />`);
+        });
+
         test.fails("cannot use class directives", () => {
             parse(`<Foo class:bar />`);
         });

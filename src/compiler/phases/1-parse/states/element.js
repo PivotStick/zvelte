@@ -438,6 +438,10 @@ const readAttribute = (parser, uniqueNames) => {
             case "bind": {
                 const { expression, fallback } = validate();
 
+                if (directive.name !== "this") {
+                    checkUnique(directive.name);
+                }
+
                 if (
                     expression &&
                     expression.type !== "Identifier" &&
