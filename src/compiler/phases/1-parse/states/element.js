@@ -40,15 +40,16 @@ export const element = (parser) => {
     let type = /[A-Z]/.test(name[0])
         ? "Component"
         : name === "title"
-        ? "TitleElement"
-        : "RegularElement";
+          ? "TitleElement"
+          : "RegularElement";
 
     if (name.includes(":")) {
         const [left, right] = name.split(":");
         if (left !== parser.specialTag) {
             throw parser.error(
                 `"${left}" must match ${parser.specialTag}`,
-                start
+                start + 1,
+                start + 1 + left.length,
             );
         }
 
@@ -61,7 +62,7 @@ export const element = (parser) => {
         } else {
             throw parser.error(
                 `"${right}" unknown ${left} meta tag kind`,
-                start + left.length + 2
+                start + left.length + 2,
             );
         }
     }
@@ -130,7 +131,7 @@ export const element = (parser) => {
                               element.attributes.find(
                                   (attr) =>
                                       attr.type === "Attribute" &&
-                                      attr.name === "type"
+                                      attr.name === "type",
                               )
                           )
                         : undefined;
@@ -145,7 +146,7 @@ export const element = (parser) => {
                 ) {
                     throw parser.error(
                         "'type' attribute must be a static text value if input uses two-way binding",
-                        typeAttr.value[0].start
+                        typeAttr.value[0].start,
                     );
                 } else if (
                     typeAttr &&
@@ -159,12 +160,12 @@ export const element = (parser) => {
                     case "value": {
                         if (
                             !["input", "textarea", "select"].includes(
-                                element.name
+                                element.name,
                             )
                         ) {
                             throw parser.error(
                                 "`bind:value` can only be used with <input>, <textarea>, <select>",
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -173,7 +174,7 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:group` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -182,14 +183,14 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:checked` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
 
                         if (staticTypeAttrValue !== "checkbox") {
                             throw parser.error(
                                 '`bind:checked` can only be used with <input type="checkbox">',
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -198,14 +199,14 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:files` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
 
                         if (staticTypeAttrValue !== "file") {
                             throw parser.error(
                                 '`bind:files` can only be used with <input type="file">',
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -216,13 +217,13 @@ export const element = (parser) => {
     } else if (element.type === "ZvelteComponent") {
         const thisAttr = /** @type {import("#ast").Attribute=} */ (
             element.attributes.find(
-                (attr) => attr.type === "Attribute" && attr.name === "this"
+                (attr) => attr.type === "Attribute" && attr.name === "this",
             )
         );
         if (!thisAttr) {
             throw parser.error(
                 `\`<${name}>\` must have a 'this' attribute`,
-                start
+                start,
             );
         }
 
@@ -232,7 +233,7 @@ export const element = (parser) => {
         ) {
             throw parser.error(
                 'Invalid component definition — must be an `"{{ expression }}"`',
-                thisAttr.start + thisAttr.name.length + 1
+                thisAttr.start + thisAttr.name.length + 1,
             );
         }
 
@@ -247,12 +248,12 @@ export const element = (parser) => {
                 (attr) =>
                     attr.type === "ClassDirective" ||
                     attr.type === "UseDirective" ||
-                    attr.type === "TransitionDirective"
+                    attr.type === "TransitionDirective",
             ))
         ) {
             throw parser.error(
                 "This type of directive is not valid on components",
-                attr.start
+                attr.start,
             );
         }
     }
@@ -260,7 +261,7 @@ export const element = (parser) => {
     if (element.name === "style") {
         if (parser.root.css)
             throw parser.error(
-                "Only one style tag can be declared in a component"
+                "Only one style tag can be declared in a component",
             );
 
         let start = parser.index;
@@ -316,7 +317,7 @@ const readAttribute = (parser, uniqueNames) => {
             throw parser.error(
                 `Duplicate attribute "${name}"`,
                 start,
-                start + name.length - 1
+                start + name.length - 1,
             );
         }
         uniqueNames.add(name);
@@ -345,7 +346,7 @@ const readAttribute = (parser, uniqueNames) => {
         if (!identifier) {
             throw parser.error(
                 `"{{ ... }}" expression cannot be used directly inside element's attributes, only in attribute's values. It also can be used like this {{ foo }} as a shortcut for foo="{{ foo }}"`,
-                start
+                start,
             );
         }
 
@@ -374,7 +375,7 @@ const readAttribute = (parser, uniqueNames) => {
     if (tagBlockMatch) {
         throw parser.error(
             `"{% ${tagBlockMatch[1]} %} blocks cannot be used inside element's attributes"`,
-            start
+            start,
         );
     }
 
@@ -402,7 +403,7 @@ const readAttribute = (parser, uniqueNames) => {
                 throw parser.error(
                     "Directive value must be an expression enclosed in curly braces",
                     value[0].start,
-                    value[value.length - 1].end - 1
+                    value[value.length - 1].end - 1,
                 );
             }
 
@@ -444,7 +445,7 @@ const readAttribute = (parser, uniqueNames) => {
                 if (directive.name !== "this") {
                     checkUnique(
                         directive.name,
-                        start + directive.type.length + 1
+                        start + directive.type.length + 1,
                     );
                 }
 
@@ -456,7 +457,7 @@ const readAttribute = (parser, uniqueNames) => {
                     throw parser.error(
                         "Can only bind to an Identifier or MemberExpression",
                         expression.start,
-                        expression.end
+                        expression.end,
                     );
                 }
 

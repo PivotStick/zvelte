@@ -23,6 +23,7 @@ const propsName = "props";
  *  readonly block: import("./type.js").Block;
  *  nonPropVars: string[];
  *  scopeVars: string[];
+ *  isInIsset: boolean;
  *  usedComponents: import("./type.js").Entry[];
  *  counter: number;
  *  import(name: string): void;
@@ -61,6 +62,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     const internalImports = new Set();
     const state = createState(
         {
+            isInIsset: false,
             options,
             nonPropVars: [],
             scopeVars: [],
@@ -900,15 +902,21 @@ const visitors = {
 
     // @ts-ignore
     IsExpression(node, { state, visit }) {
+        if (node.right.type === "Identifier" && node.right.name === "defined") {
+            const left = /** @type {any} */ (
+                visit(node.left, {
+                    ...state,
+                    isInIsset: true,
+                })
+            );
+            const expression = b.isset(left);
+            return node.not ? b.unary("!", expression) : expression;
+        }
+
         const left = /** @type {any} */ (visit(node.left));
 
         if (node.right.type === "Identifier" && node.right.name === "empty") {
             const expression = state.internal("testEmpty", left);
-            return node.not ? b.unary("!", expression) : expression;
-        }
-
-        if (node.right.type === "Identifier" && node.right.name === "defined") {
-            const expression = b.isset(left);
             return node.not ? b.unary("!", expression) : expression;
         }
 
@@ -991,26 +999,30 @@ const visitors = {
     Identifier(node, { state, path }) {
         const parent = path[path.length - 1];
 
+        let id = propsName;
+
         if (
             state.scopeVars.includes(node.name) &&
             (parent.type !== "MemberExpression" || parent.computed)
         ) {
-            return b.silent(
-                b.propertyLookup(b.variable("scope"), b.id(node.name)),
-            );
+            id = "scope";
+        } else {
+            if (parent.type === "MemberExpression" && !parent.computed) {
+                return b.id(node.name);
+            }
+
+            if (state.nonPropVars.includes(node.name)) {
+                return b.variable(node.name);
+            }
         }
 
-        if (parent.type === "MemberExpression" && !parent.computed) {
-            return b.id(node.name);
+        const out = b.propertyLookup(b.variable(propsName), b.id(node.name));
+
+        if (!state.isInIsset) {
+            return b.silent(out);
         }
 
-        if (state.nonPropVars.includes(node.name)) {
-            return b.variable(node.name);
-        }
-
-        return b.silent(
-            b.propertyLookup(b.variable(propsName), b.id(node.name)),
-        );
+        return out;
     },
 
     // @ts-ignore
@@ -1037,7 +1049,10 @@ const visitors = {
             }
         }
 
-        if (parent.type !== "MemberExpression" || parent.computed) {
+        if (
+            parent.type !== "MemberExpression" ||
+            (parent.computed && !state.isInIsset)
+        ) {
             member = b.silent(member);
         }
 
