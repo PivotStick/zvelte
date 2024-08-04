@@ -267,6 +267,7 @@ export type Attribute = BaseNode & {
     type: "Attribute";
     name: string;
     value: true | Array<Text | ExpressionTag>;
+    doubleQuotes: boolean | null;
 };
 
 export interface SpreadAttribute extends BaseNode {

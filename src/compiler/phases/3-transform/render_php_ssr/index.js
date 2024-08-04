@@ -45,7 +45,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     renderMethod.isStatic = true;
     renderMethod.arguments.push(
         b.parameter(outputName, "object"),
-        b.parameter(propsName, "object"),
+        b.parameter(propsName, "object")
     );
 
     getAllComponentsMethod.isStatic = true;
@@ -77,18 +77,18 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
                 internalImports.add("Internals");
                 return b.call(
                     b.staticLookup(b.name("Internals"), method),
-                    args,
+                    args
                 );
             },
         },
-        renderMethod.body,
+        renderMethod.body
     );
 
     walk(ast, state, visitors);
 
     getAllComponentsMethod.body.children.push(
         b.assign(b.variable(propsName), "??=", b.object()),
-        b.returnExpression(b.array(state.usedComponents)),
+        b.returnExpression(b.array(state.usedComponents))
     );
 
     const renderer = b.declareClass(componentName, [
@@ -100,14 +100,14 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
 
     if (internalImports.size) {
         namespace.push(
-            b.use(options.internalsNamespace, ...[...internalImports]),
+            b.use(options.internalsNamespace, ...[...internalImports])
         );
     }
 
     namespace.push(renderer);
 
     const result = print(
-        b.program([b.namespace(options.namespace, namespace)]),
+        b.program([b.namespace(options.namespace, namespace)])
     );
 
     return result;
@@ -160,11 +160,11 @@ function createState(state, block) {
                     b.assign(
                         b.propertyLookup(
                             b.variable(outputName),
-                            b.id(property),
+                            b.id(property)
                         ),
                         ".=",
-                        value,
-                    ),
+                        value
+                    )
                 );
             }
         };
@@ -182,8 +182,8 @@ function createState(state, block) {
                 b.assign(
                     b.propertyLookup(b.variable(outputName), b.id("title")),
                     "=",
-                    string,
-                ),
+                    string
+                )
             );
         },
         appendText(value) {
@@ -211,7 +211,7 @@ const visitors = {
             [node],
             undefined,
             context.state.options.preserveWhitespace,
-            context.state.options.preserveComments,
+            context.state.options.preserveComments
         );
 
         renderBlock(context, [...hoisted, ...trimmed]);
@@ -226,7 +226,7 @@ const visitors = {
             path,
             "html",
             state.options.preserveWhitespace,
-            state.options.preserveComments,
+            state.options.preserveComments
         );
 
         for (const node of hoisted) {
@@ -267,7 +267,7 @@ const visitors = {
         alternate.appendText(`<!--${HYDRATION_END_ELSE}-->`);
 
         state.block.children.push(
-            b.ifStatement(test, consequent.block, alternate.block),
+            b.ifStatement(test, consequent.block, alternate.block)
         );
     },
 
@@ -291,7 +291,7 @@ const visitors = {
 
         if (hasParent) {
             state.block.children.push(
-                b.assign(b.variable("parent"), "=", b.variable("loop")),
+                b.assign(b.variable("parent"), "=", b.variable("loop"))
             );
         }
 
@@ -303,13 +303,13 @@ const visitors = {
             b.assign(
                 length,
                 "=",
-                b.call(b.id("count"), [b.cast(source, "array")]),
-            ),
+                b.call(b.id("count"), [b.cast(source, "array")])
+            )
         );
 
         if (node.fallback) {
             const ifBlock = b.ifStatement(
-                b.unary("!", state.internal("testEmpty", source)),
+                b.unary("!", state.internal("testEmpty", source))
             );
             ifBlock.alternate = b.block();
 
@@ -341,7 +341,7 @@ const visitors = {
                                 b.bin(
                                     b.bin(length, "-", index),
                                     "-",
-                                    b.number(1),
+                                    b.number(1)
                                 ),
                             ],
                             [b.string("revindex"), b.bin(length, "-", index)],
@@ -354,7 +354,7 @@ const visitors = {
                                 b.bin(
                                     index,
                                     "===",
-                                    b.bin(length, "-", b.number(1)),
+                                    b.bin(length, "-", b.number(1))
                                 ),
                             ],
                             [b.string("length"), length],
@@ -364,10 +364,10 @@ const visitors = {
                                     ? b.variable("parent")
                                     : b.nullKeyword(),
                             ],
-                        ]),
-                    ),
-                ),
-            ),
+                        ])
+                    )
+                )
+            )
         );
 
         forEachState.nonPropVars = [
@@ -407,7 +407,7 @@ const visitors = {
                         const value = serializeAttributeValue(
                             attr.value,
                             false,
-                            { visit, state },
+                            { visit, state }
                         );
                         const n = b.entry(value, b.literal(attr.name));
                         attrs.push(n);
@@ -474,8 +474,8 @@ const visitors = {
                                     serializeAttributeValue(values, true, {
                                         visit,
                                         state,
-                                    }),
-                                ),
+                                    })
+                                )
                             );
 
                             classDirectives.length = 0;
@@ -491,9 +491,11 @@ const visitors = {
                             attr.value.length === 1 &&
                             attr.value[0].type === "Text"
                         ) {
-                            state.appendText(` ${attr.name}="`);
+                            const quote = attr.doubleQuotes ? '"' : "'";
+
+                            state.appendText(` ${attr.name}=${quote}`);
                             state.appendText(attr.value[0].data);
-                            state.appendText(`"`);
+                            state.appendText(quote);
                         } else {
                             state.append(
                                 state.internal(
@@ -502,8 +504,8 @@ const visitors = {
                                     serializeAttributeValue(attr.value, true, {
                                         visit,
                                         state,
-                                    }),
-                                ),
+                                    })
+                                )
                             );
                         }
                         break;
@@ -517,9 +519,9 @@ const visitors = {
                                 b.bin(
                                     /** @type {any} */ (visit(attr.expression)),
                                     "??",
-                                    b.literal(""),
-                                ),
-                            ),
+                                    b.literal("")
+                                )
+                            )
                         );
                         break;
                     }
@@ -538,7 +540,7 @@ const visitors = {
 
                     default:
                         throw new Error(
-                            `Unknown "${attr.type}" attribute type on "${node.type}"`,
+                            `Unknown "${attr.type}" attribute type on "${node.type}"`
                         );
                 }
             }
@@ -551,8 +553,8 @@ const visitors = {
                         serializeAttributeValue(classDirectives, true, {
                             visit,
                             state,
-                        }),
-                    ),
+                        })
+                    )
                 );
             }
         }
@@ -570,7 +572,7 @@ const visitors = {
             path,
             "html",
             state.options.preserveWhitespace,
-            state.options.preserveComments,
+            state.options.preserveComments
         );
 
         for (const node of hoisted) {
@@ -599,7 +601,7 @@ const visitors = {
             visit(
                 node.expression.type === "CallExpression"
                     ? node.expression.callee
-                    : node.expression.name,
+                    : node.expression.name
             )
         );
 
@@ -631,18 +633,18 @@ const visitors = {
         const fn = createSnippetClosure(
             context,
             node.parameters,
-            node.body.nodes,
+            node.body.nodes
         );
 
         context.state.block.children.push(
             b.assign(
                 b.propertyLookup(
                     b.variable(propsName),
-                    b.id(node.expression.name),
+                    b.id(node.expression.name)
                 ),
                 "=",
-                fn,
-            ),
+                fn
+            )
         );
     },
 
@@ -653,11 +655,11 @@ const visitors = {
 
     Component(node, context) {
         const source = context.state.imports.find(
-            (i) => i.specifier.name === node.name,
+            (i) => i.specifier.name === node.name
         )?.source.value;
         if (!source)
             throw new Error(
-                `Component ${node.name} not found, forgot an import tag?`,
+                `Component ${node.name} not found, forgot an import tag?`
             );
 
         const className = b.name(source);
@@ -668,17 +670,13 @@ const visitors = {
                 b.objectFromLiteral({
                     key: b.string(source),
                     props: b.object(),
-                }),
-            ),
+                })
+            )
         );
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.append(
-            context.state.internal(
-                "component",
-                b.string(className.name),
-                props,
-            ),
+            context.state.internal("component", b.string(className.name), props)
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
@@ -689,7 +687,7 @@ const visitors = {
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.append(
-            b.ternary(callee, b.call(callee, [props], true), b.string("")),
+            b.ternary(callee, b.call(callee, [props], true), b.string(""))
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
@@ -702,7 +700,7 @@ const visitors = {
             b.call(b.staticLookup(b.name("self"), "render"), [
                 b.variable(outputName),
                 props,
-            ]),
+            ])
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
@@ -737,7 +735,7 @@ const visitors = {
 
                 default:
                     throw new Error(
-                        "`<title>` can only contain text and {{ tags }}",
+                        "`<title>` can only contain text and {{ tags }}"
                     );
             }
         }
@@ -745,18 +743,18 @@ const visitors = {
         const value = !elements.length
             ? b.string("")
             : elements.length === 1
-              ? elements[0]
-              : b.call(b.id("implode"), [
-                    b.literal(""),
-                    b.array(elements.map((e) => b.entry(e))),
-                ]);
+            ? elements[0]
+            : b.call(b.id("implode"), [
+                  b.literal(""),
+                  b.array(elements.map((e) => b.entry(e))),
+              ]);
 
         context.state.block.children.push(
             b.assign(
                 b.propertyLookup(b.variable(outputName), b.id("title")),
                 "=",
-                value,
-            ),
+                value
+            )
         );
     },
 
@@ -764,13 +762,13 @@ const visitors = {
         const head = b.closure(
             true,
             [b.parameter(outputName, "object")],
-            [b.variable(propsName)],
+            [b.variable(propsName)]
         );
 
         visit(node.fragment, createState(state, head.body));
 
         state.block.children.push(
-            b.stmt(state.internal("head", b.variable(outputName), head)),
+            b.stmt(state.internal("head", b.variable(outputName), head))
         );
     },
 
@@ -779,7 +777,7 @@ const visitors = {
         return b.assign(
             /** @type {any} */ (visit(node.left)),
             node.operator === "~=" ? ".=" : node.operator,
-            /** @type {any} */ (visit(node.right)),
+            /** @type {any} */ (visit(node.right))
         );
     },
 
@@ -799,7 +797,7 @@ const visitors = {
             // @ts-ignore
             { "~": "." }[node.operator] ?? node.operator,
             // @ts-ignore
-            visit(node.right),
+            visit(node.right)
         );
     },
 
@@ -844,7 +842,7 @@ const visitors = {
                 prop.key.type === "Identifier"
                     ? b.string(prop.key.name)
                     : visit(prop.key),
-                visit(prop.value),
+                visit(prop.value)
             );
         }
 
@@ -968,7 +966,7 @@ const visitors = {
             return b.ternary(
                 b.call("is_callable", [what]),
                 call,
-                b.nullKeyword(),
+                b.nullKeyword()
             );
         }
 
@@ -1068,7 +1066,7 @@ function getComponentProps(node, context) {
     const parent = context.path[context.path.length - 1];
     const { props, pushProp } = serializeAttibutesForComponent(
         node.attributes,
-        context,
+        context
     );
 
     const { trimmed, hoisted } = cleanNodes(
@@ -1077,7 +1075,7 @@ function getComponentProps(node, context) {
         context.path,
         "html",
         context.state.options.preserveWhitespace,
-        context.state.options.preserveComments,
+        context.state.options.preserveComments
     );
 
     for (const node of hoisted) {
@@ -1085,7 +1083,7 @@ function getComponentProps(node, context) {
             const value = createSnippetClosure(
                 context,
                 node.parameters,
-                node.body.nodes,
+                node.body.nodes
             );
             pushProp(b.entry(value, b.string(node.expression.name)));
         } else {
@@ -1128,7 +1126,7 @@ function createSnippetClosure(context, parameters, nodes) {
     const fn = b.closure(true, params);
     const scope = b.cast(
         b.array(scopeVars.map((v) => b.entry(b.variable(v), b.string(v)))),
-        "object",
+        "object"
     );
 
     context.state.import("Snippet");
@@ -1140,7 +1138,7 @@ function createSnippetClosure(context, parameters, nodes) {
         context.path,
         "html",
         context.state.options.preserveWhitespace,
-        context.state.options.preserveComments,
+        context.state.options.preserveComments
     );
 
     renderBlock(
@@ -1152,10 +1150,10 @@ function createSnippetClosure(context, parameters, nodes) {
                     scopeVars,
                     nonPropVars,
                 },
-                fn.body,
+                fn.body
             ),
         },
-        [...hoisted, ...trimmed],
+        [...hoisted, ...trimmed]
     );
 
     return snippet;
@@ -1296,7 +1294,7 @@ function serializeAttributeValue(attributeValue, isElement, { visit, state }) {
             expression = b.ternary(
                 expression,
                 b.literal(node.name),
-                b.literal(""),
+                b.literal("")
             );
 
             expressions.push(expression);
