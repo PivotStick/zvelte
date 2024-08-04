@@ -272,6 +272,7 @@ export const element = (parser) => {
         parser.root.css = {
             start,
             end,
+            attributes: element.attributes,
             code: content.content.styles,
             ast: content,
         };

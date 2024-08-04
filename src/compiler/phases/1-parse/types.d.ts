@@ -247,6 +247,7 @@ export interface Root extends BaseNode {
         | null
         | (Omit<BaseNode, "type"> & {
               code: string;
+              attributes: RegularElement["attributes"];
               ast: CssNodePlain;
           });
 }
