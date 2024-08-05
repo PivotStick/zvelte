@@ -205,6 +205,7 @@ describe("Parser: will test template nodes", () => {
                     value: true,
                     start: 5,
                     end: 13,
+                    doubleQuotes: null,
                 },
             ]);
         });
@@ -214,6 +215,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "class",
+                    doubleQuotes: true,
                     value: [
                         {
                             type: "Text",
@@ -233,6 +235,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "class",
+                    doubleQuotes: true,
                     value: [
                         {
                             type: "ExpressionTag",
@@ -257,6 +260,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "class",
+                    doubleQuotes: null,
                     value: [
                         {
                             type: "ExpressionTag",
@@ -281,6 +285,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "class",
+                    doubleQuotes: true,
                     value: [
                         {
                             type: "ExpressionTag",
@@ -313,6 +318,7 @@ describe("Parser: will test template nodes", () => {
                     start: 5,
                     end: 16,
                     name: "class",
+                    doubleQuotes: null,
                     value: [
                         {
                             type: "ExpressionTag",
@@ -456,7 +462,7 @@ describe("Parser: will test template nodes", () => {
                         "type attribute on inputs ONLY cannot be dynamic",
                         () => {
                             parse(`<input type="{{ foo }}" bind:value />`);
-                        },
+                        }
                     );
 
                     test("type can be dynamic on textarea and selects", () => {
@@ -541,7 +547,7 @@ describe("Parser: will test template nodes", () => {
                             start: 5,
                             end: 49,
                         },
-                    ],
+                    ]
                 );
             });
 
@@ -793,6 +799,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "name",
+                    doubleQuotes: true,
                     start: 5,
                     end: 12,
                     value: [
@@ -812,6 +819,7 @@ describe("Parser: will test template nodes", () => {
                 {
                     type: "Attribute",
                     name: "name",
+                    doubleQuotes: false,
                     start: 5,
                     end: 17,
                     value: [
@@ -838,7 +846,7 @@ describe("Parser: will test template nodes", () => {
             "cannot use non identifier expression directly in attributes",
             () => {
                 parse(`<div {{ "random expression" }} />`);
-            },
+            }
         );
     });
 

@@ -222,6 +222,7 @@ function open(parser, start) {
 
         const parameters = [];
 
+        parser.allowWhitespace();
         parser.eat("(", true);
         parser.allowWhitespace();
         while (!parser.eat(")")) {
