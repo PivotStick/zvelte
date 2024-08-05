@@ -871,6 +871,7 @@ describe("Parser: will test expressions", () => {
                     start: 7,
                     end: 10,
                 },
+                withPipe: true,
                 optional: false,
                 arguments: [
                     {
@@ -889,6 +890,7 @@ describe("Parser: will test expressions", () => {
                 start: 3,
                 end: 12,
                 optional: false,
+                withPipe: true,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -912,6 +914,7 @@ describe("Parser: will test expressions", () => {
                 start: 3,
                 end: 16,
                 optional: false,
+                withPipe: true,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -949,6 +952,7 @@ describe("Parser: will test expressions", () => {
                 start: 3,
                 end: 12,
                 optional: false,
+                withPipe: false,
                 name: {
                     type: "Identifier",
                     name: "bar",
@@ -979,6 +983,7 @@ describe("Parser: will test expressions", () => {
                 type: "FilterExpression",
                 start: 3,
                 end: 14,
+                withPipe: false,
                 optional: true,
                 name: {
                     type: "Identifier",
@@ -1000,6 +1005,44 @@ describe("Parser: will test expressions", () => {
                         raw: "2",
                         start: 12,
                         end: 13,
+                    },
+                ],
+            });
+        });
+
+        test("optional form with pipe", () => {
+            ExpressionTagOf(`{{ stuff|bar?.(1, 2) }}`, {
+                type: "FilterExpression",
+                start: 3,
+                end: 20,
+                withPipe: true,
+                optional: true,
+                name: {
+                    type: "Identifier",
+                    name: "bar",
+                    start: 9,
+                    end: 12,
+                },
+                arguments: [
+                    {
+                        type: "Identifier",
+                        start: 3,
+                        end: 8,
+                        name: "stuff",
+                    },
+                    {
+                        type: "NumericLiteral",
+                        value: 1,
+                        raw: "1",
+                        start: 15,
+                        end: 16,
+                    },
+                    {
+                        type: "NumericLiteral",
+                        value: 2,
+                        raw: "2",
+                        start: 18,
+                        end: 19,
                     },
                 ],
             });

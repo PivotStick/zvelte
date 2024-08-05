@@ -26,7 +26,7 @@ export function parseAssignmentExpression(parser) {
         if (left.type !== "Identifier" && left.type !== "MemberExpression")
             throw parser.error(
                 `Invalid left-hand side in assignment`,
-                left.start
+                left.start,
             );
 
         parser.allowWhitespace();
@@ -451,8 +451,9 @@ export function parseChainableExpression(parser) {
             const args = [left];
 
             let end = name.end;
+            let optional = false;
 
-            if (parser.eat("(")) {
+            if (parser.eat("(") || (optional = parser.eat("?.("))) {
                 parser.allowWhitespace();
                 while (!parser.eof() && !parser.eat(")")) {
                     args.push(parseExpression(parser));
@@ -469,8 +470,9 @@ export function parseChainableExpression(parser) {
             left = {
                 type: "FilterExpression",
                 name,
+                withPipe: true,
                 arguments: args,
-                optional: false,
+                optional,
                 start,
                 end,
             };
@@ -502,6 +504,7 @@ export function parseChainableExpression(parser) {
                           name: left,
                           arguments: args,
                           optional,
+                          withPipe: false,
                           start,
                           end,
                       }
@@ -589,7 +592,7 @@ export function parseUpdateExpression(parser) {
                 `Invalid ${
                     prefix ? "right-hand" : "left-hand"
                 } side expression in prefix operator`,
-                argument.start
+                argument.start,
             );
 
         return {

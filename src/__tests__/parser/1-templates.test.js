@@ -573,6 +573,7 @@ describe("Parser: will test template nodes", () => {
                                     end: 28,
                                 },
                                 optional: false,
+                                withPipe: false,
                                 arguments: [
                                     {
                                         type: "StringLiteral",

@@ -979,6 +979,7 @@ describe("Parser: will test tags", () => {
                     expression: {
                         type: "FilterExpression",
                         optional: false,
+                        withPipe: false,
                         name: {
                             type: "Identifier",
                             name: "foo",

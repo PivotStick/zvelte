@@ -302,6 +302,7 @@ export interface FilterExpression extends BaseNode {
     name: Identifier;
     arguments: Expression[];
     optional: boolean;
+    withPipe: boolean;
 }
 
 export type MemberExpression = BaseNode & {
