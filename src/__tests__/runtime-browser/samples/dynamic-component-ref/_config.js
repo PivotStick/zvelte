@@ -3,7 +3,7 @@ import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
 
 // @ts-expect-error
-import Foo from "./Foo.twig";
+import Foo from "./Foo.zvelte";
 
 export default defineTest({
     get props() {

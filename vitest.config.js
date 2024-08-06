@@ -24,13 +24,14 @@ export default defineConfig({
             configResolved(config) {
                 root = config.root;
             },
-            async transform(code, id, options) {
+            async transform(code, id) {
                 let query = "";
                 [id, query] = id.split("?");
                 const params = new URLSearchParams(query);
 
+                if (!id.endsWith(".zvelte")) return;
+
                 if (
-                    id.endsWith(".zvelte") &&
                     id.startsWith(
                         join(root, "./src/__tests__/runtime-php-ssr/"),
                     )
@@ -60,32 +61,30 @@ export default defineConfig({
                     })};`;
                 }
 
-                if (id.endsWith(".twig")) {
-                    const hasJS = await access(id.replace(/\.twig$/, ".js"))
-                        .then(() => true)
-                        .catch(() => false);
+                const hasJS = await access(id.replace(/\.zvelte$/, ".js"))
+                    .then(() => true)
+                    .catch(() => false);
 
-                    let overrides = {};
+                let overrides = {};
 
-                    if (params.has("options")) {
-                        const base64 = /** @type {string} */ (
-                            params.get("options")
-                        );
-                        const json = atob(base64);
-                        overrides = JSON.parse(json);
-                    }
-
-                    /** @type {import("./src/compiler/types").CompilerOptions} */
-                    const options = {
-                        hasJS,
-                        namespace: dirname(id),
-                        filename: basename(id),
-                        generate: "dom",
-                        ...overrides,
-                    };
-
-                    return compile(code, options);
+                if (params.has("options")) {
+                    const base64 = /** @type {string} */ (
+                        params.get("options")
+                    );
+                    const json = atob(base64);
+                    overrides = JSON.parse(json);
                 }
+
+                /** @type {import("./src/compiler/types").CompilerOptions} */
+                const options = {
+                    hasJS,
+                    namespace: dirname(id),
+                    filename: basename(id),
+                    generate: "dom",
+                    ...overrides,
+                };
+
+                return compile(code, options);
             },
         },
     ],

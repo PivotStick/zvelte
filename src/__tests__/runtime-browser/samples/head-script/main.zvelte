@@ -1,0 +1,11 @@
+<zvelte:head>
+	<script>
+		// A comment
+        const val = 'Hello world';
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('button').textContent = val;
+        })
+	</script>
+</zvelte:head>
+
+<button></button>

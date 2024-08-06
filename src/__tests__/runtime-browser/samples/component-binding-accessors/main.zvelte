@@ -1,4 +1,4 @@
-{% import Nested from "./Nested.twig" %}
+{% import Nested from "./Nested.zvelte" %}
 
 <Nested bind:this={{ c }} bind:value />
 <input bind:value />

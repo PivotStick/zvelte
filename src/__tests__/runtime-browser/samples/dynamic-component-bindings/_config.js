@@ -3,9 +3,9 @@ import { tick } from "../../../../internal/client/index.js";
 import { defineTest, ok } from "../../defineTest.js";
 
 // @ts-ignore
-import Foo from "./Foo.twig";
+import Foo from "./Foo.zvelte";
 // @ts-ignore
-import Bar from "./Bar.twig";
+import Bar from "./Bar.zvelte";
 
 export default defineTest({
     get props() {

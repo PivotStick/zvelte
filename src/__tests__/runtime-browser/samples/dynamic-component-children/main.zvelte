@@ -1,4 +1,4 @@
-{% import Baz from "./Baz.twig" %}
+{% import Baz from "./Baz.zvelte" %}
 
 <zvelte:component this="{{ x ? Foo : Bar }}" x='{{x}}'>
 	<p>element</p>

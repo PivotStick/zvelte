@@ -616,6 +616,10 @@ const templateVisitors = {
     },
 
     RegularElement(node, context) {
+        if (node.name === "script") {
+            context.state.metadata.context.template_contains_script_tag = true;
+        }
+
         context.state.template.push(`<${node.name}`);
         let optionValue;
 
@@ -2483,6 +2487,7 @@ function serializeFunction(node, context) {
 function getTemplateFunction(namespace, state) {
     const contains_script_tag =
         state.metadata.context.template_contains_script_tag;
+
     return namespace === "svg"
         ? contains_script_tag
             ? "$.svg_template_with_script"

@@ -1,0 +1,4 @@
+{% import Widget from "./Widget.zvelte" %}
+
+<p>control</p>
+<Widget />

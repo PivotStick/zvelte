@@ -1,4 +1,4 @@
-{% import Child from "./Child.twig" %}
+{% import Child from "./Child.zvelte" %}
 
 <Child x={{ x ?? {} }} />
  

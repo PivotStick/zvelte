@@ -29,7 +29,7 @@ async function toTests(samples) {
     for (const key in samples) {
         const module = await samples[key]();
         const name = key.split("/").at(-2) ?? "";
-        const main = key.replace(/_config\.js$/, "main.twig");
+        const main = key.replace(/_config\.js$/, "main.zvelte");
 
         tests.push({
             name,

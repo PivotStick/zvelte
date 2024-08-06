@@ -34,7 +34,7 @@ export function compile(source, options = {}, meta = {}) {
     options.css ??= "injected";
     options.namespace ??= "Zvelte\\Components";
     options.internalsNamespace ??= "Zvelte\\Core";
-    options.filename ??= "Component.twig";
+    options.filename ??= "Component.zvelte";
     options.hasJS ??= false;
 
     const render = renderers[options.generate];

@@ -1,4 +1,4 @@
-{% import Widget from "./Widget.twig" %}
+{% import Widget from "./Widget.zvelte" %}
 
 <div>
     <Widget bind:this={{ widget }}/>

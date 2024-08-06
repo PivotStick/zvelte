@@ -1,4 +1,4 @@
-{% import RawMustache from "./RawMustache.twig" %}
+{% import RawMustache from "./RawMustache.zvelte" %}
 
 <button on:click={{ toggle }}>
 	Switch

@@ -3,9 +3,9 @@ import { tick } from "../../../../internal/client/index.js";
 import { defineTest } from "../../defineTest.js";
 
 // @ts-expect-error
-import Green from "./Green.twig";
+import Green from "./Green.zvelte";
 // @ts-expect-error
-import Red from "./Red.twig";
+import Red from "./Red.zvelte";
 
 export default defineTest({
     get props() {

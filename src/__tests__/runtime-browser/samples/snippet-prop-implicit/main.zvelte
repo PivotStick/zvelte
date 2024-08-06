@@ -1,4 +1,4 @@
-{% import Counter from "./Counter.twig" %}
+{% import Counter from "./Counter.zvelte" %}
 
 <Counter>
 	{% snippet foo(n) %}
