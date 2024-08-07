@@ -120,6 +120,12 @@ export interface ZvelteComponent extends BaseNode {
     fragment: Fragment;
     name: string;
     expression: Expression;
+    metadata: {
+        this: {
+            node: Attribute;
+            index: number;
+        };
+    };
 }
 
 export interface ZvelteElement extends BaseElement {

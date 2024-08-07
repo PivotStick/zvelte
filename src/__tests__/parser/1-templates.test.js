@@ -939,6 +939,31 @@ describe("Parser: will test template nodes", () => {
                         start: 37,
                         end: 37,
                     },
+                    metadata: {
+                        this: {
+                            index: 0,
+                            node: {
+                                doubleQuotes: true,
+                                end: 34,
+                                name: "this",
+                                start: 18,
+                                type: "Attribute",
+                                value: [
+                                    {
+                                        end: 33,
+                                        expression: {
+                                            end: 30,
+                                            name: "foo",
+                                            start: 27,
+                                            type: "Identifier",
+                                        },
+                                        start: 24,
+                                        type: "ExpressionTag",
+                                    },
+                                ],
+                            },
+                        },
+                    },
                 },
             ]);
         });
