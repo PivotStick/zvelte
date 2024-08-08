@@ -1,23 +1,8 @@
 import { test, describe } from "vitest";
-import { TemplateRootOf } from "./common.js";
 import { parse } from "../../compiler/phases/1-parse/index.js";
+import { ExpressionTagOf } from "./common.js";
 
 describe("Parser: will test expressions", () => {
-    /**
-     * @param {string} source
-     * @param {import("#ast").Expression} expression
-     */
-    const ExpressionTagOf = (source, expression) => {
-        TemplateRootOf(source, [
-            {
-                type: "ExpressionTag",
-                start: 0,
-                end: source.length,
-                expression,
-            },
-        ]);
-    };
-
     describe("Unexpected Token", () => {
         test.fails("empty", () => parse(`{{  }}`));
         test.fails("@", () => parse(`{{ @ }}`));

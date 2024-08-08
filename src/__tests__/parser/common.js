@@ -26,3 +26,18 @@ export function TemplateRootOf(source, nodes) {
 
     expect(parse(source)).toEqual(expectedAST);
 }
+
+/**
+ * @param {string} source
+ * @param {import("#ast").Expression} expression
+ */
+export const ExpressionTagOf = (source, expression) => {
+    TemplateRootOf(source, [
+        {
+            type: "ExpressionTag",
+            start: 0,
+            end: source.length,
+            expression,
+        },
+    ]);
+};
