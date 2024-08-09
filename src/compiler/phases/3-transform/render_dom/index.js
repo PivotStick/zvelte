@@ -211,7 +211,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                 b.call(
                     "$.push",
                     options.async
-                        ? b.id("$$props")
+                        ? b.call("$.wrap", b.id("$$props"))
                         : b.assignment(
                               "=",
                               b.id("$$props"),
