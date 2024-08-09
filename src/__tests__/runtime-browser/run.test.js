@@ -1,5 +1,6 @@
+import * as $ from "../../internal/client/runtime/index.js";
+
 import { describe, expect, test } from "vitest";
-import { mount, wrap } from "../../internal/client/runtime/index.js";
 import { raf } from "../animation-helpers.js";
 
 /**
@@ -69,11 +70,11 @@ function run(tests) {
             }
 
             const component = await get(payload);
-            const props = wrap(config.props ?? {});
+            const props = $.proxy(config.props ?? {});
 
-            const ref = mount(component.default, {
+            const ref = $.mount(component.default, {
                 target,
-                props,
+                props: bind(props),
             });
 
             if (typeof config.html === "string") {
@@ -100,3 +101,23 @@ function run(tests) {
 const modern = await toTests(samples);
 
 describe("runtime-browser", () => run(modern));
+
+/**
+ * @param {Record<string, any>} props
+ */
+function bind(props) {
+    const bindings = {};
+
+    for (const key in props) {
+        Object.defineProperty(bindings, key, {
+            get() {
+                return props[key];
+            },
+            set(v) {
+                props[key] = v;
+            },
+        });
+    }
+
+    return bindings;
+}

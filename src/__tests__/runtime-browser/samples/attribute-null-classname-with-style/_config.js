@@ -3,6 +3,12 @@ import { defineTest, ok } from "../../defineTest.js";
 import { tick } from "../../../../internal/client/index.js";
 
 export default defineTest({
+    get props() {
+        return {
+            testName: /** @type {any} */ (undefined),
+        };
+    },
+
     html: '<div class=" zvelte-x1o6ra"></div>',
 
     async test({ props, target }) {

@@ -67,6 +67,7 @@ export function renderDom(source, ast, analysis, options, meta) {
         nonPropGetters: [],
         nonPropUnwraps: [],
         overrides: {},
+        initProps: new Set(),
         ignoreScope: false,
         els: false,
         // these should be set by create_block - if they're called outside, it's a bug
@@ -211,7 +212,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                 b.call(
                     "$.push",
                     options.async
-                        ? b.call("$.wrap", b.id("$$props"))
+                        ? b.id("$$props")
                         : b.assignment(
                               "=",
                               b.id("$$props"),
@@ -247,6 +248,19 @@ export function renderDom(source, ast, analysis, options, meta) {
                 b.prop("init", b.id("refresh"), b.id("$$refresh")),
             );
         }
+    } else {
+        component.body.body.unshift(
+            b.stmt(
+                b.assignment(
+                    "=",
+                    b.id("$$props"),
+                    b.call("$.wrap", b.id("$$props")),
+                ),
+            ),
+            ...[...state.initProps].map((prop) =>
+                b.stmt(b.member(b.id("$$props"), b.id(prop))),
+            ),
+        );
     }
 
     /**
@@ -1466,6 +1480,9 @@ const templateVisitors = {
             } else if (state.nonPropGetters.includes(member.object.name)) {
                 member = b.member(b.call(member.object), property);
             } else if (!state.nonPropVars.includes(member.object.name)) {
+                if (!state.options.hasJS)
+                    state.initProps.add(member.object.name);
+
                 member = b.member(
                     state.options.hasJS
                         ? state.els
@@ -1499,6 +1516,8 @@ const templateVisitors = {
             } else if (state.nonPropGetters.includes(id.name)) {
                 id = b.call(id);
             } else if (!state.nonPropVars.includes(id.name)) {
+                if (!state.options.hasJS) state.initProps.add(id.name);
+
                 id = b.member(
                     state.options.hasJS
                         ? state.els
