@@ -51,8 +51,8 @@ export function buildLoadWrapper({
         b.id("$$load"),
         [b.id("$$anchor"), b.id("$$props")],
         b.block([
-            b.const("$$error", b.id("$$props.__$$error")),
-            b.const("$$pending", b.id("$$props.__$$pending")),
+            b.const("$$error", errorId ?? b.id("$$props.__$$error")),
+            b.const("$$pending", pendingId ?? b.id("$$props.__$$pending")),
             b.stmt(
                 b.assignment(
                     "=",
@@ -105,9 +105,7 @@ export function buildLoadWrapper({
                         ]),
                     ),
                     // await
-                    pendingId
-                        ? b.logical(b.id("$$pending"), "??", pendingId)
-                        : b.id("$$pending"),
+                    b.id("$$pending"),
                 ),
             ),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
