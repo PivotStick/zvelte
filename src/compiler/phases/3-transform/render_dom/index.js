@@ -284,7 +284,7 @@ export function renderDom(source, ast, analysis, options, meta) {
         }
 
         if (options.async.errorComponent) {
-            errorId = b.id("__$$pending");
+            errorId = b.id("__$$error");
             body.unshift(
                 b.importDefault(errorId.name, options.async.errorComponent),
             );
