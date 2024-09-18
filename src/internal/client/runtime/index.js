@@ -215,6 +215,7 @@ export { in_expression as in };
  * @param {any} $$props
  */
 export function wrap($$props) {
+    $$props ??= {};
     const flags = PROPS_IS_IMMUTABLE | PROPS_IS_RUNES | PROPS_IS_UPDATED;
 
     const cache = Object.keys($$props).reduce((o, key) => {

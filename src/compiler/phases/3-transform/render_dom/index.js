@@ -276,8 +276,14 @@ export function renderDom(source, ast, analysis, options, meta) {
         let pendingId;
         let errorId;
 
+        /**
+         * @type {Record<string, import("estree").Identifier>}
+         */
+        const exportSpecifiers = {};
+
         if (options.async.pendingComponent) {
             pendingId = b.id("__$$pending");
+            exportSpecifiers[pendingId.name] = pendingId;
             body.unshift(
                 b.importDefault(pendingId.name, options.async.pendingComponent),
             );
@@ -285,6 +291,7 @@ export function renderDom(source, ast, analysis, options, meta) {
 
         if (options.async.errorComponent) {
             errorId = b.id("__$$error");
+            exportSpecifiers[errorId.name] = errorId;
             body.unshift(
                 b.importDefault(errorId.name, options.async.errorComponent),
             );
@@ -305,8 +312,13 @@ export function renderDom(source, ast, analysis, options, meta) {
                     b.call("$.create_load", b.literal(options.async.endpoint)),
                 ),
             ),
+            b.exportDefault(load),
         );
-        body.push(b.exportDefault(load));
+
+        if (Object.keys(exportSpecifiers).length) {
+            body.push(b.exportSpecifiers(exportSpecifiers));
+        }
+
         exportDefaultId = load.id;
     } else {
         body.push(b.exportDefault(component));

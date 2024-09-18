@@ -216,6 +216,35 @@ export function exportNamed(declaration) {
 }
 
 /**
+ * @param {Record<string, import("estree").Identifier>} specifiers
+ * @returns {import('estree').ExportNamedDeclaration}
+ */
+export function exportSpecifiers(specifiers) {
+    /**
+     * @type {import("estree").ExportSpecifier[]}
+     */
+    const mapped = [];
+
+    for (const key in specifiers) {
+        if (specifiers.hasOwnProperty(key)) {
+            const exported = specifiers[key];
+
+            mapped.push({
+                type: "ExportSpecifier",
+                local: id(key),
+                exported,
+            });
+        }
+    }
+
+    return {
+        type: "ExportNamedDeclaration",
+        declaration: null,
+        specifiers: mapped,
+    };
+}
+
+/**
  * @param {import('estree').Statement[]} body
  * @returns {import('estree').BlockStatement}
  */
