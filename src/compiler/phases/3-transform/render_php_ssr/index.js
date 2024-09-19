@@ -91,10 +91,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
         b.returnExpression(b.array(state.usedComponents)),
     );
 
-    const renderer = b.declareClass(componentName, [
-        renderMethod,
-        getAllComponentsMethod,
-    ]);
+    const renderer = b.declareClass(componentName, [renderMethod]);
 
     const namespace = [];
 
@@ -675,10 +672,11 @@ const visitors = {
         );
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
-        context.state.append(
+        context.state.block.children.push(
             context.state.internal(
                 "component",
                 b.string(className.name),
+                b.variable(outputName),
                 props,
             ),
         );
@@ -690,8 +688,11 @@ const visitors = {
         const props = getComponentProps(node, context);
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
-        context.state.append(
-            b.ternary(callee, b.call(callee, [props], true), b.string("")),
+        context.state.block.children.push(
+            b.ifStatement(
+                b.call("is_callable", [callee]),
+                b.block([b.call(callee, [b.variable(outputName), props])]),
+            ),
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
     },
@@ -1110,31 +1111,19 @@ function getComponentProps(node, context) {
  */
 function createSnippetClosure(context, parameters, nodes) {
     const parent = context.path[context.path.length - 1];
-    const scopeVars = [
-        ...context.state.scopeVars,
-        ...new Set(context.state.nonPropVars),
-    ];
     const nonPropVars = [...context.state.nonPropVars];
 
-    const params = [
-        b.parameter(propsName),
-        b.parameter("scope"),
-        b.parameter(outputName),
-    ];
+    const params = [b.parameter(outputName)];
 
     for (const param of parameters) {
         nonPropVars.push(param.name);
         params.push(b.parameter(param.name));
     }
 
-    const fn = b.closure(true, params);
-    const scope = b.cast(
-        b.array(scopeVars.map((v) => b.entry(b.variable(v), b.string(v)))),
-        "object",
-    );
-
-    context.state.import("Snippet");
-    const snippet = b.new("Snippet", b.variable("props"), scope, fn);
+    const snippet = b.closure(true, params, [
+        b.variable("props"),
+        ...nonPropVars.map((n) => b.variable(n)),
+    ]);
 
     const { trimmed, hoisted } = cleanNodes(
         parent,
@@ -1151,10 +1140,9 @@ function createSnippetClosure(context, parameters, nodes) {
             state: createState(
                 {
                     ...context.state,
-                    scopeVars,
                     nonPropVars,
                 },
-                fn.body,
+                snippet.body,
             ),
         },
         [...hoisted, ...trimmed],
