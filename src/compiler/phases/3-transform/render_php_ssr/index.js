@@ -691,7 +691,11 @@ const visitors = {
         context.state.block.children.push(
             b.ifStatement(
                 b.call("is_callable", [callee]),
-                b.block([b.call(callee, [b.variable(outputName), props])]),
+                b.block([
+                    b.stmt(
+                        b.call(callee, [b.variable(outputName), props], true),
+                    ),
+                ]),
             ),
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
