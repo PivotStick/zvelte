@@ -36,6 +36,8 @@ export function compile(source, options = {}, meta = {}) {
     options.internalsNamespace ??= "Zvelte\\Core";
     options.filename ??= "Component.zvelte";
     options.hasJS ??= false;
+    options.preserveWhitespace ??= false;
+    options.preserveComments ??= true;
 
     const render = renderers[options.generate];
 
@@ -49,8 +51,8 @@ export function compile(source, options = {}, meta = {}) {
         hasJS: options.hasJS,
         generate: options.generate,
         async: options.async,
-        preserveWhitespace: false,
-        preserveComments: true,
+        preserveWhitespace: options.preserveWhitespace,
+        preserveComments: options.preserveComments,
         css: options.css,
         dev: options.dev,
     };
