@@ -81,6 +81,7 @@ export default defineConfig({
                     namespace: dirname(id),
                     filename: basename(id),
                     generate: "dom",
+                    preserveComments: true,
                     ...overrides,
                 };
 

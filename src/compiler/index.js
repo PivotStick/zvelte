@@ -37,7 +37,7 @@ export function compile(source, options = {}, meta = {}) {
     options.filename ??= "Component.zvelte";
     options.hasJS ??= false;
     options.preserveWhitespace ??= false;
-    options.preserveComments ??= true;
+    options.preserveComments ??= false;
 
     const render = renderers[options.generate];
 

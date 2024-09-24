@@ -189,9 +189,13 @@ export function renderDom(source, ast, analysis, options, meta) {
 
     const component = b.function_declaration(
         state.componentId,
-        [b.id("$$anchor"), b.id("$$props")],
+        [b.id("$$anchor")],
         b.block(/** @type {import('estree').Statement[]} */ (template.body)),
     );
+
+    if (analysis.usesProps) {
+        component.params.push(b.id("$$props"));
+    }
 
     if (options.hasJS) {
         state.hoisted.unshift(
@@ -211,7 +215,7 @@ export function renderDom(source, ast, analysis, options, meta) {
             b.stmt(
                 b.call(
                     "$.push",
-                    options.async
+                    options.async || !analysis.usesProps
                         ? b.id("$$props")
                         : b.assignment(
                               "=",
@@ -250,17 +254,22 @@ export function renderDom(source, ast, analysis, options, meta) {
         }
     } else {
         component.body.body.unshift(
-            b.stmt(
-                b.assignment(
-                    "=",
-                    b.id("$$props"),
-                    b.call("$.wrap", b.id("$$props")),
-                ),
-            ),
             ...[...state.initProps].map((prop) =>
                 b.stmt(b.member(b.id("$$props"), b.id(prop))),
             ),
         );
+
+        if (analysis.usesProps) {
+            component.body.body.unshift(
+                b.stmt(
+                    b.assignment(
+                        "=",
+                        b.id("$$props"),
+                        b.call("$.wrap", b.id("$$props")),
+                    ),
+                ),
+            );
+        }
     }
 
     /**
@@ -534,6 +543,8 @@ function createBlock(parent, name, nodes, context) {
  * @param {import('./types.js').ComponentContext} context
  */
 function processChildren(nodes, expression, isElement, { visit, state }) {
+    const within_bound_contenteditable = state.metadata.bound_contenteditable;
+
     /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag>} Sequence */
 
     /** @type {Sequence} */
@@ -559,12 +570,29 @@ function processChildren(nodes, expression, isElement, { visit, state }) {
                 state,
             });
 
-            state.update.push(
-                b.call(
-                    "$.template_effect",
-                    b.thunk(b.call("$.set_text", id, value)),
-                ),
-            );
+            const update = b.stmt(b.call("$.set_text", id, value));
+
+            if (
+                sequence.some(
+                    (node) =>
+                        node.type === "ExpressionTag" && node.metadata.dynamic,
+                ) &&
+                !within_bound_contenteditable
+            ) {
+                state.update.push(
+                    b.call("$.template_effect", b.thunk(update.expression)),
+                );
+            } else {
+                state.init.push(
+                    b.stmt(
+                        b.assignment(
+                            "=",
+                            b.member(id, b.id("nodeValue")),
+                            value,
+                        ),
+                    ),
+                );
+            }
         }
     }
 

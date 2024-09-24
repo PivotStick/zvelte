@@ -43,6 +43,7 @@ export function analyseComponent(root, options) {
             scope,
             scopes,
         },
+        usesProps: options.hasJS,
         bindingGroups: new Map(),
     };
 
@@ -124,6 +125,23 @@ const visitors = {
         node.metadata ??= {};
         return next();
     },
+    Identifier(node, { state, next }) {
+        state.analysis.usesProps = true;
+        return next();
+    },
+    ExpressionTag(node, { next }) {
+        walk(
+            node.expression,
+            {},
+            {
+                Identifier() {
+                    node.metadata.dynamic = true;
+                },
+            },
+        );
+
+        return next();
+    },
     RegularElement(node, context) {
         if (context.state.options.namespace !== "foreign") {
             if (SVGElements.includes(node.name)) node.metadata.svg = true;
@@ -202,7 +220,7 @@ const visitors = {
         context.next();
     },
     BindDirective(node, context) {
-        if (node.name !== "group") return;
+        if (node.name !== "group") return context.next();
 
         // Traverse the path upwards and find all EachBlocks who are (indirectly) contributing to bind:group,
         // i.e. one of their declarations is referenced in the binding. This allows group bindings to work
@@ -268,6 +286,8 @@ const visitors = {
             binding_group_name: group_name,
             parent_each_blocks: each_blocks,
         };
+
+        return context.next();
     },
 };
 
