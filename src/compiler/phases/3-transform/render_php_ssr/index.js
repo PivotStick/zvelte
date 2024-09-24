@@ -673,11 +673,13 @@ const visitors = {
 
         context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.block.children.push(
-            context.state.internal(
-                "component",
-                b.string(className.name),
-                b.variable(outputName),
-                props,
+            b.stmt(
+                context.state.internal(
+                    "component",
+                    b.string(className.name),
+                    b.variable(outputName),
+                    props,
+                ),
             ),
         );
         context.state.appendText(`<!--${HYDRATION_END}-->`);
