@@ -1,3 +1,4 @@
 node_modules
 /coverage/
 /src/__tests__/runtime-php-ssr/php/current.php
+/src/__tests__/php/components/**/*.php

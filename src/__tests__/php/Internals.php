@@ -19,7 +19,12 @@ class Internals
 
     public static function escape_html(mixed $value, bool $is_attr = false): string
     {
-        $str = strval($value ?? '');
+        $str = is_scalar($value)
+            ? (is_bool($value)
+                ? ($value ? 'true' : 'false')
+                : strval($value))
+            : '';
+
         return htmlspecialchars($str, $is_attr ? ENT_QUOTES : ENT_NOQUOTES);
     }
 
@@ -85,5 +90,36 @@ class Internals
         }
 
         return '' === $value || false === $value || null === $value || [] === $value;
+    }
+
+    public static function component(string $className, object $payload, object $props)
+    {
+        $className = str_replace('/', '\\', $className);
+        $className::render($payload, $props);
+    }
+
+    public static function spread_props(...$objects)
+    {
+        $out = [];
+
+        foreach ($objects as $o) {
+            $out = [...$out, ...(array)$o];
+        }
+
+        return (object)$out;
+    }
+
+    public static function head(object $payload, callable $render): void
+    {
+        $fakePayload = (object)['title' => '', 'out' => ''];
+
+        $render($fakePayload);
+
+        $payload->head->out .= '<!--[-->';
+        $payload->head->out .= $fakePayload->out;
+        $payload->head->out .= '<!--]-->';
+        if (!empty($fakePayload->title)) {
+            $payload->head->title = sprintf('<title>%s</title>', $fakePayload->title);
+        }
     }
 }

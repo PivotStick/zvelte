@@ -971,12 +971,7 @@ const templateVisitors = {
                             const indexes = [];
                             for (const parent_each_block of attr.metadata
                                 .parent_each_blocks) {
-                                indexes.push(
-                                    b.call(
-                                        "$.unwrap",
-                                        parent_each_block.metadata.index,
-                                    ),
-                                );
+                                indexes.push(parent_each_block.metadata.index);
                             }
 
                             const removeDefaults = b.call(
@@ -1514,7 +1509,7 @@ const templateVisitors = {
                 const o = state.overrides[member.object.name];
                 member = b.member(o, property);
             } else if (state.nonPropUnwraps.includes(member.object.name)) {
-                member = b.member(b.call("$.unwrap", member.object), property);
+                member = b.member(member.object, property);
             } else if (state.nonPropSources.includes(member.object.name)) {
                 member = b.member(b.call("$.get", member.object), property);
             } else if (state.nonPropGetters.includes(member.object.name)) {
@@ -1550,7 +1545,7 @@ const templateVisitors = {
             if (state.overrides[id.name]) {
                 id = state.overrides[id.name];
             } else if (state.nonPropUnwraps.includes(id.name)) {
-                id = b.call("$.unwrap", id);
+                id = id;
             } else if (state.nonPropSources.includes(id.name)) {
                 id = b.call("$.get", id);
             } else if (state.nonPropGetters.includes(id.name)) {
@@ -1887,10 +1882,7 @@ const templateVisitors = {
         ) {
             forType |= EACH_KEYED;
 
-            key = b.arrow(
-                [b.id("$$key"), b.id("$$index")],
-                b.call("$.unwrap", b.id("$$key")),
-            );
+            key = b.arrow([b.id("$$key"), b.id("$$index")], b.id("$$key"));
 
             // If there's a destructuring, then we likely need the generated $$index
             if (node.index || node.context.type !== "Identifier") {
@@ -1937,7 +1929,7 @@ const templateVisitors = {
             "$.iterable",
             /** @type {import("estree").Expression} */ (visit(node.expression)),
         );
-        const unwrapIndex = b.call("$.unwrap", b.id("$$index"));
+        const unwrapIndex = b.id("$$index");
         const loopInit = [];
 
         if (isInForBlock) {
@@ -2113,16 +2105,23 @@ const templateVisitors = {
             (props, bindThis) =>
                 b.call(
                     "$.component",
+                    nodeId,
                     b.thunk(
                         /** @type {import('estree').Expression} */ (
                             context.visit(node.expression)
                         ),
                     ),
                     b.arrow(
-                        [b.id("$$component")],
+                        [b.id("$$anchor"), b.id("$$component")],
                         b.block([
                             b.stmt(
-                                bindThis(b.call("$$component", nodeId, props)),
+                                bindThis(
+                                    b.call(
+                                        "$$component",
+                                        b.id("$$anchor"),
+                                        props,
+                                    ),
+                                ),
                             ),
                         ]),
                     ),
