@@ -399,30 +399,47 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {import("../type.js").UseGroup} node
+     */
     usegroup(node, state) {
-        const chunks = [];
+        const chunks = [c("use ")];
 
         if (node.name) {
-            chunks.push(c(`use ${node.name}\\`));
-            if (node.items.length > 1) chunks.push(c("{"));
+            chunks.push(c(node.name));
 
-            node.items.forEach((item, i, arr) => {
-                push_array(chunks, handle(item, state));
-                if (i < arr.length - 1) {
-                    chunks.push(c(", "));
-                }
-            });
-
-            if (node.items.length > 1) chunks.push(c("}"));
+            if (node.items.length) {
+                chunks.push(c("\\"));
+            }
         }
+
+        if (node.items.length > 1) chunks.push(c("{"));
+
+        node.items.forEach((item, i, arr) => {
+            push_array(chunks, handle(item, state));
+            if (i < arr.length - 1) {
+                chunks.push(c(", "));
+            }
+        });
+
+        if (node.items.length > 1) chunks.push(c("}"));
 
         chunks.push(c(";"));
 
         return chunks;
     },
 
+    /**
+     * @param {import("../type.js").UseItem} node
+     */
     useitem(node, state) {
-        return [c(node.name)];
+        const chunks = [c(node.name)];
+
+        if (node.alias) {
+            chunks.push(c(" as "), ...handle(node.alias, state));
+        }
+
+        return chunks;
     },
 
     selfreference(node, state) {

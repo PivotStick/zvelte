@@ -25,11 +25,11 @@ const propsName = "props";
  *  nonPropVars: string[];
  *  scopeVars: string[];
  *  isInIsset: boolean;
- *  usedComponents: import("./type.js").Entry[];
  *  counter: number;
  *  import(name: string): void;
  *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
  *  componentName: string;
+ *  use: (path: string, key?: string) => void;
  *  imports: import("#ast").Root["imports"];
  *  skipHydrationBoundaries: boolean;
  * }} State
@@ -42,7 +42,6 @@ const propsName = "props";
  */
 export function renderPhpSSR(source, ast, analysis, options, meta) {
     const renderMethod = b.method("render", "void");
-    const getAllComponentsMethod = b.method("getAllComponents", "array");
 
     renderMethod.isStatic = true;
     renderMethod.arguments.push(
@@ -50,9 +49,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
         b.parameter(propsName, "object"),
     );
 
-    getAllComponentsMethod.isStatic = true;
     const param = b.parameter(propsName, "object");
-    getAllComponentsMethod.arguments.push(param);
     param.nullable = true;
     param.value = b.nullKeyword();
 
@@ -62,17 +59,22 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
      * @type {Set<string>}
      */
     const internalImports = new Set();
+
+    const namespace = [];
+
     const state = createState(
         {
             isInIsset: false,
             options,
             nonPropVars: [],
             scopeVars: [],
-            usedComponents: [],
             imports: ast.imports,
             counter: 0,
             componentName,
             skipHydrationBoundaries: false,
+            use(path, key) {
+                namespace.push(b.useitem(path, key));
+            },
             import(name) {
                 internalImports.add(name);
             },
@@ -89,14 +91,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
 
     walk(ast, state, visitors);
 
-    getAllComponentsMethod.body.children.push(
-        b.assign(b.variable(propsName), "??=", b.object()),
-        b.returnExpression(b.array(state.usedComponents)),
-    );
-
     const renderer = b.declareClass(componentName, [renderMethod]);
-
-    const namespace = [];
 
     if (internalImports.size) {
         namespace.push(
@@ -674,36 +669,32 @@ const visitors = {
         const source = context.state.imports.find(
             (i) => i.specifier.name === node.name,
         )?.source.value;
-        if (!source)
-            throw new Error(
-                `Component ${node.name} not found, forgot an import tag?`,
-            );
 
-        const className = b.name(source);
         const props = getComponentProps(node, context);
 
-        context.state.usedComponents.push(
-            b.entry(
-                b.objectFromLiteral({
-                    key: b.string(source),
-                    props: b.object(),
-                }),
-            ),
-        );
+        if (source) {
+            context.state.use(source.replace(/\//g, "\\"), node.name);
 
-        context.state.block.children.push(
-            b.stmt(
-                context.state.internal(
-                    "component",
-                    b.string(className.name),
-                    b.variable(outputName),
-                    props,
+            context.state.block.children.push(
+                b.stmt(
+                    b.call(b.name(node.name), [b.variable(outputName), props]),
                 ),
-            ),
-        );
+            );
 
-        if (!context.state.skipHydrationBoundaries) {
-            context.state.appendText(EMPTY_COMMENT);
+            if (!context.state.skipHydrationBoundaries) {
+                context.state.appendText(EMPTY_COMMENT);
+            }
+        } else {
+            const callee = /** @type {any} */ (
+                context.visit({
+                    type: "Identifier",
+                    name: node.name,
+                    end: -1,
+                    start: -1,
+                })
+            );
+
+            buildDynamicComponent(context, props, callee);
         }
     },
 
@@ -711,18 +702,7 @@ const visitors = {
         const callee = /** @type {any} */ (context.visit(node.expression));
         const props = getComponentProps(node, context);
 
-        context.state.appendText(EMPTY_COMMENT);
-        context.state.block.children.push(
-            b.ifStatement(
-                b.call("is_callable", [callee]),
-                b.block([
-                    b.stmt(
-                        b.call(callee, [b.variable(outputName), props], true),
-                    ),
-                ]),
-            ),
-        );
-        context.state.appendText(EMPTY_COMMENT);
+        buildDynamicComponent(context, props, callee);
     },
 
     ZvelteSelf(node, context) {
@@ -1090,6 +1070,26 @@ const visitors = {
         return member;
     },
 };
+
+/**
+ * @param {ComponentContext} context
+ * @param {ReturnType<typeof getComponentProps>} props
+ * @param {import("./type.js").Expression} callee
+ */
+function buildDynamicComponent(context, props, callee) {
+    context.state.appendText(EMPTY_COMMENT);
+
+    context.state.block.children.push(
+        b.ifStatement(
+            b.call("is_callable", [callee]),
+            b.block([
+                b.stmt(b.call(callee, [b.variable(outputName), props], true)),
+            ]),
+        ),
+    );
+
+    context.state.appendText(EMPTY_COMMENT);
+}
 
 /**
  * @param {import("#ast").ZvelteSelf | import("#ast").ZvelteComponent | import("#ast").Component} node

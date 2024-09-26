@@ -145,6 +145,20 @@ const visitors = {
 
         return next();
     },
+    Component(node, { state, next, path }) {
+        if (path[0].type === "Root") {
+            for (const i of path[0].imports) {
+                if (i.specifier.name === node.name) {
+                    node.metadata.source = i.source.value;
+                    return next();
+                }
+            }
+        }
+
+        state.analysis.usesProps = true;
+
+        return next();
+    },
     RegularElement(node, context) {
         if (context.state.options.namespace !== "foreign") {
             if (SVGElements.includes(node.name)) node.metadata.svg = true;

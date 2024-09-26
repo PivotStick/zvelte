@@ -272,13 +272,14 @@ export type ArrowFunc = {
 
 export type UseGroup = {
     kind: "usegroup";
-    name: string;
+    name: string | null;
     items: UseItem[];
 };
 
 export type UseItem = {
     kind: "useitem";
     name: string;
+    alias: null | Identifier;
 };
 
 export type New = {

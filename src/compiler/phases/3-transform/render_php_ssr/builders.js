@@ -633,7 +633,27 @@ export function use(name, ...items) {
     return {
         kind: "usegroup",
         name,
-        items: items.map((name) => ({ kind: "useitem", name })),
+        items: items.map((name) => ({ kind: "useitem", name, alias: null })),
+    };
+}
+
+/**
+ * @param {string} name
+ * @param {string | null} [alias=null]
+ *
+ * @returns {import("./type.js").UseGroup}
+ */
+export function useitem(name, alias = null) {
+    return {
+        kind: "usegroup",
+        name: null,
+        items: [
+            {
+                kind: "useitem",
+                name,
+                alias: alias ? id(alias) : null,
+            },
+        ],
     };
 }
 

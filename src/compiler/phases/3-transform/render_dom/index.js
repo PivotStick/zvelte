@@ -2113,13 +2113,25 @@ const templateVisitors = {
     },
 
     Component(node, context) {
+        // This is the "x" of this example -> {% import Component from "x" %}
+        // It is optional, if it's not found it will assume that this is a dynamic component that comes from the props
+        const source = node.metadata.source;
+
         context.state.template.push("<!>");
 
         const nodeId = context.state.node;
         const statement = serializeComponentProps(
             node,
             context,
-            (props, bindThis) => bindThis(b.call(node.name, nodeId, props)),
+            source
+                ? (props, bindThis) =>
+                      bindThis(b.call(node.name, nodeId, props))
+                : getDynamicComponentBuilder(context, nodeId, {
+                      type: "Identifier",
+                      name: node.name,
+                      start: -1,
+                      end: -1,
+                  }),
         );
 
         context.state.init.push(statement);
@@ -2132,30 +2144,7 @@ const templateVisitors = {
         const statement = serializeComponentProps(
             node,
             context,
-            (props, bindThis) =>
-                b.call(
-                    "$.component",
-                    nodeId,
-                    b.thunk(
-                        /** @type {import('estree').Expression} */ (
-                            context.visit(node.expression)
-                        ),
-                    ),
-                    b.arrow(
-                        [b.id("$$anchor"), b.id("$$component")],
-                        b.block([
-                            b.stmt(
-                                bindThis(
-                                    b.call(
-                                        "$$component",
-                                        b.id("$$anchor"),
-                                        props,
-                                    ),
-                                ),
-                            ),
-                        ]),
-                    ),
-                ),
+            getDynamicComponentBuilder(context, nodeId, node.expression),
         );
 
         context.state.init.push(statement);
@@ -2661,4 +2650,34 @@ export function create_derived_block_argument(node, context) {
  */
 export function create_derived(state, arg) {
     return b.call("$.derived", arg);
+}
+
+/**
+ * @param {import("./types.js").ComponentContext} context
+ * @param {*} nodeId
+ * @param {import("#ast").Expression} expression
+ *
+ * @returns {Parameters<typeof serializeComponentProps>[2]}
+ */
+function getDynamicComponentBuilder(context, nodeId, expression) {
+    return (props, bindThis) =>
+        b.call(
+            "$.component",
+            nodeId,
+            b.thunk(
+                /** @type {import('estree').Expression} */ (
+                    context.visit(expression)
+                ),
+            ),
+            b.arrow(
+                [b.id("$$anchor"), b.id("$$component")],
+                b.block([
+                    b.stmt(
+                        bindThis(
+                            b.call("$$component", b.id("$$anchor"), props),
+                        ),
+                    ),
+                ]),
+            ),
+        );
 }
