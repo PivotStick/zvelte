@@ -197,7 +197,7 @@ const visitors = {
     },
 
     Root(node, context) {
-        const { trimmed, hoisted, isTextFirst } = cleanNodes(
+        const { trimmed, hoisted, isTextFirst, isStandalone } = cleanNodes(
             node,
             node.fragment.nodes,
             [node],
@@ -214,7 +214,12 @@ const visitors = {
             context.state.appendText(EMPTY_COMMENT);
         }
 
-        renderBlock(context, [...hoisted, ...trimmed]);
+        const state = {
+            ...context.state,
+            skipHydrationBoundaries: isStandalone,
+        };
+
+        renderBlock({ ...context, state }, [...hoisted, ...trimmed]);
 
         if (context.state.options.async) {
             context.state.appendText(BLOCK_CLOSE);
@@ -233,19 +238,21 @@ const visitors = {
             state.options.preserveComments,
         );
 
+        state = {
+            ...state,
+            skipHydrationBoundaries: isStandalone,
+        };
+
         if (isTextFirst) {
             state.appendText(EMPTY_COMMENT);
         }
 
         for (const node of hoisted) {
-            visit(node);
+            visit(node, state);
         }
 
         for (const node of trimmed) {
-            visit(node, {
-                ...state,
-                skipHydrationBoundaries: isStandalone,
-            });
+            visit(node, state);
         }
     },
 
