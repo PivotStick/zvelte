@@ -258,8 +258,6 @@ const visitors = {
     },
 
     IfBlock(node, { state, visit }) {
-        state.appendText(BLOCK_OPEN);
-
         // @ts-ignore
         const test = /** @type {import("./type.js").Expression} */ (
             visit(node.test)
@@ -268,13 +266,15 @@ const visitors = {
         const consequent = createState(state, b.block());
         const alternate = createState(state, b.block());
 
+        consequent.appendText(BLOCK_OPEN);
+
         visit(node.consequent, consequent);
+
+        alternate.appendText(BLOCK_OPEN_ELSE);
 
         if (node.alternate) {
             visit(node.alternate, alternate);
         }
-
-        alternate.appendText(BLOCK_OPEN_ELSE);
 
         state.block.children.push(
             b.ifStatement(test, consequent.block, alternate.block),
