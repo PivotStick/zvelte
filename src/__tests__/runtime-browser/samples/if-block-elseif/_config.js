@@ -7,15 +7,15 @@ export default defineTest({
         return { x: 11 };
     },
 
-    html: "<p>x is greater than 10</p>",
+    html: "<!----><p>x is greater than 10</p>",
 
     async test({ props, target }) {
         props.x = 4;
         await tick();
-        expect(target.innerHTML, "<p>x is less than 5</p>");
+        expect(target.innerHTML, "<!----><p>x is less than 5</p>");
 
         props.x = 6;
         await tick();
-        expect(target.innerHTML, "<p>x is between 5 and 10</p>");
+        expect(target.innerHTML, "<!----><p>x is between 5 and 10</p>");
     },
 });

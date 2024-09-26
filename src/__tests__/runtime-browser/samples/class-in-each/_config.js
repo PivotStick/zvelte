@@ -10,13 +10,13 @@ export default defineTest({
         };
     },
 
-    html: '<div></div><div class="selected"></div><div></div>',
+    html: '<!----><div></div><div class="selected"></div><div></div>',
 
     async test({ props, target }) {
         props.selected = "three";
         await tick();
         expect(target.innerHTML).toEqual(
-            '<div></div><div class=""></div><div class="selected"></div>',
+            '<!----><div></div><div class=""></div><div class="selected"></div>',
         );
     },
 });

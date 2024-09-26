@@ -15,7 +15,7 @@ export default defineTest({
         };
     },
 
-    html: "<p>value(1) = 1</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
+    html: "<!----><p>value(1) = 1</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
 
     async test({ target }) {
         const button = target.querySelector("button");
@@ -25,14 +25,14 @@ export default defineTest({
         await tick();
 
         expect(target.innerHTML).toEqual(
-            "<p>value(2) = 2</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
+            "<!----><p>value(2) = 2</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
         );
 
         button.dispatchEvent(new window.Event("click"));
         await tick();
 
         expect(target.innerHTML).toEqual(
-            "<p>value(1) = 1</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
+            "<!----><p>value(1) = 1</p> <p>foo=bar</p> <p>typeof cb=function () {}</p><!----> <button>Toggle Component</button>",
         );
     },
 });

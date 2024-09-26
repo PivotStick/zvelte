@@ -17,18 +17,18 @@ export default defineTest({
         };
     },
 
-    html: "<p>green one</p>",
+    html: "<!----><p>green one</p>",
 
     async test({ props, target }) {
         props.x = false;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>red one</p>");
+        expect(target.innerHTML).toEqual("<!----><p>red one</p>");
 
         props.foo = "two";
         props.x = true;
         await tick();
 
-        expect(target.innerHTML).toEqual("<p>green two</p>");
+        expect(target.innerHTML).toEqual("<!----><p>green two</p>");
     },
 });

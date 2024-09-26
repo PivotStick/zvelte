@@ -12,7 +12,7 @@ export default defineTest({
         };
     },
 
-    html: "",
+    html: "<!----><!----><!----><!----><!---->",
 
     async test({ props, target }) {
         props.active = "default";

@@ -10,7 +10,7 @@ export default defineTest({
     },
 
     html: [
-        "<p>firstName: john</p>",
+        "<!----><p>firstName: john</p>",
         "<p>lastName: doe</p>",
         "<p>age: 23</p>",
     ].join(""),

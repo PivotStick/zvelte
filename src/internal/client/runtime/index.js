@@ -2,6 +2,7 @@ import * as $ from "svelte/internal/client";
 import { filters } from "./filters.js";
 import { getInitialLoad } from "./hydration.js";
 import {
+    PROPS_IS_BINDABLE,
     PROPS_IS_IMMUTABLE,
     PROPS_IS_RUNES,
     PROPS_IS_UPDATED,
@@ -157,14 +158,14 @@ export function create_load(endpoint) {
 export function init_load(get, payload, $$initialLoad, setter) {
     const initialLoad = getInitialLoad() ?? $$initialLoad;
 
-    let promise = $.source(
+    let promise = $.state(
         initialLoad ? Promise.resolve(initialLoad) : get(payload),
     );
 
-    let loading = $.source(!initialLoad);
-    let error = $.source(null);
+    let loading = $.state(!initialLoad);
+    let error = $.state(null);
 
-    let initialLoading = $.unwrap(loading);
+    let initialLoading = loading.v;
 
     if (initialLoad) {
         setter(initialLoad);
@@ -216,7 +217,11 @@ export { in_expression as in };
  */
 export function wrap($$props) {
     $$props ??= {};
-    const flags = PROPS_IS_IMMUTABLE | PROPS_IS_RUNES | PROPS_IS_UPDATED;
+    const flags =
+        PROPS_IS_IMMUTABLE |
+        PROPS_IS_RUNES |
+        PROPS_IS_UPDATED |
+        PROPS_IS_BINDABLE;
 
     const cache = Object.keys($$props).reduce((o, key) => {
         o[key] = $.prop($$props, key, flags);

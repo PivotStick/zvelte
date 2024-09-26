@@ -14,6 +14,6 @@ export default defineTest({
 
     async test({ target }) {
         await promise;
-        expect(target.innerHTML).toEqual(`<p>42</p>`);
+        expect(target.innerHTML).toEqual(`<!----><p>42</p>`);
     },
 });

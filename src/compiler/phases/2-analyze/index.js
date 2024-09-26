@@ -125,8 +125,11 @@ const visitors = {
         node.metadata ??= {};
         return next();
     },
-    Identifier(node, { state, next }) {
-        state.analysis.usesProps = true;
+    Identifier(node, { state, path, next }) {
+        const parent = path[path.length - 1];
+        if (parent.type !== "Property") {
+            state.analysis.usesProps = true;
+        }
         return next();
     },
     ExpressionTag(node, { next }) {

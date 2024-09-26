@@ -1,4 +1,6 @@
-import { raf as zvelte_raf } from "@pivotass/zvelte/internal/client";
+import { flushSync } from "svelte";
+import { raf as svelte_raf } from "svelte/internal/client";
+import { queue_micro_task } from "../../node_modules/svelte/src/internal/client/dom/task.js";
 
 export const raf = {
     animations: new Set(),
@@ -10,11 +12,11 @@ export const raf = {
         this.animations.clear();
         this.ticks.clear();
 
-        zvelte_raf.tick = (/** @type {any} */ f) => {
+        svelte_raf.tick = (f) => {
             raf.ticks.add(f);
         };
-        zvelte_raf.now = () => raf.time;
-        zvelte_raf.tasks.clear();
+        svelte_raf.now = () => raf.time;
+        svelte_raf.tasks.clear();
     },
 };
 
@@ -23,6 +25,7 @@ export const raf = {
  */
 function tick(time) {
     raf.time = time;
+    flushSync();
     for (const animation of raf.animations) {
         animation._update();
     }
@@ -32,53 +35,46 @@ function tick(time) {
 }
 
 class Animation {
-    #target;
     #keyframes;
     #duration;
+    #delay;
 
     #offset = raf.time;
 
-    #finished = () => {};
-    #cancelled = () => {};
+    /** @type {Function} */
+    #onfinish = () => {};
 
+    /** @type {Function} */
+    #oncancel = () => {};
+
+    target;
     currentTime = 0;
     startTime = 0;
+    playState = "running";
 
     /**
      * @param {HTMLElement} target
      * @param {Keyframe[]} keyframes
-     * @param {{ duration: number }} options // TODO add delay
+     * @param {{ duration: number, delay: number }} options
      */
-    constructor(target, keyframes, { duration }) {
-        this.#target = target;
+    constructor(target, keyframes, { duration, delay }) {
+        this.target = target;
         this.#keyframes = keyframes;
-        this.#duration = duration;
-
-        // Promise-like semantics, but call callbacks immediately on raf.tick
-        this.finished = {
-            /** @param {() => void} callback */
-            then: (callback) => {
-                this.#finished = callback;
-
-                return {
-                    /** @param {() => void} callback */
-                    catch: (callback) => {
-                        this.#cancelled = callback;
-                    },
-                };
-            },
-        };
+        this.#duration = Math.round(duration);
+        this.#delay = delay ?? 0;
 
         this._update();
     }
 
     _update() {
-        this.currentTime = raf.time - this.#offset;
+        this.currentTime = raf.time - this.#offset - this.#delay;
+        if (this.currentTime < 0) return;
+
         const target_frame = this.currentTime / this.#duration;
         this.#apply_keyframe(target_frame);
 
         if (this.currentTime >= this.#duration) {
-            this.#finished();
+            this.#onfinish();
             raf.animations.delete(this);
         }
     }
@@ -100,21 +96,21 @@ class Animation {
                 frame[key] = interpolate(
                     /** @type {string} */ (lower[key]),
                     /** @type {string} */ (upper[key]),
-                    n % 1
+                    n % 1,
                 );
             }
         }
 
         for (let prop in frame) {
             // @ts-ignore
-            this.#target.style[prop] = frame[prop];
+            this.target.style[prop] = frame[prop];
         }
 
         if (this.currentTime >= this.#duration) {
             this.currentTime = this.#duration;
             for (let prop in frame) {
                 // @ts-ignore
-                this.#target.style[prop] = null;
+                this.target.style[prop] = null;
             }
         }
     }
@@ -127,8 +123,30 @@ class Animation {
         this.currentTime = null;
         // @ts-ignore
         this.startTime = null;
-        this.#cancelled();
+
+        this.playState = "idle";
+        this.#oncancel();
         raf.animations.delete(this);
+    }
+
+    /** @param {() => {}} fn */
+    set onfinish(fn) {
+        if (this.#duration === 0) {
+            queue_micro_task(fn);
+        } else {
+            this.#onfinish = () => {
+                fn();
+                this.#onfinish = () => {};
+            };
+        }
+    }
+
+    /** @param {() => {}} fn */
+    set oncancel(fn) {
+        this.#oncancel = () => {
+            fn();
+            this.#oncancel = () => {};
+        };
     }
 }
 
@@ -168,7 +186,7 @@ function interpolate(a, b, p) {
 
 /**
  * @param {Keyframe[]} keyframes
- * @param {{duration: number}} options
+ * @param {{duration: number, delay: number}} options
  * @returns {globalThis.Animation}
  */
 HTMLElement.prototype.animate = function (keyframes, options) {
@@ -176,4 +194,10 @@ HTMLElement.prototype.animate = function (keyframes, options) {
     raf.animations.add(animation);
     // @ts-ignore
     return animation;
+};
+
+HTMLElement.prototype.getAnimations = function () {
+    return Array.from(raf.animations).filter(
+        (animation) => animation.target === this,
+    );
 };

@@ -20,7 +20,7 @@ export default defineTest({
         };
     },
 
-    html: "Foo",
+    html: "<!---->Foo",
 
     async test({ props }) {
         await tick();

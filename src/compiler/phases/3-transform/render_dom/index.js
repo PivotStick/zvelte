@@ -5,9 +5,8 @@ import { cleanNodes } from "../utils.js";
 import {
     EACH_INDEX_REACTIVE,
     EACH_IS_CONTROLLED,
-    EACH_IS_STRICT_EQUALS,
+    EACH_ITEM_IMMUTABLE,
     EACH_ITEM_REACTIVE,
-    EACH_KEYED,
     TEMPLATE_FRAGMENT,
     TEMPLATE_USE_IMPORT_NODE,
     TRANSITION_GLOBAL,
@@ -175,15 +174,18 @@ export function renderDom(source, ast, analysis, options, meta) {
     );
 
     if (analysis.css && renderedCss) {
-        template.body.unshift(
-            b.stmt(
-                b.call(
-                    "$.append_styles",
-                    b.id("$$anchor"),
-                    b.literal(analysis.css.hash),
-                    b.literal(renderedCss.code),
-                ),
+        state.hoisted.push(
+            b.const(
+                "$$css",
+                b.object([
+                    b.prop("init", b.id("hash"), b.literal(analysis.css.hash)),
+                    b.prop("init", b.id("code"), b.literal(renderedCss.code)),
+                ]),
             ),
+        );
+
+        template.body.unshift(
+            b.stmt(b.call("$.append_styles", b.id("$$anchor"), b.id("$$css"))),
         );
     }
 
@@ -1204,6 +1206,9 @@ const templateVisitors = {
 
         if (spreadAttributes.length) {
             const cacheId = b.id(context.state.scope.generate("attributes"));
+            context.state.init.push(
+                b.call("$.remove_input_defaults", context.state.node),
+            );
             context.state.init.push(b.declaration("let", cacheId));
 
             /**
@@ -1262,8 +1267,6 @@ const templateVisitors = {
                 context.state.node,
                 cacheId,
                 b.object(properties),
-                b.true,
-                b.literal(""),
             );
 
             statements.unshift(b.stmt(b.assignment("=", cacheId, call)));
@@ -1370,6 +1373,20 @@ const templateVisitors = {
             context.visit(node);
         }
 
+        let arg = context.state.node;
+
+        // If `hydrate_node` is set inside the element, we need to reset it
+        // after the element has been hydrated
+        let needsReset = trimmed.some((node) => node.type !== "Text");
+
+        // The same applies if it's a `<template>` element, since we need to
+        // set the value of `hydrate_node` to `node.content`
+        if (node.name === "template") {
+            needsReset = true;
+            context.state.init.push(b.stmt(b.call("$.hydrate_template", arg)));
+            arg = b.member(arg, b.id("content"));
+        }
+
         processChildren(
             trimmed,
             () =>
@@ -1382,6 +1399,12 @@ const templateVisitors = {
             true,
             context,
         );
+
+        if (needsReset) {
+            context.state.init.push(
+                b.stmt(b.call("$.reset", context.state.node)),
+            );
+        }
 
         if (!VoidElements.includes(node.name)) {
             context.state.template.push(`</${node.name}>`);
@@ -1427,7 +1450,7 @@ const templateVisitors = {
             )
         );
 
-        const call = b.call("$.snippet", b.thunk(callee), state.node);
+        const call = b.call("$.snippet", state.node, b.thunk(callee));
 
         for (const arg of node.expression.arguments) {
             call.arguments.push(
@@ -1866,7 +1889,7 @@ const templateVisitors = {
         // We can guarantee this by knowing that in order for the item of the for block to change, they
         // would need to mutate the key/item directly in the array. Given that in runes mode we use ===
         // equality, we can apply a fast-path (as long as the index isn't reactive).
-        let forType = EACH_IS_STRICT_EQUALS;
+        let forType = EACH_ITEM_IMMUTABLE;
         let for_item_is_reactive = true;
 
         /**
@@ -1880,7 +1903,7 @@ const templateVisitors = {
                 !node.index ||
                 node.key.name !== node.index.name)
         ) {
-            forType |= EACH_KEYED;
+            // forType |= EACH_KEYED;
 
             key = b.arrow([b.id("$$key"), b.id("$$index")], b.id("$$key"));
 
@@ -1908,18 +1931,25 @@ const templateVisitors = {
             forType |= EACH_IS_CONTROLLED;
         }
 
-        const nonPropSources = [...state.nonPropSources, node.context.name];
+        const nonPropSources = [...state.nonPropSources];
+        const overrides = { ...state.overrides };
+
+        overrides.loop = b.id("loop");
 
         if (node.index) {
             nonPropSources.push(node.index.name);
+        }
+
+        if (for_item_is_reactive) {
+            overrides[node.context.name] = b.call("$.get", node.context);
         }
 
         // @ts-ignore
         const body = /** @type {import('estree').BlockStatement} */ (
             visit(node.body, {
                 ...state,
-                nonPropVars: [...state.nonPropVars, "loop"],
                 nonPropSources,
+                overrides,
             })
         );
 
@@ -2026,7 +2056,7 @@ const templateVisitors = {
 
             if (node.value) {
                 args.push(node.value);
-                overrides[node.value.name] = node.value;
+                overrides[node.value.name] = b.call("$.get", node.value);
             }
 
             const block = /** @type {any} */ (

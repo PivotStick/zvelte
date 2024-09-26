@@ -9,17 +9,17 @@ export default defineTest({
         };
     },
 
-    html: "",
+    html: "<!---->",
 
     async test({ props, target }) {
         for (let i = 0; i < 10; i++) {
             props.foo = true;
             await tick();
-            expect(target.innerHTML).toEqual("true");
+            expect(target.innerHTML).toEqual("<!---->true");
 
             props.foo = false;
             await tick();
-            expect(target.innerHTML).toEqual("");
+            expect(target.innerHTML).toEqual("<!---->");
         }
     },
 });

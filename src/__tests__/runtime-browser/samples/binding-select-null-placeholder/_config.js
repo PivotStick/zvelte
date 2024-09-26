@@ -19,20 +19,20 @@ export default defineTest({
 
         const options = target.querySelectorAll("option");
 
-        expect(options[0].selected).toEqual(true);
-        expect(options[0].disabled).toEqual(true);
-        expect(options[1].selected).toEqual(false);
-        expect(options[1].disabled).toEqual(false);
+        expect(options[0].selected, "01").toEqual(true);
+        expect(options[0].disabled, "02").toEqual(true);
+        expect(options[1].selected, "03").toEqual(false);
+        expect(options[1].disabled, "04").toEqual(false);
 
         // placeholder option value must be blank string for native required field validation
-        expect(options[0].value).toEqual("");
-        expect(select.checkValidity()).toEqual(false);
+        expect(options[0].value, "05").toEqual("");
+        expect(select.checkValidity(), "06").toEqual(false);
 
         props.foo = props.items[0];
         await tick();
 
-        expect(options[0].selected).toEqual(false);
-        expect(options[1].selected).toEqual(true);
-        expect(select.checkValidity()).toEqual(true);
+        expect(options[0].selected, "07").toEqual(false);
+        expect(options[1].selected, "08").toEqual(true);
+        expect(select.checkValidity(), "09").toEqual(true);
     },
 });

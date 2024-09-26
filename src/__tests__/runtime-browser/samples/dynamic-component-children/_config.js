@@ -17,11 +17,11 @@ export default defineTest({
     },
 
     html: [
-        "<h1>Foo</h1>",
+        "<!----><h1>Foo</h1>",
         "<div>what goes up must come down</div><!---->",
         "<p>element</p>",
         "you're it",
-        "<p>neither foo nor bar</p><!---->",
+        "<!----><p>neither foo nor bar</p><!---->",
         "text",
         "<span>a</span><span>b</span><span>c</span><!---->",
         "<div>baz</div><!----><!---->",
@@ -33,10 +33,10 @@ export default defineTest({
 
         expect(target.innerHTML).toEqual(
             [
-                "<h1>Bar</h1>",
+                "<!----><h1>Bar</h1>",
                 "<p>element</p>",
                 "you're it",
-                "<p>neither foo nor bar</p><!---->",
+                "<!----><p>neither foo nor bar</p><!---->",
                 "text",
                 "<span>a</span><span>b</span><span>c</span><!---->",
                 "<div>baz</div><!----><!---->",

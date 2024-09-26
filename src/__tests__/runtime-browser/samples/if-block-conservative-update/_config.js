@@ -15,7 +15,7 @@ export default defineTest({
         };
     },
 
-    html: "<p>potato</p>",
+    html: "<!----><p>potato</p>",
 
     before() {
         count = 0;
@@ -27,6 +27,6 @@ export default defineTest({
         props.foo = "soup";
         await tick();
         expect(count).toBe(1);
-        expect(target.innerHTML).toEqual("<p>soup</p>");
+        expect(target.innerHTML).toEqual("<!----><p>soup</p>");
     },
 });

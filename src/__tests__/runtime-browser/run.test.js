@@ -77,8 +77,10 @@ function run(tests) {
                 props: bind(props),
             });
 
+            await $.tick();
+
             if (typeof config.html === "string") {
-                expect(target.innerHTML).toEqual(config.html);
+                expect(target.innerHTML, "init html").toEqual(config.html);
             }
 
             await config.test?.({

@@ -5,10 +5,11 @@ import { print } from "./print/index.js";
 import { cleanNodes } from "../utils.js";
 import { DOMBooleanAttributes } from "../constants.js";
 import {
-    HYDRATION_END,
-    HYDRATION_END_ELSE,
-    HYDRATION_START,
-} from "../../constants.js";
+    BLOCK_CLOSE,
+    BLOCK_OPEN,
+    BLOCK_OPEN_ELSE,
+    EMPTY_COMMENT,
+} from "../hydration.js";
 
 const outputName = "payload";
 const propsName = "props";
@@ -30,6 +31,7 @@ const propsName = "props";
  *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
  *  componentName: string;
  *  imports: import("#ast").Root["imports"];
+ *  skipHydrationBoundaries: boolean;
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -70,6 +72,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
             imports: ast.imports,
             counter: 0,
             componentName,
+            skipHydrationBoundaries: false,
             import(name) {
                 internalImports.add(name);
             },
@@ -116,7 +119,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
  */
 function renderBlock({ path, state, visit }, nodes) {
     if (!path.length && state.options.async) {
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
     }
 
     for (const node of nodes) {
@@ -124,7 +127,7 @@ function renderBlock({ path, state, visit }, nodes) {
     }
 
     if (!path.length && state.options.async) {
-        state.appendText(`<!--${HYDRATION_END}-->`);
+        state.appendText(BLOCK_CLOSE);
     }
 }
 
@@ -202,7 +205,7 @@ const visitors = {
     },
 
     Root(node, context) {
-        const { trimmed, hoisted } = cleanNodes(
+        const { trimmed, hoisted, isTextFirst } = cleanNodes(
             node,
             node.fragment.nodes,
             [node],
@@ -211,13 +214,17 @@ const visitors = {
             context.state.options.preserveComments,
         );
 
+        if (isTextFirst) {
+            context.state.appendText(EMPTY_COMMENT);
+        }
+
         renderBlock(context, [...hoisted, ...trimmed]);
     },
 
     Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
 
-        const { trimmed, hoisted } = cleanNodes(
+        const { trimmed, hoisted, isTextFirst, isStandalone } = cleanNodes(
             parent,
             node.nodes,
             path,
@@ -226,12 +233,19 @@ const visitors = {
             state.options.preserveComments,
         );
 
+        if (isTextFirst) {
+            state.appendText(EMPTY_COMMENT);
+        }
+
         for (const node of hoisted) {
             visit(node);
         }
 
         for (const node of trimmed) {
-            visit(node);
+            visit(node, {
+                ...state,
+                skipHydrationBoundaries: isStandalone,
+            });
         }
     },
 
@@ -244,7 +258,7 @@ const visitors = {
     },
 
     IfBlock(node, { state, visit }) {
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
 
         // @ts-ignore
         const test = /** @type {import("./type.js").Expression} */ (
@@ -260,16 +274,17 @@ const visitors = {
             visit(node.alternate, alternate);
         }
 
-        consequent.appendText(`<!--${HYDRATION_END}-->`);
-        alternate.appendText(`<!--${HYDRATION_END_ELSE}-->`);
+        alternate.appendText(BLOCK_OPEN_ELSE);
 
         state.block.children.push(
             b.ifStatement(test, consequent.block, alternate.block),
         );
+
+        state.appendText(BLOCK_CLOSE);
     },
 
     ForBlock(node, { state, path, visit }) {
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
 
         const hasParent = path.some((n) => n.type === "ForBlock");
 
@@ -317,11 +332,11 @@ const visitors = {
             state.block.children.push(ifBlock);
 
             visit(node.fallback, fallbackState);
-            ifState.appendText(`<!--${HYDRATION_END}-->`);
-            fallbackState.appendText(`<!--${HYDRATION_END_ELSE}-->`);
+            ifState.appendText(BLOCK_CLOSE);
+            fallbackState.appendText(BLOCK_OPEN_ELSE);
         } else {
             state.block.children.push(forEach);
-            state.appendText(`<!--${HYDRATION_END}-->`);
+            state.appendText(BLOCK_CLOSE);
         }
 
         forEach.body.children.push(
@@ -372,19 +387,17 @@ const visitors = {
             ...nonPropVars,
         ];
 
-        forEachState.appendText(`<!--${HYDRATION_START}-->`);
         visit(node.body, forEachState);
-        forEachState.appendText(`<!--${HYDRATION_END}-->`);
 
         forEach.body.children.push(b.assign(index, "+=", b.number(1)));
     },
 
     AwaitBlock(node, { state, visit }) {
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
         if (node.pending) {
             visit(node.pending);
         }
-        state.appendText(`<!--${HYDRATION_END}-->`);
+        state.appendText(BLOCK_CLOSE);
     },
 
     RegularElement(node, { state, path, visit }) {
@@ -611,9 +624,9 @@ const visitors = {
         const call = b.call(callee, args, true);
         const test = b.call(b.id("is_callable"), [callee]);
 
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
         state.block.children.push(b.ifStatement(test, b.block([b.stmt(call)])));
-        state.appendText(`<!--${HYDRATION_END}-->`);
+        state.appendText(BLOCK_CLOSE);
     },
 
     HtmlTag(node, { state, visit }) {
@@ -621,9 +634,9 @@ const visitors = {
     },
 
     KeyBlock(node, { state, visit }) {
-        state.appendText(`<!--${HYDRATION_START}-->`);
+        state.appendText(BLOCK_OPEN);
         visit(node.fragment);
-        state.appendText(`<!--${HYDRATION_END}-->`);
+        state.appendText(BLOCK_CLOSE);
     },
 
     SnippetBlock(node, context) {
@@ -671,7 +684,6 @@ const visitors = {
             ),
         );
 
-        context.state.appendText(`<!--${HYDRATION_START}-->`);
         context.state.block.children.push(
             b.stmt(
                 context.state.internal(
@@ -682,14 +694,17 @@ const visitors = {
                 ),
             ),
         );
-        context.state.appendText(`<!--${HYDRATION_END}-->`);
+
+        if (!context.state.skipHydrationBoundaries) {
+            context.state.appendText(EMPTY_COMMENT);
+        }
     },
 
     ZvelteComponent(node, context) {
         const callee = /** @type {any} */ (context.visit(node.expression));
         const props = getComponentProps(node, context);
 
-        context.state.appendText(`<!--${HYDRATION_START}-->`);
+        context.state.appendText(EMPTY_COMMENT);
         context.state.block.children.push(
             b.ifStatement(
                 b.call("is_callable", [callee]),
@@ -700,20 +715,20 @@ const visitors = {
                 ]),
             ),
         );
-        context.state.appendText(`<!--${HYDRATION_END}-->`);
+        context.state.appendText(EMPTY_COMMENT);
     },
 
     ZvelteSelf(node, context) {
         const props = getComponentProps(node, context);
 
-        context.state.appendText(`<!--${HYDRATION_START}-->`);
+        context.state.appendText(BLOCK_OPEN);
         context.state.append(
             b.call(b.staticLookup(b.name("self"), "render"), [
                 b.variable(outputName),
                 props,
             ]),
         );
-        context.state.appendText(`<!--${HYDRATION_END}-->`);
+        context.state.appendText(EMPTY_COMMENT);
     },
 
     TitleElement(node, context) {
