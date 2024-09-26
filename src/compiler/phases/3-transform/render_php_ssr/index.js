@@ -118,16 +118,8 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
  * @param {import("#ast").ZvelteNode[]} nodes
  */
 function renderBlock({ path, state, visit }, nodes) {
-    if (!path.length && state.options.async) {
-        state.appendText(BLOCK_OPEN);
-    }
-
     for (const node of nodes) {
         visit(node, state);
-    }
-
-    if (!path.length && state.options.async) {
-        state.appendText(BLOCK_CLOSE);
     }
 }
 
@@ -214,11 +206,19 @@ const visitors = {
             context.state.options.preserveComments,
         );
 
+        if (context.state.options.async) {
+            context.state.appendText(BLOCK_OPEN);
+        }
+
         if (isTextFirst) {
             context.state.appendText(EMPTY_COMMENT);
         }
 
         renderBlock(context, [...hoisted, ...trimmed]);
+
+        if (context.state.options.async) {
+            context.state.appendText(BLOCK_CLOSE);
+        }
     },
 
     Fragment(node, { visit, state, path }) {
