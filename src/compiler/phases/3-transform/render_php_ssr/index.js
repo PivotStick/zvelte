@@ -677,7 +677,10 @@ const visitors = {
 
             context.state.block.children.push(
                 b.stmt(
-                    b.call(b.name(node.name), [b.variable(outputName), props]),
+                    b.call(b.staticLookup(b.name(node.name), "render"), [
+                        b.variable(outputName),
+                        props,
+                    ]),
                 ),
             );
 
