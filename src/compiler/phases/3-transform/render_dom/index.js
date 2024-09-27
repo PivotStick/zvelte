@@ -24,6 +24,12 @@ import { filters } from "../../../../internal/client/runtime/filters.js";
 import { escapeHtml } from "../../../escaping.js";
 import { renderStylesheet } from "../css/index.js";
 import { buildLoadWrapper } from "./buildLoadWrapper.js";
+import {
+    build_render_statement,
+    build_update,
+} from "./visitors/shared/utils.js";
+import { HtmlTag } from "./visitors/HtmlTag.js";
+import { Comment } from "./visitors/Comment.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -364,7 +370,7 @@ export function renderDom(source, ast, analysis, options, meta) {
 function createBlock(parent, name, nodes, context) {
     const namespace = "html";
 
-    const { hoisted, trimmed, isTextFirst } = cleanNodes(
+    const { hoisted, trimmed, isTextFirst, isStandalone } = cleanNodes(
         parent,
         nodes,
         context.path,
@@ -495,45 +501,52 @@ function createBlock(parent, name, nodes, context) {
             );
             close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
         } else {
-            /** @type {(is_text: boolean) => import('estree').Expression} */
-            const expression = (is_text) =>
-                is_text
-                    ? b.call("$.first_child", id, b.true)
-                    : b.call("$.first_child", id);
-
-            processChildren(trimmed, expression, false, { ...context, state });
-
-            const use_comment_template =
-                state.template.length === 1 && state.template[0] === "<!>";
-
-            if (use_comment_template) {
-                // special case — we can use `$.comment` instead of creating a unique template
-                body.push(b.var(id, b.call("$.comment")));
+            if (isStandalone) {
+                // no need to create a template, we can just use the existing block's anchor
+                processChildren(trimmed, () => b.id("$$anchor"), false, {
+                    ...context,
+                    state,
+                });
             } else {
+                /** @type {(is_text: boolean) => import("estree").Expression} */
+                const expression = (is_text) =>
+                    b.call("$.first_child", id, is_text && b.true);
+
+                processChildren(trimmed, expression, false, {
+                    ...context,
+                    state,
+                });
+
                 let flags = TEMPLATE_FRAGMENT;
 
                 if (state.metadata.context.template_needs_import_node) {
                     flags |= TEMPLATE_USE_IMPORT_NODE;
                 }
 
-                addTemplate(templateName, [
-                    b.template([b.quasi(state.template.join(""), true)], []),
-                    b.literal(flags),
-                ]);
+                if (
+                    state.template.length === 1 &&
+                    state.template[0] === "<!>"
+                ) {
+                    // special case — we can use `$.comment` instead of creating a unique template
+                    body.push(b.var(id, b.call("$.comment")));
+                } else {
+                    addTemplate(templateName, [
+                        joinTemplate(state.template),
+                        b.literal(flags),
+                    ]);
 
-                body.push(b.var(id, b.call(templateName)));
+                    body.push(b.var(id, b.call(templateName)));
+                }
+
+                close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
             }
-
-            body.push(...state.before_init, ...state.init);
-
-            close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
         }
     } else {
         body.push(...state.before_init, ...state.init);
     }
 
     if (state.update.length > 0) {
-        body.push(...state.update);
+        body.push(build_render_statement(state.update));
     }
 
     body.push(...state.after_update);
@@ -546,6 +559,33 @@ function createBlock(parent, name, nodes, context) {
     }
 
     return body;
+}
+
+/**
+ * @param {Array<string | import("estree").Expression>} items
+ */
+function joinTemplate(items) {
+    let quasi = b.quasi("");
+    const template = b.template([quasi], []);
+
+    for (const item of items) {
+        if (typeof item === "string") {
+            quasi.value.cooked += item;
+        } else {
+            template.expressions.push(item);
+            template.quasis.push((quasi = b.quasi("")));
+        }
+    }
+
+    for (const quasi of template.quasis) {
+        quasi.value.raw = sanitize_template_string(
+            /** @type {string} */ (quasi.value.cooked),
+        );
+    }
+
+    quasi.tail = true;
+
+    return template;
 }
 
 /**
@@ -697,9 +737,7 @@ const templateVisitors = {
         return b.block(body);
     },
 
-    Comment(node, { state }) {
-        state.template.push(`<!--${node.data}-->`);
-    },
+    Comment,
 
     RegularElement(node, context) {
         if (node.name === "script") {
@@ -1856,23 +1894,7 @@ const templateVisitors = {
         return b.object(properties);
     },
 
-    HtmlTag(node, { state, visit }) {
-        state.template.push("<!>");
-
-        state.init.push(
-            b.call(
-                "$.html",
-                state.node,
-                b.thunk(
-                    /** @type {import("estree").Expression} */ (
-                        visit(node.expression)
-                    ),
-                ),
-                b.false,
-                b.false,
-            ),
-        );
-    },
+    HtmlTag,
 
     IfBlock(node, { state, visit }) {
         state.template.push("<!>");
@@ -2901,16 +2923,4 @@ export function get_states_and_calls(values) {
     }
 
     return { states, calls };
-}
-
-/**
- * @param {import("estree").Statement} statement
- */
-export function build_update(statement) {
-    const body =
-        statement.type === "ExpressionStatement"
-            ? statement.expression
-            : b.block([statement]);
-
-    return b.stmt(b.call("$.template_effect", b.thunk(body)));
 }

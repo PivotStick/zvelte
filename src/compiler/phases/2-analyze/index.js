@@ -118,6 +118,15 @@ export function analyseComponent(root, options) {
 }
 
 /**
+ * @param {undefined | import("#ast").ZvelteNode} parent
+ */
+function isDynamicIdentifier(parent) {
+    return (
+        !parent || (parent.type !== "Property" && parent.type !== "ImportTag")
+    );
+}
+
+/**
  * @type {import("zimmerframe").Visitors<import("#ast").ZvelteNode, { scope: Scope, options: import("../../types.js").CompilerOptions, analysis: import("./types.js").ComponentAnalysis }>}
  */
 const visitors = {
@@ -127,29 +136,43 @@ const visitors = {
     },
     Identifier(node, { state, path, next }) {
         const parent = path[path.length - 1];
-        if (parent.type !== "Property" && parent.type !== "ImportTag") {
-            state.analysis.usesProps = true;
+        const dynamic = isDynamicIdentifier(parent);
+        if (dynamic) {
+            state.analysis.usesProps = dynamic;
+            path.forEach((n) => {
+                if (n.type === "Fragment") {
+                    n.metadata.dynamic = true;
+                }
+            });
         }
         return next();
     },
     ExpressionTag(node, { next }) {
+        node.metadata.expression ??= {
+            has_call: false,
+            has_state: false,
+        };
+
         walk(
             /** @type {import("#ast").ZvelteNode} */ (node.expression),
             {},
             {
+                _(node, { next }) {
+                    node.metadata ??= {};
+                    return next();
+                },
                 CallExpression() {
                     node.metadata.expression.has_call = true;
                 },
-                Identifier(node, { path, next }) {
-                    const parent = path[path.length - 1];
-                    if (
-                        parent.type !== "Property" &&
-                        parent.type !== "ImportTag"
-                    ) {
-                        node.metadata.dynamic = true;
-                        node.metadata.has_state = true;
-                        return;
+                Identifier(_, { path, next }) {
+                    const parent = path.at(-1);
+                    const dynamic = isDynamicIdentifier(parent);
+
+                    if (dynamic) {
+                        node.metadata.dynamic = dynamic;
+                        node.metadata.expression.has_state = dynamic;
                     }
+
                     return next();
                 },
             },
