@@ -606,7 +606,11 @@ function processChildren(nodes, initial, isElement, { visit, state }) {
     function flush_sequence(sequence) {
         if (sequence.every((node) => node.type === "Text")) {
             skipped += 1;
-            state.template.push(sequence.map((node) => node.data).join(""));
+            state.template.push(
+                /** @type {import("#ast").Text[]} */ (sequence)
+                    .map((node) => node.data)
+                    .join(""),
+            );
             return;
         }
 
@@ -631,7 +635,9 @@ function processChildren(nodes, initial, isElement, { visit, state }) {
             state.update.push(update);
         } else {
             state.init.push(
-                b.stmt(b.assignment("=", b.member(id, "nodeValue"), value)),
+                b.stmt(
+                    b.assignment("=", b.member(id, b.id("nodeValue")), value),
+                ),
             );
         }
     }
@@ -652,7 +658,7 @@ function processChildren(nodes, initial, isElement, { visit, state }) {
             } else if (
                 node.type === "ForBlock" &&
                 nodes.length === 1 &&
-                is_element
+                isElement
             ) {
                 node.metadata.is_controlled = true;
             } else {
@@ -2895,4 +2901,16 @@ export function get_states_and_calls(values) {
     }
 
     return { states, calls };
+}
+
+/**
+ * @param {import("estree").Statement} statement
+ */
+export function build_update(statement) {
+    const body =
+        statement.type === "ExpressionStatement"
+            ? statement.expression
+            : b.block([statement]);
+
+    return b.stmt(b.call("$.template_effect", b.thunk(body)));
 }
