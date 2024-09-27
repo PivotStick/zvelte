@@ -34,7 +34,7 @@ export function compile(source, options = {}, meta = {}) {
     options.css ??= "injected";
     options.namespace ??= "Zvelte\\Components";
     options.internalsNamespace ??= "Zvelte\\Core";
-    options.filename ??= "Component.zvelte";
+    options.filename ??= "_unknown_.zvelte";
     options.hasJS ??= false;
     options.preserveWhitespace ??= false;
     options.preserveComments ??= false;
