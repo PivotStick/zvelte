@@ -540,6 +540,8 @@ function createBlock(parent, name, nodes, context) {
 
                 close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
             }
+
+            body.push(...state.before_init, ...state.init);
         }
     } else {
         body.push(...state.before_init, ...state.init);
