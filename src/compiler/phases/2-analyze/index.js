@@ -127,18 +127,30 @@ const visitors = {
     },
     Identifier(node, { state, path, next }) {
         const parent = path[path.length - 1];
-        if (parent.type !== "Property") {
+        if (parent.type !== "Property" && parent.type !== "ImportTag") {
             state.analysis.usesProps = true;
         }
         return next();
     },
     ExpressionTag(node, { next }) {
         walk(
-            node.expression,
+            /** @type {import("#ast").ZvelteNode} */ (node.expression),
             {},
             {
-                Identifier() {
-                    node.metadata.dynamic = true;
+                CallExpression() {
+                    node.metadata.expression.has_call = true;
+                },
+                Identifier(node, { path, next }) {
+                    const parent = path[path.length - 1];
+                    if (
+                        parent.type !== "Property" &&
+                        parent.type !== "ImportTag"
+                    ) {
+                        node.metadata.dynamic = true;
+                        node.metadata.has_state = true;
+                        return;
+                    }
+                    return next();
                 },
             },
         );

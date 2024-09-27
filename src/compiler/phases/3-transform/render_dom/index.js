@@ -364,7 +364,7 @@ export function renderDom(source, ast, analysis, options, meta) {
 function createBlock(parent, name, nodes, context) {
     const namespace = "html";
 
-    const { hoisted, trimmed } = cleanNodes(
+    const { hoisted, trimmed, isTextFirst } = cleanNodes(
         parent,
         nodes,
         context.path,
@@ -379,6 +379,9 @@ function createBlock(parent, name, nodes, context) {
 
     const isSingleElement =
         trimmed.length === 1 && trimmed[0].type === "RegularElement";
+
+    const isSingleComponent =
+        trimmed.length === 1 && trimmed[0].type === "Component";
 
     const is_single_child_not_needing_template =
         trimmed.length === 1 &&
@@ -417,6 +420,11 @@ function createBlock(parent, name, nodes, context) {
         context.visit(node, state);
     }
 
+    if (isTextFirst) {
+        // skip over inserted comment
+        body.push(b.stmt(b.call("$.next")));
+    }
+
     /**
      * @param {import('estree').Identifier} template_name
      * @param {import('estree').Expression[]} args
@@ -453,6 +461,12 @@ function createBlock(parent, name, nodes, context) {
             ...state.init,
         );
         close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
+    } else if (isSingleComponent) {
+        context.visit(trimmed[0], {
+            ...state,
+            node: b.id("$$anchor"),
+        });
+        body.push(...state.before_init, ...state.init);
     } else if (is_single_child_not_needing_template) {
         context.visit(trimmed[0], state);
         body.push(...state.before_init, ...state.init);
@@ -540,120 +554,130 @@ function createBlock(parent, name, nodes, context) {
  * corresponding template node references these updates are applied to.
  *
  * @param {import('#ast').ZvelteNode[]} nodes
- * @param {(is_text: boolean) => import('estree').Expression} expression
+ * @param {(is_text: boolean) => import('estree').Expression} initial
  * @param {boolean} isElement
  * @param {import('./types.js').ComponentContext} context
  */
-function processChildren(nodes, expression, isElement, { visit, state }) {
+function processChildren(nodes, initial, isElement, { visit, state }) {
     const within_bound_contenteditable = state.metadata.bound_contenteditable;
+    let prev = initial;
+    let skipped = 0;
 
-    /** @typedef {Array<import('#ast').Text | import('#ast').ExpressionTag>} Sequence */
-
+    /** @typedef {Array<import("#ast").Text | import("#ast").ExpressionTag>} Sequence */
     /** @type {Sequence} */
     let sequence = [];
+
+    /** @param {boolean} is_text */
+    function get_node(is_text) {
+        if (skipped === 0) {
+            return prev(is_text);
+        }
+
+        return b.call(
+            "$.sibling",
+            prev(false),
+            (is_text || skipped !== 1) && b.literal(skipped),
+            is_text && b.true,
+        );
+    }
+
+    /**
+     * @param {boolean} is_text
+     * @param {string} name
+     */
+    function flush_node(is_text, name) {
+        const expression = get_node(is_text);
+        let id = expression;
+
+        if (id.type !== "Identifier") {
+            id = b.id(state.scope.generate(name));
+            state.init.push(b.var(id, expression));
+        }
+
+        prev = () => id;
+        skipped = 1; // the next node is `$.sibling(id)`
+
+        return id;
+    }
 
     /**
      * @param {Sequence} sequence
      */
-    function flushSequence(sequence) {
-        if (sequence.length === 1 && sequence[0].type === "Text") {
-            const prev = expression;
-            expression = () => b.call("$.sibling", prev(true));
-            state.template.push(sequence[0].data);
+    function flush_sequence(sequence) {
+        if (sequence.every((node) => node.type === "Text")) {
+            skipped += 1;
+            state.template.push(sequence.map((node) => node.data).join(""));
+            return;
+        }
+
+        state.template.push(" ");
+
+        const { has_state, has_call, value } = build_template_literal(
+            sequence,
+            visit,
+            state,
+        );
+
+        // if this is a standalone `{expression}`, make sure we handle the case where
+        // no text node was created because the expression was empty during SSR
+        const is_text = sequence.length === 1;
+        const id = flush_node(is_text, "text");
+
+        const update = b.stmt(b.call("$.set_text", id, value));
+
+        if (has_call && !within_bound_contenteditable) {
+            state.init.push(build_update(update));
+        } else if (has_state && !within_bound_contenteditable) {
+            state.update.push(update);
         } else {
-            const id = b.id(state.scope.generate("text"));
-            state.template.push(" ");
-            state.init.push(b.var(id, expression(true)));
-
-            expression = () => b.call("$.sibling", id);
-
-            const value = serializeAttributeValue(sequence, true, {
-                visit,
-                state,
-            });
-
-            const update = b.stmt(b.call("$.set_text", id, value));
-
-            if (
-                sequence.some(
-                    (node) =>
-                        node.type === "ExpressionTag" && node.metadata.dynamic,
-                ) &&
-                !within_bound_contenteditable
-            ) {
-                state.update.push(
-                    b.call("$.template_effect", b.thunk(update.expression)),
-                );
-            } else {
-                state.init.push(
-                    b.stmt(
-                        b.assignment(
-                            "=",
-                            b.member(id, b.id("nodeValue")),
-                            value,
-                        ),
-                    ),
-                );
-            }
+            state.init.push(
+                b.stmt(b.assignment("=", b.member(id, "nodeValue"), value)),
+            );
         }
     }
 
-    for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-
+    for (const node of nodes) {
         if (node.type === "Text" || node.type === "ExpressionTag") {
             sequence.push(node);
         } else {
-            if (node.type === "Variable") {
-                const expression =
-                    /** @type {import("estree").AssignmentExpression} */ (
-                        visit(node.assignment)
-                    );
-
-                state.update.push(b.stmt(expression));
-            }
-
             if (sequence.length > 0) {
-                flushSequence(sequence);
+                flush_sequence(sequence);
                 sequence = [];
             }
 
-            if (node.type === "SnippetBlock") {
-                // These nodes do not contribute to the sibling/child tree
-                // TODO what about e.g. ConstTag and all the other things that
-                // get hoisted inside clean_nodes?
-                visit(node, state);
-            } else if (node.type !== "Variable") {
-                if (
-                    node.type === "ForBlock" &&
-                    nodes.length === 1 &&
-                    isElement
-                ) {
-                    node.metadata.is_controlled = true;
-                    visit(node, state);
-                } else {
-                    const id = getNodeId(
-                        expression(false),
-                        state,
-                        node.type === "RegularElement" ? node.name : "node",
-                    );
+            let child_state = state;
 
-                    expression = (isText) =>
-                        isText
-                            ? b.call("$.sibling", id, b.true)
-                            : b.call("$.sibling", id);
-
-                    visit(node, {
-                        ...state,
-                        node: id,
-                    });
-                }
+            if (is_static_element(node)) {
+                skipped += 1;
+            } else if (
+                node.type === "ForBlock" &&
+                nodes.length === 1 &&
+                is_element
+            ) {
+                node.metadata.is_controlled = true;
+            } else {
+                const id = flush_node(
+                    false,
+                    node.type === "RegularElement" ? node.name : "node",
+                );
+                child_state = { ...state, node: id };
             }
+
+            visit(node, child_state);
         }
     }
 
     if (sequence.length > 0) {
-        flushSequence(sequence);
+        flush_sequence(sequence);
+    }
+
+    // if there are trailing static text nodes/elements,
+    // traverse to the last (n - 1) one when hydrating
+    if (skipped > 1) {
+        skipped -= 1;
+        state.init.push(
+            b.stmt(b.call("$.next", skipped !== 1 && b.literal(skipped))),
+        );
     }
 }
 
@@ -2680,4 +2704,195 @@ function getDynamicComponentBuilder(context, nodeId, expression) {
                 ]),
             ),
         );
+}
+
+/**
+ * @param {import("#ast").ZvelteNode} node
+ */
+function is_static_element(node) {
+    if (node.type !== "RegularElement") return false;
+    if (node.fragment.metadata.dynamic) return false;
+
+    for (const attribute of node.attributes) {
+        if (attribute.type !== "Attribute") {
+            return false;
+        }
+
+        if (is_event_attribute(attribute)) {
+            return false;
+        }
+
+        if (attribute.value !== true && !is_text_attribute(attribute)) {
+            return false;
+        }
+
+        if (node.name === "option" && attribute.name === "value") {
+            return false;
+        }
+
+        if (node.name.includes("-")) {
+            return false; // we're setting all attributes on custom elements through properties
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Returns true if the attribute contains a single static text node.
+ * @param {import("#ast").Attribute} attribute
+ * @returns {attribute is import("#ast").Attribute & { value: [import("#ast").Text] }}
+ */
+export function is_text_attribute(attribute) {
+    return (
+        Array.isArray(attribute.value) &&
+        attribute.value.length === 1 &&
+        attribute.value[0].type === "Text"
+    );
+}
+
+/**
+ * Returns true if the attribute starts with `on` and contains a single expression node.
+ * @param {import("#ast").Attribute} attribute
+ * @returns {attribute is import("#ast").Attribute & { value: [import("#ast").ExpressionTag] | import("#ast").ExpressionTag }}
+ */
+export function is_event_attribute(attribute) {
+    return (
+        is_expression_attribute(attribute) && attribute.name.startsWith("on")
+    );
+}
+
+/**
+ * Returns true if the attribute contains a single expression node.
+ * In Svelte 5, this also includes a single expression node wrapped in an array.
+ * TODO change that in a future version
+ * @param {import("#ast").Attribute} attribute
+ * @returns {attribute is import("#ast").Attribute & { value: [import("#ast").ExpressionTag] | import("#ast").ExpressionTag }}
+ */
+export function is_expression_attribute(attribute) {
+    return (
+        (attribute.value !== true && !Array.isArray(attribute.value)) ||
+        (Array.isArray(attribute.value) &&
+            attribute.value.length === 1 &&
+            attribute.value[0].type === "ExpressionTag")
+    );
+}
+
+/**
+ * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
+ * @param {(node: import("#ast").ZvelteNode, state: any) => any} visit
+ * @param {import("./types.js").ComponentClientTransformState} state
+ * @returns {{ value: import("estree").Expression, has_state: boolean, has_call: boolean }}
+ */
+export function build_template_literal(values, visit, state) {
+    /** @type {import("estree").Expression[]} */
+    const expressions = [];
+
+    let quasi = b.quasi("");
+    const quasis = [quasi];
+
+    const { states, calls } = get_states_and_calls(values);
+
+    let has_call = calls > 0;
+    let has_state = states > 0;
+    let contains_multiple_call_expression = calls > 1;
+
+    for (let i = 0; i < values.length; i++) {
+        const node = values[i];
+
+        if (node.type === "Text") {
+            quasi.value.cooked += node.data;
+        } else if (
+            node.type === "ExpressionTag" &&
+            (node.expression.type === "StringLiteral" ||
+                node.expression.type === "NullLiteral" ||
+                node.expression.type === "BooleanLiteral" ||
+                node.expression.type === "NumericLiteral")
+        ) {
+            if (node.expression.value != null) {
+                quasi.value.cooked += node.expression.value + "";
+            }
+        } else {
+            if (contains_multiple_call_expression) {
+                const id = b.id(state.scope.generate("stringified_text"));
+                state.init.push(
+                    b.const(
+                        id,
+                        create_derived(
+                            state,
+                            b.thunk(
+                                b.logical(
+                                    /** @type {import("estree").Expression} */ (
+                                        visit(node.expression, state)
+                                    ),
+                                    "??",
+                                    b.literal(""),
+                                ),
+                            ),
+                        ),
+                    ),
+                );
+                expressions.push(b.call("$.get", id));
+            } else if (values.length === 1) {
+                // If we have a single expression, then pass that in directly to possibly avoid doing
+                // extra work in the template_effect (instead we do the work in set_text).
+                return {
+                    value: visit(node.expression, state),
+                    has_state,
+                    has_call,
+                };
+            } else {
+                expressions.push(
+                    b.logical(
+                        visit(node.expression, state),
+                        "??",
+                        b.literal(""),
+                    ),
+                );
+            }
+
+            quasi = b.quasi("", i + 1 === values.length);
+            quasis.push(quasi);
+        }
+    }
+
+    for (const quasi of quasis) {
+        quasi.value.raw = sanitize_template_string(
+            /** @type {string} */ (quasi.value.cooked),
+        );
+    }
+
+    const value = b.template(quasis, expressions);
+
+    return { value, has_state, has_call };
+}
+
+/**
+ * @param {string} str
+ * @returns {string}
+ */
+export function sanitize_template_string(str) {
+    return str.replace(/(`|\${|\\)/g, "\\$1");
+}
+
+/**
+ * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
+ */
+export function get_states_and_calls(values) {
+    let states = 0;
+    let calls = 0;
+    for (let i = 0; i < values.length; i++) {
+        const node = values[i];
+
+        if (node.type === "ExpressionTag") {
+            if (node.metadata.expression.has_call) {
+                calls++;
+            }
+            if (node.metadata.expression.has_state) {
+                states++;
+            }
+        }
+    }
+
+    return { states, calls };
 }
