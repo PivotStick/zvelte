@@ -1,3 +1,4 @@
+import { walk } from "zimmerframe";
 import {
     regex_ends_with_whitespaces,
     regex_not_whitespace,
@@ -14,15 +15,20 @@ import {
  * @param {import('#ast').ZvelteNode} parent
  * @param {import('#ast').ZvelteNode[]} nodes
  * @param {import('#ast').ZvelteNode[]} path
+ * @param {import("./render_dom/types.js").ComponentClientTransformState} state
  * @param {string} namespace
  * @param {boolean} preserve_whitespace
  * @param {boolean} preserve_comments
  */
-export function cleanNodes(
+export function clean_nodes(
     parent,
     nodes,
     path,
     namespace = "html",
+    state,
+    // TODO give these defaults (state.options.preserveWhitespace and state.options.preserveComments).
+    // first, we need to make `Component(Client|Server)TransformState` inherit from a new `ComponentTransformState`
+    // rather than from `ClientTransformState` and `ServerTransformState`
     preserve_whitespace,
     preserve_comments,
 ) {
@@ -38,11 +44,11 @@ export function cleanNodes(
         }
 
         if (
-            // node.type === 'ConstTag' ||
-            // node.type === 'DebugTag' ||
-            // node.type === 'ZvelteBody' ||
-            // node.type === 'ZvelteWindow' ||
-            // node.type === 'ZvelteDocument' ||
+            // node.type === "ConstTag" ||
+            // node.type === "DebugTag" ||
+            // node.type === "ZvelteBody" ||
+            // node.type === "ZvelteWindow" ||
+            // node.type === "ZvelteDocument" ||
             node.type === "ZvelteHead" ||
             node.type === "TitleElement" ||
             node.type === "SnippetBlock"
@@ -141,31 +147,25 @@ export function cleanNodes(
     return {
         hoisted,
         trimmed,
-
         /**
          * In a case like `{#if x}<Foo />{/if}`, we don't need to wrap the child in
          * comments — we can just use the parent block's anchor for the component.
          * TODO extend this optimisation to other cases
          */
-        isStandalone:
+        is_standalone:
             trimmed.length === 1 &&
             ((first.type === "RenderTag" && !first.metadata.dynamic) ||
                 (first.type === "Component" &&
-                    // !state.options.hmr &&
+                    !state.options.hmr &&
                     !first.metadata.dynamic &&
                     !first.attributes.some(
                         (attribute) =>
                             attribute.type === "Attribute" &&
                             attribute.name.startsWith("--"),
                     ))),
-
-        /**
-         * if a component/snippet/each block starts with text, we need to add an anchor comment
-         * so that its text node doesn't get fused with its surroundings
-         */
-        isTextFirst:
-            (parent.type === "Root" ||
-                parent.type === "Fragment" ||
+        /** if a component/snippet/each block starts with text, we need to add an anchor comment so that its text node doesn't get fused with its surroundings */
+        is_text_first:
+            (parent.type === "Fragment" ||
                 parent.type === "SnippetBlock" ||
                 parent.type === "ForBlock" ||
                 parent.type === "ZvelteComponent" ||
@@ -174,4 +174,274 @@ export function cleanNodes(
             first &&
             (first?.type === "Text" || first?.type === "ExpressionTag"),
     };
+}
+
+/**
+ * Infers the namespace for the children of a node that should be used when creating the `$.template(...)`.
+ * @param {import("#ast").Namespace} namespace
+ * @param {import("#ast").ZvelteNode} parent
+ * @param {import("#ast").ZvelteNode[]} nodes
+ */
+export function infer_namespace(namespace, parent, nodes) {
+    if (parent.type === "RegularElement" && parent.name === "foreignObject") {
+        return "html";
+    }
+
+    if (parent.type === "RegularElement" || parent.type === "ZvelteElement") {
+        if (parent.metadata.svg) {
+            return "svg";
+        }
+        return parent.metadata.mathml ? "mathml" : "html";
+    }
+
+    // Re-evaluate the namespace inside slot nodes that reset the namespace
+    if (
+        parent.type === "Fragment" ||
+        parent.type === "Root" ||
+        parent.type === "Component" ||
+        parent.type === "ZvelteComponent" ||
+        // parent.type === 'ZvelteFragment' ||
+        parent.type === "SnippetBlock"
+    ) {
+        const new_namespace = check_nodes_for_namespace(nodes, "keep");
+        if (new_namespace !== "keep" && new_namespace !== "maybe_html") {
+            return new_namespace;
+        }
+    }
+
+    return namespace;
+}
+
+/**
+ * Heuristic: Keep current namespace, unless we find a regular element,
+ * in which case we always want html, or we only find svg nodes,
+ * in which case we assume svg.
+ * @param {import("#ast").ZvelteNode[]} nodes
+ * @param {import("#ast").Namespace | 'keep' | 'maybe_html'} namespace
+ */
+function check_nodes_for_namespace(nodes, namespace) {
+    /**
+     * @param {import("#ast").ZvelteElement | import("#ast").RegularElement} node}
+     * @param {{stop: () => void}} context
+     */
+    const RegularElement = (node, { stop }) => {
+        if (!node.metadata.svg && !node.metadata.mathml) {
+            namespace = "html";
+            stop();
+        } else if (namespace === "keep") {
+            namespace = node.metadata.svg ? "svg" : "mathml";
+        }
+    };
+
+    for (const node of nodes) {
+        walk(
+            node,
+            {},
+            {
+                _(node, { next }) {
+                    if (
+                        node.type === "ForBlock" ||
+                        node.type === "IfBlock" ||
+                        node.type === "AwaitBlock" ||
+                        node.type === "Fragment" ||
+                        node.type === "KeyBlock" ||
+                        node.type === "RegularElement" ||
+                        node.type === "ZvelteElement" ||
+                        node.type === "Text"
+                    ) {
+                        next();
+                    }
+                },
+                ZvelteElement: RegularElement,
+                RegularElement,
+                Text(node) {
+                    if (node.data.trim() !== "") {
+                        namespace = "maybe_html";
+                    }
+                },
+            },
+        );
+
+        if (namespace === "html") return namespace;
+    }
+
+    return namespace;
+}
+
+/**
+ * @param {string} name
+ */
+export function is_capture_event(name) {
+    return (
+        name.endsWith("capture") &&
+        name !== "gotpointercapture" &&
+        name !== "lostpointercapture"
+    );
+}
+
+/**
+ * Subset of delegated events which should be passive by default.
+ * These two are already passive via browser defaults on window, document and body.
+ * But since
+ * - we're delegating them
+ * - they happen often
+ * - they apply to mobile which is generally less performant
+ * we're marking them as passive by default for other elements, too.
+ */
+const PASSIVE_EVENTS = ["touchstart", "touchmove"];
+
+/**
+ * Returns `true` if `name` is a passive event
+ * @param {string} name
+ */
+export function is_passive_event(name) {
+    return PASSIVE_EVENTS.includes(name);
+}
+
+/**
+ * Attributes that are boolean, i.e. they are present or not present.
+ */
+const DOM_BOOLEAN_ATTRIBUTES = [
+    "allowfullscreen",
+    "async",
+    "autofocus",
+    "autoplay",
+    "checked",
+    "controls",
+    "default",
+    "disabled",
+    "formnovalidate",
+    "hidden",
+    "indeterminate",
+    "ismap",
+    "loop",
+    "multiple",
+    "muted",
+    "nomodule",
+    "novalidate",
+    "open",
+    "playsinline",
+    "readonly",
+    "required",
+    "reversed",
+    "seamless",
+    "selected",
+    "webkitdirectory",
+];
+
+/**
+ * Returns `true` if `name` is a boolean attribute
+ * @param {string} name
+ */
+export function is_boolean_attribute(name) {
+    return DOM_BOOLEAN_ATTRIBUTES.includes(name);
+}
+
+/**
+ * @type {Record<string, string>}
+ * List of attribute names that should be aliased to their property names
+ * because they behave differently between setting them as an attribute and
+ * setting them as a property.
+ */
+const ATTRIBUTE_ALIASES = {
+    // no `class: 'className'` because we handle that separately
+    formnovalidate: "formNoValidate",
+    ismap: "isMap",
+    nomodule: "noModule",
+    playsinline: "playsInline",
+    readonly: "readOnly",
+};
+
+/**
+ * @param {string} name
+ */
+export function normalize_attribute(name) {
+    name = name.toLowerCase();
+    return ATTRIBUTE_ALIASES[name] ?? name;
+}
+
+const DOM_PROPERTIES = [
+    ...DOM_BOOLEAN_ATTRIBUTES,
+    "formNoValidate",
+    "isMap",
+    "noModule",
+    "playsInline",
+    "readOnly",
+    "value",
+    "inert",
+    "volume",
+];
+
+/**
+ * @param {string} name
+ */
+export function is_dom_property(name) {
+    return DOM_PROPERTIES.includes(name);
+}
+
+const LOAD_ERROR_ELEMENTS = [
+    "body",
+    "embed",
+    "iframe",
+    "img",
+    "link",
+    "object",
+    "script",
+    "style",
+    "track",
+];
+
+/**
+ * Returns `true` if the element emits `load` and `error` events
+ * @param {string} name
+ */
+export function is_load_error_element(name) {
+    return LOAD_ERROR_ELEMENTS.includes(name);
+}
+
+/**
+ * Determines the namespace the children of this node are in.
+ * @param {import('#ast').RegularElement | import('#ast').ZvelteElement} node
+ * @param {import("#ast").Namespace} namespace
+ * @returns {import("#ast").Namespace}
+ */
+export function determine_namespace_for_children(node, namespace) {
+    if (node.name === "foreignObject") {
+        return "html";
+    }
+
+    if (node.metadata.svg) {
+        return "svg";
+    }
+
+    return node.metadata.mathml ? "mathml" : "html";
+}
+
+const VOID_ELEMENT_NAMES = [
+    "area",
+    "base",
+    "br",
+    "col",
+    "command",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "keygen",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+];
+
+/**
+ * Returns `true` if `name` is of a void element
+ * @param {string} name
+ */
+export function is_void(name) {
+    return (
+        VOID_ELEMENT_NAMES.includes(name) || name.toLowerCase() === "!doctype"
+    );
 }

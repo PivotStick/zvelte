@@ -6,7 +6,7 @@ const CONTENT_REGEX = /[&<]/g;
  * @param {V} value
  * @param {boolean} [is_attr]
  */
-export function escapeHtml(value, is_attr) {
+export function escape_html(value, is_attr) {
     const str = String(value ?? "");
 
     const pattern = is_attr ? ATTR_REGEX : CONTENT_REGEX;

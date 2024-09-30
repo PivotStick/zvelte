@@ -2,7 +2,7 @@ import { walk } from "zimmerframe";
 import { isVoid } from "../../../shared/utils/names.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
-import { cleanNodes } from "../utils.js";
+import { clean_nodes } from "../utils.js";
 import { DOMBooleanAttributes } from "../constants.js";
 import {
     BLOCK_CLOSE,
@@ -192,7 +192,7 @@ const visitors = {
     },
 
     Root(node, context) {
-        const { trimmed, hoisted, isTextFirst, isStandalone } = cleanNodes(
+        const { trimmed, hoisted, isTextFirst, isStandalone } = clean_nodes(
             node,
             node.fragment.nodes,
             [node],
@@ -224,7 +224,7 @@ const visitors = {
     Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
 
-        const { trimmed, hoisted, isTextFirst, isStandalone } = cleanNodes(
+        const { trimmed, hoisted, isTextFirst, isStandalone } = clean_nodes(
             parent,
             node.nodes,
             path,
@@ -578,7 +578,7 @@ const visitors = {
 
         state.appendText(`>`);
 
-        const { trimmed, hoisted } = cleanNodes(
+        const { trimmed, hoisted } = clean_nodes(
             parent,
             node.fragment.nodes,
             path,
@@ -1105,7 +1105,7 @@ function getComponentProps(node, context) {
         context,
     );
 
-    const { trimmed, hoisted } = cleanNodes(
+    const { trimmed, hoisted } = clean_nodes(
         parent,
         node.fragment.nodes,
         context.path,
@@ -1156,7 +1156,7 @@ function createSnippetClosure(context, parameters, nodes) {
         ...nonPropVars.map((n) => b.variable(n)),
     ]);
 
-    const { trimmed, hoisted } = cleanNodes(
+    const { trimmed, hoisted } = clean_nodes(
         parent,
         nodes,
         context.path,

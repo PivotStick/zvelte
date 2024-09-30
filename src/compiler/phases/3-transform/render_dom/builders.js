@@ -3,7 +3,7 @@ import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 /**
  * @template {import('estree').Expression} Value
  * @param {'init' | 'get' | 'set'} kind
- * @param {import('estree').Expression} key
+ * @param {import('estree').Expression | string} key
  * @param {Value} value
  * @param {boolean} computed
  * @returns {import('estree').Property & { value: Value }}
@@ -12,7 +12,7 @@ export function prop(kind, key, value, computed = false) {
     return {
         type: "Property",
         kind,
-        key,
+        key: typeof key === "string" ? id(key) : key,
         value,
         method: false,
         shorthand: false,
@@ -96,6 +96,7 @@ export function arrow(params, body) {
         expression: body.type !== "BlockStatement",
         generator: false,
         async: false,
+        // @ts-ignore
         metadata: /** @type {any} */ (null), // should not be used by codegen
     };
 }
@@ -119,6 +120,34 @@ export function thunk(expression, async = false) {
     const fn = arrow([], expression);
     if (async) fn.async = true;
     return fn;
+}
+
+/**
+ * Replace "(arg) => func(arg)" to "func"
+ * @param {import('estree').Expression} expression
+ * @returns {import('estree').Expression}
+ */
+export function unthunk(expression) {
+    if (
+        expression.type === "ArrowFunctionExpression" &&
+        expression.async === false &&
+        expression.body.type === "CallExpression" &&
+        expression.body.callee.type === "Identifier" &&
+        expression.params.length === expression.body.arguments.length &&
+        expression.params.every((param, index) => {
+            const arg = /** @type {import('estree').SimpleCallExpression} */ (
+                expression.body
+            ).arguments[index];
+            return (
+                param.type === "Identifier" &&
+                arg.type === "Identifier" &&
+                param.name === arg.name
+            );
+        })
+    ) {
+        return expression.body.callee;
+    }
+    return expression;
 }
 
 /**
@@ -266,6 +295,7 @@ export function function_declaration(id, params, body) {
         body,
         generator: false,
         async: false,
+        // @ts-ignore
         metadata: /** @type {any} */ (null), // should not be used by codegen
     };
 }
@@ -379,7 +409,7 @@ export function optionalCall(callee, ...args) {
 
 /**
  * @param {import('estree').Expression | import('estree').Super} object
- * @param {import('estree').Expression | import('estree').PrivateIdentifier} property
+ * @param {import('estree').Expression | import('estree').PrivateIdentifier | string} property
  * @param {boolean} computed
  * @param {boolean} optional
  * @returns {import('estree').MemberExpression}
@@ -388,7 +418,7 @@ export function member(object, property, computed = false, optional = false) {
     return {
         type: "MemberExpression",
         object,
-        property,
+        property: typeof property === "string" ? id(property) : property,
         computed,
         optional,
     };
@@ -474,6 +504,7 @@ function function_builder(id, params, body) {
         body,
         generator: false,
         async: false,
+        // @ts-ignore
         metadata: /** @type {any} */ (null), // should not be used by codegen
     };
 }
@@ -484,6 +515,14 @@ function function_builder(id, params, body) {
  */
 function return_builder(argument = null) {
     return { type: "ReturnStatement", argument };
+}
+
+/**
+ * @param {import('estree').Expression[]} expressions
+ * @returns {import('estree').SequenceExpression}
+ */
+export function sequence(expressions) {
+    return { type: "SequenceExpression", expressions };
 }
 
 /**
@@ -515,6 +554,11 @@ const false_instance = literal(false);
 /** @type {import('estree').ThisExpression} */
 const this_instance = {
     type: "ThisExpression",
+};
+
+/** @type {import('estree').EmptyStatement} */
+export const empty = {
+    type: "EmptyStatement",
 };
 
 export {

@@ -9,6 +9,7 @@ export type CompilerOptions = {
 
     generate: string;
     dev: boolean;
+    hmr: boolean;
 
     filename: string;
     preserveWhitespace: boolean;
@@ -25,3 +26,12 @@ export type CompilerOptions = {
         ast?: Visitors<ZvelteNode, {}>;
     };
 };
+
+export interface ExpressionMetadata {
+    /** All the bindings that are referenced inside this expression */
+    dependencies: Set<Binding>;
+    /** True if the expression references state directly, or _might_ (via member/call expressions) */
+    has_state: boolean;
+    /** True if the expression involves a call expression (often, it will need to be wrapped in a derived) */
+    has_call: boolean;
+}

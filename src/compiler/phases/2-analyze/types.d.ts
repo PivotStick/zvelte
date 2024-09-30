@@ -20,7 +20,9 @@ export interface ComponentAnalysis extends Analysis {
         scopes: Map<ZvelteNode, Scope>;
     };
 
-    usesProps: boolean;
+    source: string;
+
+    needs_props: boolean;
 
     /** Identifiers that make up the `bind:group` expression -> internal group binding name */
     bindingGroups: Map<

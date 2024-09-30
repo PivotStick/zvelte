@@ -31,6 +31,7 @@ export function analyseComponent(root, options) {
     const analysis = {
         root: scopeRoot,
         elements: [],
+        source: "",
         css: root.css
             ? {
                   hash: "zvelte-" + hash(root.css.code),
@@ -43,7 +44,7 @@ export function analyseComponent(root, options) {
             scope,
             scopes,
         },
-        usesProps: options.hasJS,
+        needs_props: options.hasJS,
         bindingGroups: new Map(),
     };
 
@@ -138,7 +139,7 @@ const visitors = {
         const parent = path[path.length - 1];
         const dynamic = isDynamicIdentifier(parent);
         if (dynamic) {
-            state.analysis.usesProps = dynamic;
+            state.analysis.needs_props = dynamic;
             path.forEach((n) => {
                 if (n.type === "Fragment") {
                     n.metadata.dynamic = true;
@@ -147,36 +148,24 @@ const visitors = {
         }
         return next();
     },
-    ExpressionTag(node, { next }) {
-        node.metadata.expression ??= {
-            has_call: false,
-            has_state: false,
-        };
+    OnDirective(node, { next }) {
+        set_attr_expression_meta(node.metadata, node.expression);
+        return next();
+    },
+    ClassDirective(node, { next }) {
+        set_attr_expression_meta(node.metadata, node.expression);
+        return next();
+    },
+    ExpressionTag(node, { next, path }) {
+        set_attr_expression_meta(node.metadata, node.expression);
 
-        walk(
-            /** @type {import("#ast").ZvelteNode} */ (node.expression),
-            {},
-            {
-                _(node, { next }) {
-                    node.metadata ??= {};
-                    return next();
-                },
-                CallExpression() {
-                    node.metadata.expression.has_call = true;
-                },
-                Identifier(_, { path, next }) {
-                    const parent = path.at(-1);
-                    const dynamic = isDynamicIdentifier(parent);
-
-                    if (dynamic) {
-                        node.metadata.dynamic = dynamic;
-                        node.metadata.expression.has_state = dynamic;
-                    }
-
-                    return next();
-                },
-            },
-        );
+        for (let i = path.length - 1; i >= 0; i--) {
+            const parent = path[i];
+            if (parent.type === "Attribute") {
+                parent.metadata.expression = node.metadata.expression;
+                break;
+            }
+        }
 
         return next();
     },
@@ -190,7 +179,7 @@ const visitors = {
             }
         }
 
-        state.analysis.usesProps = true;
+        state.analysis.needs_props = true;
 
         return next();
     },
@@ -265,11 +254,11 @@ const visitors = {
         }
 
         context.state.analysis.elements.push(node);
-        context.next();
+        return context.next();
     },
     ZvelteElement(node, context) {
         context.state.analysis.elements.push(node);
-        context.next();
+        return context.next();
     },
     BindDirective(node, context) {
         if (node.name !== "group") return context.next();
@@ -421,4 +410,42 @@ function determine_element_spread(node) {
     node.metadata.has_spread = has_spread;
 
     return node;
+}
+
+/**
+ * @param {*} metadata
+ * @param {import('#ast').Expression | null} expression
+ */
+function set_attr_expression_meta(metadata, expression) {
+    metadata.expression ??= {
+        has_call: false,
+        has_state: false,
+    };
+
+    if (!expression) return;
+
+    walk(
+        /** @type {import("#ast").ZvelteNode} */ (expression),
+        {},
+        {
+            _(node, { next }) {
+                node.metadata ??= {};
+                return next();
+            },
+            CallExpression() {
+                metadata.expression.has_call = true;
+            },
+            Identifier(_, { path, next }) {
+                const parent = path.at(-1);
+                const dynamic = isDynamicIdentifier(parent);
+
+                if (dynamic) {
+                    metadata.dynamic = dynamic;
+                    metadata.expression.has_state = dynamic;
+                }
+
+                return next();
+            },
+        },
+    );
 }

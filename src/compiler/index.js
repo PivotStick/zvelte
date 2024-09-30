@@ -28,8 +28,8 @@ export function compile(source, options = {}, meta = {}) {
         walk(ast, {}, options.transformers.ast);
     }
 
-    options.generate = options.generate ?? "dom";
-    options.hydratable = options.hydratable ?? false;
+    options.generate ??= "dom";
+    options.hydratable ??= false;
     options.dev ??= false;
     options.css ??= "injected";
     options.namespace ??= "Zvelte\\Components";
@@ -38,6 +38,7 @@ export function compile(source, options = {}, meta = {}) {
     options.hasJS ??= false;
     options.preserveWhitespace ??= false;
     options.preserveComments ??= false;
+    options.hmr ??= false;
 
     const render = renderers[options.generate];
 
@@ -55,9 +56,11 @@ export function compile(source, options = {}, meta = {}) {
         preserveComments: options.preserveComments,
         css: options.css,
         dev: options.dev,
+        hmr: options.hmr,
     };
 
     const analysis = analyseComponent(ast, compilerOptions);
+    analysis.source = source;
 
     if (analysis.css && options.css === "external") {
         analysis.css.generated = renderStylesheet(
