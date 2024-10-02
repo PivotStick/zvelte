@@ -92,7 +92,7 @@ export class Scope {
                     node,
                     kind,
                     declaration_kind,
-                    initial
+                    initial,
                 );
             }
         }
@@ -293,6 +293,23 @@ export function createScopes(ast, root, allow_reactive_declarations, parent) {
 
         RegularElement: ZvelteFragment,
 
+        Component: (node, context) => {
+            node.metadata.scopes = {
+                default: context.state.scope.child(),
+            };
+
+            const default_state = { scope: node.metadata.scopes.default };
+
+            for (const attribute of node.attributes) {
+                context.visit(attribute);
+            }
+
+            for (const child of node.fragment.nodes) {
+                let state = default_state;
+                context.visit(child, state);
+            }
+        },
+
         Fragment: (node, context) => {
             const scope = context.state.scope.child(node.transparent);
             scopes.set(node, scope);
@@ -336,7 +353,7 @@ export function setScope(scopes) {
             next(
                 scope !== undefined && scope !== state.scope
                     ? { ...state, scope }
-                    : state
+                    : state,
             );
         },
     };

@@ -3,6 +3,8 @@ import type { CompilerOptions } from "../../types.js";
 import { Scope, ScopeRoot } from "../3-transform/render_dom/scope.js";
 
 export interface ComponentAnalysis extends Analysis {
+    name: string;
+
     root: ScopeRoot;
 
     css: null | {

@@ -1056,6 +1056,40 @@ describe("Parser: will test expressions", () => {
             });
         });
 
+        test("positive member expression", () => {
+            ExpressionTagOf(`{{ left.data is right }}`, {
+                type: "IsExpression",
+                start: 3,
+                end: 21,
+                left: {
+                    type: "MemberExpression",
+                    start: 3,
+                    end: 12,
+                    computed: false,
+                    optional: false,
+                    object: {
+                        type: "Identifier",
+                        name: "left",
+                        start: 3,
+                        end: 7,
+                    },
+                    property: {
+                        type: "Identifier",
+                        name: "data",
+                        start: 8,
+                        end: 12,
+                    },
+                },
+                not: false,
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 16,
+                    end: 21,
+                },
+            });
+        });
+
         test("negative", () => {
             ExpressionTagOf(`{{ left is not right }}`, {
                 type: "IsExpression",
@@ -1073,6 +1107,40 @@ describe("Parser: will test expressions", () => {
                     name: "right",
                     start: 15,
                     end: 20,
+                },
+            });
+        });
+
+        test("negative member expression", () => {
+            ExpressionTagOf(`{{ left.data is not right }}`, {
+                type: "IsExpression",
+                start: 3,
+                end: 25,
+                left: {
+                    type: "MemberExpression",
+                    start: 3,
+                    end: 12,
+                    computed: false,
+                    optional: false,
+                    object: {
+                        type: "Identifier",
+                        name: "left",
+                        start: 3,
+                        end: 7,
+                    },
+                    property: {
+                        type: "Identifier",
+                        name: "data",
+                        start: 8,
+                        end: 12,
+                    },
+                },
+                not: true,
+                right: {
+                    type: "Identifier",
+                    name: "right",
+                    start: 20,
+                    end: 25,
                 },
             });
         });

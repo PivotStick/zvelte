@@ -1,3 +1,4 @@
+import { regex_is_valid_identifier } from "../../patterns.js";
 import { sanitizeTemplateString } from "./sanitizeTemplateString.js";
 
 /**
@@ -18,6 +19,45 @@ export function prop(kind, key, value, computed = false) {
         shorthand: false,
         computed,
     };
+}
+
+/**
+ * @param {string} name
+ * @param {import('estree').Statement[]} body
+ * @returns {import('estree').Property & { value: import('estree').FunctionExpression}}}
+ */
+export function get(name, body) {
+    return prop("get", key(name), function_builder(null, [], block(body)));
+}
+
+/**
+ * @param {string} name
+ * @returns {import('estree').Expression}
+ */
+export function key(name) {
+    return regex_is_valid_identifier.test(name) ? id(name) : literal(name);
+}
+
+/**
+ * @param {string} name
+ * @param {import('estree').Expression} value
+ * @returns {import('estree').Property}
+ */
+export function init(name, value) {
+    return prop("init", key(name), value);
+}
+
+/**
+ * @param {string} name
+ * @param {import('estree').Statement[]} body
+ * @returns {import('estree').Property & { value: import('estree').FunctionExpression}}
+ */
+export function set(name, body) {
+    return prop(
+        "set",
+        key(name),
+        function_builder(null, [id("$$value")], block(body)),
+    );
 }
 
 /**
@@ -422,6 +462,40 @@ export function member(object, property, computed = false, optional = false) {
         computed,
         optional,
     };
+}
+
+/**
+ * @param {string} path
+ * @returns {import('#ast').Identifier | import('#ast').MemberExpression}
+ */
+export function member_id(path) {
+    const parts = path.split(".");
+
+    /** @type {import('#ast').Identifier | import('#ast').MemberExpression} */
+    let expression = {
+        type: "Identifier",
+        name: parts[0],
+        start: -1,
+        end: -1,
+    };
+
+    for (let i = 1; i < parts.length; i += 1) {
+        expression = {
+            type: "MemberExpression",
+            object: expression,
+            computed: false,
+            optional: false,
+            property: {
+                type: "Identifier",
+                name: parts[i],
+                start: -1,
+                end: -1,
+            },
+            start: -1,
+            end: -1,
+        };
+    }
+    return expression;
 }
 
 /**

@@ -10,6 +10,7 @@ import { prune } from "./css/css-prune.js";
 import { create_attribute } from "../nodes.js";
 import { MathMLElements, SVGElements } from "../3-transform/constants.js";
 import { regex_starts_with_newline } from "../patterns.js";
+import { is_expression_attribute } from "../../utils/ast.js";
 
 /**
  * @param {import("#ast").Root} root
@@ -29,6 +30,7 @@ export function analyseComponent(root, options) {
      * @type {import("./types.js").ComponentAnalysis}
      */
     const analysis = {
+        name: options.filename.match(/([^/]+)\.\w+$/)?.[1] ?? "_unknown_",
         root: scopeRoot,
         elements: [],
         source: "",
@@ -148,11 +150,24 @@ const visitors = {
         }
         return next();
     },
+    Attribute(node, { next }) {
+        let expression = null;
+        if (is_expression_attribute(node)) {
+            expression = node.value[0].expression;
+        }
+
+        set_attr_expression_meta(node.metadata, expression);
+        return next();
+    },
     OnDirective(node, { next }) {
         set_attr_expression_meta(node.metadata, node.expression);
         return next();
     },
     ClassDirective(node, { next }) {
+        set_attr_expression_meta(node.metadata, node.expression);
+        return next();
+    },
+    SpreadAttribute(node, { next }) {
         set_attr_expression_meta(node.metadata, node.expression);
         return next();
     },
@@ -163,7 +178,10 @@ const visitors = {
             const parent = path[i];
             if (parent.type === "Attribute") {
                 parent.metadata.expression = node.metadata.expression;
-                break;
+                continue;
+            }
+            if (parent.type === "Fragment") {
+                parent.metadata.dynamic = true;
             }
         }
 
@@ -180,7 +198,12 @@ const visitors = {
         }
 
         state.analysis.needs_props = true;
+        node.metadata.dynamic = true;
 
+        return next();
+    },
+    ForBlock(node, { next }) {
+        node.metadata.keyed = node.key !== null;
         return next();
     },
     RegularElement(node, context) {

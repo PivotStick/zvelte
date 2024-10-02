@@ -106,7 +106,7 @@ export function Fragment(node, context) {
         //     );
         // }
 
-        context.state.hoisted.push(b.var(template_name, call));
+        state.hoisted.push(b.var(template_name, call));
     };
 
     if (is_single_element) {
@@ -114,7 +114,7 @@ export function Fragment(node, context) {
             trimmed[0]
         );
 
-        const id = b.id(context.state.scope.generate(element.name));
+        const id = b.id(state.scope.generate(element.name));
 
         context.visit(element, {
             ...state,
@@ -140,7 +140,7 @@ export function Fragment(node, context) {
         context.visit(trimmed[0], state);
         body.push(...state.before_init, ...state.init);
     } else if (trimmed.length === 1 && trimmed[0].type === "Text") {
-        const id = b.id(context.state.scope.generate("text"));
+        const id = b.id(state.scope.generate("text"));
         body.push(
             b.var(id, b.call("$.text", b.literal(trimmed[0].data))),
             ...state.before_init,
@@ -148,7 +148,7 @@ export function Fragment(node, context) {
         );
         close = b.stmt(b.call("$.append", b.id("$$anchor"), id));
     } else if (trimmed.length > 0) {
-        const id = b.id(context.state.scope.generate("fragment"));
+        const id = b.id(state.scope.generate("fragment"));
 
         const use_space_template =
             trimmed.some((node) => node.type === "ExpressionTag") &&
@@ -158,7 +158,7 @@ export function Fragment(node, context) {
 
         if (use_space_template) {
             // special case — we can use `$.text` instead of creating a unique template
-            const id = b.id(context.state.scope.generate("text"));
+            const id = b.id(state.scope.generate("text"));
 
             process_children(trimmed, () => id, false, {
                 ...context,

@@ -192,11 +192,12 @@ const visitors = {
     },
 
     Root(node, context) {
-        const { trimmed, hoisted, isTextFirst, isStandalone } = clean_nodes(
+        const { trimmed, hoisted, is_text_first, is_standalone } = clean_nodes(
             node,
             node.fragment.nodes,
             [node],
             undefined,
+            context.state,
             context.state.options.preserveWhitespace,
             context.state.options.preserveComments,
         );
@@ -205,13 +206,13 @@ const visitors = {
             context.state.appendText(BLOCK_OPEN);
         }
 
-        if (isTextFirst) {
+        if (is_text_first) {
             context.state.appendText(EMPTY_COMMENT);
         }
 
         const state = {
             ...context.state,
-            skipHydrationBoundaries: isStandalone,
+            skipHydrationBoundaries: is_standalone,
         };
 
         renderBlock({ ...context, state }, [...hoisted, ...trimmed]);
@@ -224,21 +225,22 @@ const visitors = {
     Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
 
-        const { trimmed, hoisted, isTextFirst, isStandalone } = clean_nodes(
+        const { trimmed, hoisted, is_text_first, is_standalone } = clean_nodes(
             parent,
             node.nodes,
             path,
             "html",
+            state,
             state.options.preserveWhitespace,
             state.options.preserveComments,
         );
 
         state = {
             ...state,
-            skipHydrationBoundaries: isStandalone,
+            skipHydrationBoundaries: is_standalone,
         };
 
-        if (isTextFirst) {
+        if (is_text_first) {
             state.appendText(EMPTY_COMMENT);
         }
 

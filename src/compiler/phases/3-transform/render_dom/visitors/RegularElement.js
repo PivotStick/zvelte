@@ -318,6 +318,7 @@ export function RegularElement(node, context) {
                       attribute,
                       context,
                   );
+
             if (is) is_attributes_reactive = true;
         }
     }
@@ -615,7 +616,6 @@ function build_element_attribute_update_assignment(
     attribute,
     context,
 ) {
-    const state = context.state;
     const name = get_attribute_name(element, attribute);
     const is_svg =
         context.state.metadata.namespace === "svg" || element.name === "svg";
@@ -623,7 +623,7 @@ function build_element_attribute_update_assignment(
     let { has_call, value } = build_attribute_value(attribute.value, context);
 
     if (name === "autofocus") {
-        state.init.push(b.stmt(b.call("$.autofocus", node_id, value)));
+        context.state.init.push(b.stmt(b.call("$.autofocus", node_id, value)));
         return false;
     }
 
@@ -674,16 +674,16 @@ function build_element_attribute_update_assignment(
               );
     if (attribute.metadata.expression.has_state) {
         if (has_call) {
-            state.init.push(build_update(update));
+            context.state.init.push(build_update(update));
         } else {
-            state.update.push(update);
+            context.state.update.push(update);
         }
         return true;
     } else {
         if (inlinable_expression) {
             context.state.template.push(` ${name}="`, value, '"');
         } else {
-            state.init.push(update);
+            context.state.init.push(update);
         }
         return false;
     }
