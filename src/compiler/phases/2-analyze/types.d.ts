@@ -25,6 +25,7 @@ export interface ComponentAnalysis extends Analysis {
     source: string;
 
     needs_props: boolean;
+    needs_els: boolean;
 
     /** Identifiers that make up the `bind:group` expression -> internal group binding name */
     bindingGroups: Map<

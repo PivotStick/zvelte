@@ -504,7 +504,7 @@ describe("Parser: will test tags", () => {
         test("identifier", () => {
             TemplateRootOf(`{% set foo = "value" %}`, [
                 {
-                    type: "Variable",
+                    type: "VariableTag",
                     start: 0,
                     end: 23,
                     assignment: {
@@ -533,7 +533,7 @@ describe("Parser: will test tags", () => {
         test("member expression", () => {
             TemplateRootOf(`{% set foo.bar = "value" %}`, [
                 {
-                    type: "Variable",
+                    type: "VariableTag",
                     start: 0,
                     end: 27,
                     assignment: {

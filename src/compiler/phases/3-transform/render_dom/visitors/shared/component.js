@@ -223,10 +223,17 @@ export function build_component(
             context.visit(child, {
                 ...context.state,
                 init: snippet_declarations,
+                nonPropVars: [
+                    ...context.state.nonPropVars,
+                    child.expression.name,
+                ],
             });
 
             push_prop(b.prop("init", child.expression, child.expression));
+            continue;
         }
+
+        (children["default"] ||= []).push(child);
     }
 
     // Serialize each slot

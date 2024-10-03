@@ -13,7 +13,12 @@ export function prop(kind, key, value, computed = false) {
     return {
         type: "Property",
         kind,
-        key: typeof key === "string" ? id(key) : key,
+        key:
+            typeof key === "string"
+                ? regex_is_valid_identifier.test(key)
+                    ? id(key)
+                    : string(key)
+                : key,
         value,
         method: false,
         shorthand: false,
@@ -432,6 +437,23 @@ export function call(callee, ...args) {
             /** @type {Array<import('estree').Expression | import('estree').SpreadElement>} */ (
                 args
             ),
+    };
+}
+
+/**
+ * @param {string | import('estree').Expression} callee
+ * @param {...import('estree').Expression} args
+ * @returns {import('estree').ChainExpression}
+ */
+export function maybe_call(callee, ...args) {
+    const expression = /** @type {import('estree').SimpleCallExpression} */ (
+        call(callee, ...args)
+    );
+    expression.optional = true;
+
+    return {
+        type: "ChainExpression",
+        expression,
     };
 }
 

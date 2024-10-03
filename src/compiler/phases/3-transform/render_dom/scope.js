@@ -235,14 +235,14 @@ export class ScopeRoot {
 }
 
 /**
+ * @typedef {{ scope: Scope }} State
+ *
  * @param {import('#ast').ZvelteNode} ast
  * @param {ScopeRoot} root
  * @param {boolean} allow_reactive_declarations
  * @param {Scope | null} parent
  */
 export function createScopes(ast, root, allow_reactive_declarations, parent) {
-    /** @typedef {{ scope: Scope }} State */
-
     /**
      * A map of node->associated scope. A node appearing in this map does not necessarily mean that it created a scope
      * @type {Map<import('#ast').ZvelteNode, Scope>}
@@ -294,21 +294,11 @@ export function createScopes(ast, root, allow_reactive_declarations, parent) {
         RegularElement: ZvelteFragment,
 
         Component: (node, context) => {
-            node.metadata.scopes = {
-                default: context.state.scope.child(),
-            };
-
-            const default_state = { scope: node.metadata.scopes.default };
-
-            for (const attribute of node.attributes) {
-                context.visit(attribute);
-            }
-
-            for (const child of node.fragment.nodes) {
-                let state = default_state;
-                context.visit(child, state);
-            }
+            context.state.scope.reference(b.id(node.name), context.path);
+            Component(node, context);
         },
+        ZvelteSelf: Component,
+        ZvelteComponent: Component,
 
         Fragment: (node, context) => {
             const scope = context.state.scope.child(node.transparent);
@@ -335,6 +325,27 @@ export function createScopes(ast, root, allow_reactive_declarations, parent) {
         scopes,
     };
 }
+
+/**
+ * @param {import('#ast').Component | import("#ast").ZvelteSelf | import("#ast").ZvelteComponent} node
+ * @param {import("zimmerframe").Context<import('#ast').ZvelteNode, State>} context
+ */
+const Component = (node, context) => {
+    node.metadata.scopes = {
+        default: context.state.scope.child(),
+    };
+
+    const default_state = { scope: node.metadata.scopes.default };
+
+    for (const attribute of node.attributes) {
+        context.visit(attribute);
+    }
+
+    for (const child of node.fragment.nodes) {
+        let state = default_state;
+        context.visit(child, state);
+    }
+};
 
 /**
  * @template {{ scope: Scope }} State

@@ -26,6 +26,9 @@ import { ZvelteHead } from "./visitors/ZvelteHead.js";
 import { TitleElement } from "./visitors/TitleElement.js";
 import { IfBlock } from "./visitors/IfBlock.js";
 import { SpreadAttribute } from "./visitors/SpreadAttribute.js";
+import { VariableTag } from "./visitors/VariableTag.js";
+import { SnippetBlock } from "./visitors/SnippetBlock.js";
+import { RenderTag } from "./visitors/RenderTag.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -260,6 +263,10 @@ export function renderDom(source, ast, analysis, options, meta) {
             );
         }
     } else {
+        if (analysis.needs_els) {
+            component.body.body.unshift(b.var("$$els", b.object([])));
+        }
+
         component.body.body.unshift(
             ...[...state.initProps].map((prop) =>
                 b.stmt(b.member(b.id("$$props"), b.id(prop))),
@@ -352,6 +359,8 @@ export function renderDom(source, ast, analysis, options, meta) {
  * @type {import("./types.js").ComponentVisitors}
  */
 const templateVisitors = {
+    VariableTag,
+
     // @ts-ignore
     Fragment,
     Comment,
@@ -610,58 +619,8 @@ const templateVisitors = {
         );
     },
 
-    SnippetBlock(node, { visit, state, path }) {
-        const args = [b.id("$$anchor")];
-        const params = [];
-
-        for (const param of node.parameters) {
-            params.push(param.name);
-            args.push(b.id(param.name));
-        }
-
-        const privateScope = state.nonPropVars.includes(node.expression.name);
-        const id = /** @type {import("estree").Pattern} */ (
-            visit(node.expression, state)
-        );
-
-        const value = b.arrow(
-            args,
-            // @ts-expect-error
-            /** @type {import("estree").BlockStatement} */ (
-                visit(node.body, {
-                    ...state,
-                    nonPropGetters: [...state.nonPropGetters, ...params],
-                })
-            ),
-        );
-
-        state.init.push(
-            privateScope ? b.var(id, value) : b.assignment("=", id, value),
-        );
-    },
-
-    RenderTag(node, { visit, state }) {
-        const callee = /** @type {import("estree").Expression} */ (
-            visit(
-                node.expression.type === "CallExpression"
-                    ? node.expression.callee
-                    : node.expression.name,
-            )
-        );
-
-        const call = b.call("$.snippet", state.node, b.thunk(callee));
-
-        for (const arg of node.expression.arguments) {
-            call.arguments.push(
-                b.thunk(
-                    /** @type {import("estree").Expression} */ (visit(arg)),
-                ),
-            );
-        }
-
-        state.template.push("<!>");
-        state.init.push(b.stmt(call));
-    },
+    SnippetBlock,
+    RenderTag,
 
     // @ts-ignore
     CallExpression(node, context) {

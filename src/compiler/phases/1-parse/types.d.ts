@@ -178,7 +178,7 @@ export interface Text extends BaseNode {
 }
 
 export interface VariableTag extends BaseNode {
-    type: "Variable";
+    type: "VariableTag";
     assignment: AssignmentExpression;
 }
 

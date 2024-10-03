@@ -49,6 +49,7 @@ export function clean_nodes(
             // node.type === "ZvelteBody" ||
             // node.type === "ZvelteWindow" ||
             // node.type === "ZvelteDocument" ||
+            node.type === "VariableTag" ||
             node.type === "ZvelteHead" ||
             node.type === "TitleElement" ||
             node.type === "SnippetBlock"
@@ -165,7 +166,8 @@ export function clean_nodes(
                     ))),
         /** if a component/snippet/each block starts with text, we need to add an anchor comment so that its text node doesn't get fused with its surroundings */
         is_text_first:
-            (parent.type === "Fragment" ||
+            (parent.type === "Root" ||
+                parent.type === "Fragment" ||
                 parent.type === "SnippetBlock" ||
                 parent.type === "ForBlock" ||
                 parent.type === "ZvelteComponent" ||

@@ -268,7 +268,13 @@ export function build_bind_this(expression, value, { state, visit }) {
         },
     });
 
-    const child_state = /** @type {typeof state} */ ({ ...state, transform });
+    const child_state = /** @type {typeof state} */ ({
+        ...state,
+        transform,
+        overrides: {
+            [seen[0]]: b.id("$$els." + seen[0]),
+        },
+    });
 
     const get = /** @type {import('estree').Expression} */ (
         visit(expression, child_state)

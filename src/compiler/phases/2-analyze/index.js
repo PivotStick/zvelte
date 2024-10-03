@@ -47,6 +47,7 @@ export function analyseComponent(root, options) {
             scopes,
         },
         needs_props: options.hasJS,
+        needs_els: options.hasJS,
         bindingGroups: new Map(),
     };
 
@@ -137,7 +138,7 @@ const visitors = {
         node.metadata ??= {};
         return next();
     },
-    Identifier(node, { state, path, next }) {
+    Identifier(_, { state, path, next }) {
         const parent = path[path.length - 1];
         const dynamic = isDynamicIdentifier(parent);
         if (dynamic) {
@@ -187,7 +188,18 @@ const visitors = {
 
         return next();
     },
+    RenderTag(node, { next }) {
+        node.metadata.dynamic = true;
+        node.metadata.args_with_call_expression = new Set();
+        return next();
+    },
     Component(node, { state, next, path }) {
+        for (const parent of path) {
+            if (parent.type === "Fragment") {
+                parent.metadata.dynamic = true;
+            }
+        }
+
         if (path[0].type === "Root") {
             for (const i of path[0].imports) {
                 if (i.specifier.name === node.name) {
@@ -284,6 +296,10 @@ const visitors = {
         return context.next();
     },
     BindDirective(node, context) {
+        if (node.name === "this") {
+            context.state.analysis.needs_els = true;
+        }
+
         if (node.name !== "group") return context.next();
 
         // Traverse the path upwards and find all EachBlocks who are (indirectly) contributing to bind:group,
