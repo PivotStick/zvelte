@@ -87,7 +87,9 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     );
 
     ast.imports.forEach((n) => {
-        namespace.push(b.useitem(n.source.value, n.specifier.name));
+        namespace.push(
+            b.useitem(n.source.value.replace(/\//g, "\\"), n.specifier.name),
+        );
     });
 
     walk(ast, state, visitors);
