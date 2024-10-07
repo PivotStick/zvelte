@@ -15,24 +15,6 @@ effect.tracking = $.effect_tracking;
 
 /**
  * @template T
- * @param {T} initial
- * @returns {{ value: T }}
- */
-export function source(initial) {
-    const signal = $.source(initial);
-
-    return {
-        get value() {
-            return $.get(signal);
-        },
-        set value(value) {
-            $.set(signal, value);
-        },
-    };
-}
-
-/**
- * @template T
  * @template {keyof T} K
  *
  * @param {T} scope
@@ -40,7 +22,7 @@ export function source(initial) {
  * @param {T[K]} initial
  */
 export function state(scope, key, initial) {
-    const signal = $.mutable_source(initial);
+    const signal = $.state(initial);
 
     Object.defineProperty(scope, key, {
         get() {
@@ -72,19 +54,4 @@ export function derived(scope, key, fn) {
     });
 }
 
-/**
- * @template T
- * @param {T} object
- * @returns {T}
- */
-export function proxy(object) {
-    return $.proxy(object);
-}
-
-/**
- * @param {*} a
- * @param {*} b
- */
-export function is(a, b) {
-    return $.is(a, b);
-}
+export const proxy = $.proxy;

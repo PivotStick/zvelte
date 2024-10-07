@@ -8,8 +8,6 @@ export {
 export { registerFilter, getFilter } from "./runtime/filters.js";
 export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
 
-export function source<T>(initial: T): { value: T };
-
 export function state<T, K extends keyof T>(
     scope: T,
     key: K,
@@ -23,7 +21,6 @@ export function derived<T, K extends keyof T>(
 ): void;
 
 export function proxy<T>(object: T): T;
-export function is(a: any, b: any): boolean;
 
 export function effect(fn: () => void | (() => void)): void;
 
