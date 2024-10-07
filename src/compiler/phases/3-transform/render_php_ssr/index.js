@@ -29,7 +29,6 @@ const propsName = "props";
  *  import(name: string): void;
  *  internal(method: string, ...args: import("./type.js").Expression[]): import("./type.js").Call;
  *  componentName: string;
- *  use: (path: string, key?: string) => void;
  *  imports: import("#ast").Root["imports"];
  *  skipHydrationBoundaries: boolean;
  * }} State
@@ -60,6 +59,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
      */
     const internalImports = new Set();
 
+    /** @type {any[]} */
     const namespace = [];
 
     const state = createState(
@@ -72,9 +72,6 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
             counter: 0,
             componentName,
             skipHydrationBoundaries: false,
-            use(path, key) {
-                namespace.push(b.useitem(path, key));
-            },
             import(name) {
                 internalImports.add(name);
             },
@@ -88,6 +85,10 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
         },
         renderMethod.body,
     );
+
+    ast.imports.forEach((n) => {
+        namespace.push(b.useitem(n.source.value, n.specifier.name));
+    });
 
     walk(ast, state, visitors);
 
@@ -675,8 +676,6 @@ const visitors = {
         const props = getComponentProps(node, context);
 
         if (source) {
-            context.state.use(source.replace(/\//g, "\\"), node.name);
-
             context.state.block.children.push(
                 b.stmt(
                     b.call(b.staticLookup(b.name(node.name), "render"), [
