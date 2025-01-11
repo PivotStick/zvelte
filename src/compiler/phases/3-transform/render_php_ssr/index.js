@@ -588,6 +588,7 @@ const visitors = {
             node.fragment.nodes,
             path,
             "html",
+            state,
             state.options.preserveWhitespace,
             state.options.preserveComments,
         );
@@ -1113,6 +1114,7 @@ function getComponentProps(node, context) {
         node.fragment.nodes,
         context.path,
         "html",
+        context.state,
         context.state.options.preserveWhitespace,
         context.state.options.preserveComments,
     );
@@ -1164,6 +1166,7 @@ function createSnippetClosure(context, parameters, nodes) {
         nodes,
         context.path,
         "html",
+        context.state,
         context.state.options.preserveWhitespace,
         context.state.options.preserveComments,
     );
