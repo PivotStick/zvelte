@@ -4,6 +4,7 @@ import { analyseComponent } from "./phases/2-analyze/index.js";
 import { renderStylesheet } from "./phases/3-transform/css/index.js";
 import { renderDom, renderPhpSSR } from "./phases/3-transform/index.js";
 import { compileString } from "sass";
+import { join } from "path";
 
 const renderers = {
     dom: renderDom,
@@ -21,13 +22,7 @@ const renderers = {
  * @param {{ js?: string }} [meta]
  */
 export function compile(source, options = {}, meta = {}) {
-    source = preprocess(source);
-    const ast = parse(source, options.parser);
-
-    if (options.transformers?.ast) {
-        walk(ast, {}, options.transformers.ast);
-    }
-
+    options.dir ??= "";
     options.generate ??= "dom";
     options.hydratable ??= false;
     options.dev ??= false;
@@ -40,12 +35,8 @@ export function compile(source, options = {}, meta = {}) {
     options.preserveComments ??= false;
     options.hmr ??= false;
 
-    const render = renderers[options.generate];
-
-    if (!render) throw new Error(`"${options.generate}" renderer not found`);
-
     const compilerOptions = {
-        dir: options.dir ?? "",
+        dir: options.dir,
         namespace: options.namespace,
         internalsNamespace: options.internalsNamespace,
         filename: options.filename,
@@ -58,6 +49,17 @@ export function compile(source, options = {}, meta = {}) {
         dev: options.dev,
         hmr: options.hmr,
     };
+
+    source = preprocess(source, compilerOptions);
+    const ast = parse(source, options.parser);
+
+    if (options.transformers?.ast) {
+        walk(ast, {}, options.transformers.ast);
+    }
+
+    const render = renderers[options.generate];
+
+    if (!render) throw new Error(`"${options.generate}" renderer not found`);
 
     const analysis = analyseComponent(ast, compilerOptions);
     analysis.source = source;
@@ -83,13 +85,25 @@ export { walk } from "zimmerframe";
 
 /**
  * @param {string} template
+ * @param {import("./types.js").CompilerOptions} options
+ *
  * @returns {string}
  */
-function preprocess(template) {
+function preprocess(template, options) {
     template = template.replace(
         /<style\s+lang\s*=\s*["'](scss|sass)["']\s*>([\s\S]*)<\/\s*style\s*>/,
         (_, lang, code) => {
-            return `<style lang="${lang}">${compileString(code).css}</style>`;
+            return `<style lang="${lang}">${
+                compileString(code, {
+                    importer: {
+                        findFileUrl(url) {
+                            return options.dir
+                                ? new URL("file://" + join(options.dir, url))
+                                : null;
+                        },
+                    },
+                }).css
+            }</style>`;
         },
     );
 

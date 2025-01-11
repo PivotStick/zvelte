@@ -47,6 +47,59 @@ export function buildLoadWrapper({
         );
     }
 
+    /**
+     * @type {import("estree").Statement[]}
+     */
+    const statements = [];
+
+    statements.push(
+        b.var(
+            "loaded",
+            b.arrow(
+                [b.id("$$anchor")],
+                b.block([
+                    b.block([
+                        b.if(
+                            b.id("promise.error"),
+                            b.block([b.stmt(error)]),
+                            b.block([
+                                b.stmt(
+                                    b.call(
+                                        componentId,
+                                        b.id("$$anchor"),
+                                        b.id("$$props"),
+                                        b.id("promise.refresh"),
+                                    ),
+                                ),
+                            ]),
+                        ),
+                    ]),
+                ]),
+            ),
+        ),
+    );
+
+    statements.push(
+        b.stmt(
+            b.call(
+                "$.if",
+                b.id("node"),
+                b.arrow(
+                    [b.id("$$render")],
+                    b.block([
+                        b.if(
+                            b.unary("!", b.id("promise.loading")),
+                            b.stmt(b.call("$$render", b.id("loaded"))),
+                            b.stmt(
+                                b.call("$$render", b.id("$$pending"), b.false),
+                            ),
+                        ),
+                    ]),
+                ),
+            ),
+        ),
+    );
+
     return b.function_declaration(
         b.id("$$load"),
         [b.id("$$anchor"), b.id("$$props")],
@@ -79,35 +132,7 @@ export function buildLoadWrapper({
                     ),
                 ),
             ),
-            b.stmt(
-                b.call(
-                    "$.if",
-                    b.id("node"),
-                    b.thunk(b.unary("!", b.id("promise.loading"))),
-                    // then
-                    b.arrow(
-                        [b.id("$$anchor")],
-                        b.block([
-                            b.if(
-                                b.id("promise.error"),
-                                b.block([b.stmt(error)]),
-                                b.block([
-                                    b.stmt(
-                                        b.call(
-                                            componentId,
-                                            b.id("$$anchor"),
-                                            b.id("$$props"),
-                                            b.id("promise.refresh"),
-                                        ),
-                                    ),
-                                ]),
-                            ),
-                        ]),
-                    ),
-                    // await
-                    b.id("$$pending"),
-                ),
-            ),
+            b.block(statements),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
         ]),
     );

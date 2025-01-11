@@ -1,3 +1,5 @@
+/** @import { BlockStatement, Expression } from 'estree' */
+
 import * as b from "../builders.js";
 
 /**
@@ -6,35 +8,49 @@ import * as b from "../builders.js";
  */
 export function IfBlock(node, context) {
     context.state.template.push("<!>");
+    const statements = [];
 
-    // @ts-expect-error visiting a Fragment alwasy returns a BlockStatement
-    const consequent = /** @type {import('estree').BlockStatement} */ (
-        context.visit(node.consequent)
+    /** @type {BlockStatement} */
+    const consequent = /** @type {any} */ (context.visit(node.consequent));
+    const consequent_id = context.state.scope.generate("consequent");
+
+    statements.push(
+        b.var(b.id(consequent_id), b.arrow([b.id("$$anchor")], consequent)),
     );
 
-    const args = [
-        context.state.node,
-        b.thunk(
-            /** @type {import('estree').Expression} */ (
-                context.visit(node.test)
-            ),
-        ),
-        b.arrow([b.id("$$anchor")], consequent),
-    ];
+    let alternate_id;
 
-    if (node.alternate || node.elseif) {
-        args.push(
-            node.alternate
-                ? b.arrow(
-                      [b.id("$$anchor")],
-                      // @ts-expect-error
-                      /** @type {import('estree').BlockStatement} */ (
-                          context.visit(node.alternate)
-                      ),
-                  )
-                : b.literal(null),
+    if (node.alternate) {
+        /** @type {BlockStatement} */
+        const alternate = /** @type {any} */ (context.visit(node.alternate));
+        alternate_id = context.state.scope.generate("alternate");
+        statements.push(
+            b.var(b.id(alternate_id), b.arrow([b.id("$$anchor")], alternate)),
         );
     }
+
+    /** @type {Expression[]} */
+    const args = [
+        context.state.node,
+        b.arrow(
+            [b.id("$$render")],
+            b.block([
+                b.if(
+                    /** @type {Expression} */ (context.visit(node.test)),
+                    b.stmt(b.call(b.id("$$render"), b.id(consequent_id))),
+                    alternate_id
+                        ? b.stmt(
+                              b.call(
+                                  b.id("$$render"),
+                                  b.id(alternate_id),
+                                  node.alternate ? b.literal(false) : undefined,
+                              ),
+                          )
+                        : undefined,
+                ),
+            ]),
+        ),
+    ];
 
     if (node.elseif) {
         // We treat this...
@@ -61,5 +77,7 @@ export function IfBlock(node, context) {
         args.push(b.literal(true));
     }
 
-    context.state.init.push(b.stmt(b.call("$.if", ...args)));
+    statements.push(b.stmt(b.call("$.if", ...args)));
+
+    context.state.init.push(b.block(statements));
 }
