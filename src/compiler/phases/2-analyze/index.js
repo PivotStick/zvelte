@@ -51,12 +51,6 @@ export function analyseComponent(root, options) {
         bindingGroups: new Map(),
     };
 
-    walk(
-        /** @type {import("#ast").ZvelteNode} */ (root),
-        { scope, analysis, options },
-        visitors,
-    );
-
     if (analysis.css?.ast) {
         analyze_css(analysis.css.ast, analysis);
 
@@ -117,6 +111,12 @@ export function analyseComponent(root, options) {
             }
         }
     }
+
+    walk(
+        /** @type {import("#ast").ZvelteNode} */ (root),
+        { scope, analysis, options },
+        visitors,
+    );
 
     return analysis;
 }

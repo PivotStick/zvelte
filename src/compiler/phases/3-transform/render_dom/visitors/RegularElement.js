@@ -1,3 +1,4 @@
+import { attr } from "svelte/internal/client";
 import { escape_html } from "../../../../escaping.js";
 import { is_ignored } from "../../../../state.js";
 import {
