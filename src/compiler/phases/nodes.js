@@ -46,6 +46,10 @@ export function create_attribute(name, start, end, value) {
         metadata: {
             dynamic: false,
             delegated: null,
+            expression: {
+                has_call: false,
+                has_state: false,
+            },
         },
     };
 }
