@@ -1,427 +1,151 @@
 import {
     EACH_INDEX_REACTIVE,
-    EACH_IS_ANIMATED,
     EACH_IS_CONTROLLED,
     EACH_ITEM_IMMUTABLE,
     EACH_ITEM_REACTIVE,
 } from "../../../constants.js";
-import { dev } from "../../../../state.js";
-import { object } from "../../../../utils/ast.js";
-import { build_getter } from "../utils.js";
-import { get_value } from "./shared/declarations.js";
 import * as b from "../builders.js";
-import { Scope } from "../scope.js";
 
 /**
  * @param {import('#ast').ForBlock} node
  * @param {import('../types.js').ComponentContext} context
  */
-export function ForBlock(node, context) {
-    const each_node_meta = node.metadata;
-
-    // expression should be evaluated in the parent scope, not the scope
-    // created by the each block itself
-    const collection = /** @type {import('estree').Expression} */ (
-        context.visit(node.expression, {
-            ...context.state,
-            scope: /** @type {Scope} */ (context.state.scope.parent),
-        })
-    );
-
-    if (!each_node_meta.is_controlled) {
-        context.state.template.push("<!>");
+export function ForBlock(node, { state, visit, path }) {
+    const meta = node.metadata;
+    if (!meta.is_controlled) {
+        state.template.push("<!>");
     }
 
-    if (each_node_meta.array_name !== null) {
-        context.state.init.push(
-            b.const(each_node_meta.array_name, b.thunk(collection)),
-        );
-    }
+    const call = b.call("$.each", state.node);
 
-    let flags = 0;
+    // The runtime needs to know what kind of for block this is in order to optimize for the
+    // key === item (we avoid extra allocations). In that case, the item doesn't need to be reactive.
+    // We can guarantee this by knowing that in order for the item of the for block to change, they
+    // would need to mutate the key/item directly in the array. Given that in runes mode we use ===
+    // equality, we can apply a fast-path (as long as the index isn't reactive).
+    let forType = EACH_ITEM_IMMUTABLE;
+    let for_item_is_reactive = true;
 
-    if (node.metadata.keyed && node.index) {
-        flags |= EACH_INDEX_REACTIVE;
-    }
+    /**
+     * @type {import('estree').Expression}
+     */
+    let key = b.id("$.index");
 
-    const key_is_item =
-        node.key?.type === "Identifier" &&
-        node.context.type === "Identifier" &&
-        node.context.name === node.key.name;
-
-    // if the each block expression references a store subscription, we need
-    // to use mutable stores internally
-    let uses_store;
-
-    for (const binding of node.metadata.expression.dependencies) {
-        if (binding.kind === "store_sub") {
-            uses_store = true;
-            break;
-        }
-    }
-
-    for (const binding of node.metadata.expression.dependencies) {
-        // if the expression doesn't reference any external state, we don't need to
-        // create a source for the item. TODO cover more cases (e.g. `x.filter(y)`
-        // should also qualify if `y` doesn't reference state, and non-state
-        // bindings should also be fine
-        if (
-            binding.scope.function_depth >= context.state.scope.function_depth
-        ) {
-            continue;
-        }
-
-        flags |= EACH_ITEM_REACTIVE;
-        break;
-    }
-
-    if (!uses_store) {
-        flags |= EACH_ITEM_IMMUTABLE;
-    }
-
-    // Since `animate:` can only appear on elements that are the sole child of a keyed each block,
-    // we can determine at compile time whether the each block is animated or not (in which
-    // case it should measure animated elements before and after reconciliation).
     if (
         node.key &&
-        node.body.nodes.some((child) => {
-            if (
-                child.type !== "RegularElement" &&
-                child.type !== "ZvelteElement"
-            )
-                return false;
-            return child.attributes.some(
-                // @ts-expect-error not yet supported
-                (attr) => attr.type === "AnimateDirective",
-            );
-        })
+        (node.key.type !== "Identifier" ||
+            !node.index ||
+            node.key.name !== node.index.name)
     ) {
-        flags |= EACH_IS_ANIMATED;
-    }
+        // forType |= EACH_KEYED;
 
-    if (each_node_meta.is_controlled) {
-        flags |= EACH_IS_CONTROLLED;
-    }
+        key = b.arrow([b.id("$$key"), b.id("$$index")], b.id("$$key"));
 
-    // If the array is a store expression, we need to invalidate it when the array is changed.
-    // This doesn't catch all cases, but all the ones that Svelte 4 catches, too.
-    let store_to_invalidate = "";
-    if (
-        node.expression.type === "Identifier" ||
-        node.expression.type === "MemberExpression"
-    ) {
-        const id = object(node.expression);
-        if (id) {
-            const binding = context.state.scope.get(id.name);
-            if (binding?.kind === "store_sub") {
-                store_to_invalidate = id.name;
-            }
+        forType |= EACH_INDEX_REACTIVE;
+
+        if (
+            node.key.type === "Identifier" &&
+            node.context.type === "Identifier" &&
+            node.context.name === node.key.name &&
+            (forType & EACH_INDEX_REACTIVE) === 0
+        ) {
+            // Fast-path for when the key === item
+            for_item_is_reactive = false;
+        } else {
+            forType |= EACH_ITEM_REACTIVE;
         }
-    }
-
-    // Legacy mode: find the parent each blocks which contain the arrays to invalidate
-    const indirect_dependencies = collect_parent_each_blocks(context).flatMap(
-        (block) => {
-            const array = /** @type {import('estree').Expression} */ (
-                context.visit(block.expression)
-            );
-            const transitive_dependencies = build_transitive_dependencies(
-                block.metadata.expression.dependencies,
-                context,
-            );
-            return [array, ...transitive_dependencies];
-        },
-    );
-
-    if (each_node_meta.array_name) {
-        indirect_dependencies.push(b.call(each_node_meta.array_name));
     } else {
-        indirect_dependencies.push(collection);
-
-        const transitive_dependencies = build_transitive_dependencies(
-            each_node_meta.expression.dependencies,
-            context,
-        );
-        indirect_dependencies.push(...transitive_dependencies);
+        forType |= EACH_ITEM_REACTIVE;
     }
 
-    const child_state = {
-        ...context.state,
-        transform: { ...context.state.transform },
-    };
+    if (meta.is_controlled) {
+        forType |= EACH_IS_CONTROLLED;
+    }
 
-    /** The state used when generating the key function, if necessary */
-    const key_state = {
-        ...context.state,
-        transform: { ...context.state.transform },
-    };
+    const nonPropSources = [...state.nonPropSources];
+    const overrides = { ...state.overrides };
 
-    // We need to generate a unique identifier in case there's a bind:group below
-    // which needs a reference to the index
-    const index =
-        each_node_meta.contains_group_binding || !node.index
-            ? each_node_meta.index
-            : b.id(node.index.name);
-    const item =
-        node.context.type === "Identifier" ? node.context : b.id("$$item");
-
-    let uses_index = each_node_meta.contains_group_binding;
-    let key_uses_index = false;
+    overrides.loop = b.id("loop");
 
     if (node.index) {
-        child_state.transform[node.index.name] = {
-            read: (node) => {
-                uses_index = true;
-                return (flags & EACH_INDEX_REACTIVE) !== 0
-                    ? get_value(node)
-                    : node;
-            },
-        };
-
-        key_state.transform[node.index.name] = {
-            read: (node) => {
-                key_uses_index = true;
-                return node;
-            },
-        };
+        nonPropSources.push(node.index.name);
     }
 
-    /** @type {import('estree').Statement[]} */
-    const declarations = [];
+    if (for_item_is_reactive) {
+        overrides[node.context.name] = b.call("$.get", node.context);
+    }
 
-    const invalidate = b.call(
-        "$.invalidate_inner_signals",
-        b.thunk(b.sequence(indirect_dependencies)),
+    // @ts-ignore
+    const body = /** @type {import('estree').BlockStatement} */ (
+        visit(node.body, {
+            ...state,
+            nonPropSources,
+            overrides,
+        })
     );
 
-    const invalidate_store = store_to_invalidate
-        ? b.call(
-              "$.invalidate_store",
-              b.id("$$stores"),
-              b.literal(store_to_invalidate),
-          )
-        : undefined;
+    const isInForBlock = path.some((node) => node.type === "ForBlock");
 
-    /** @type {import('estree').Expression[]} */
-    const sequence = [];
-    if (!context.state.analysis.runes) sequence.push(invalidate);
-    if (invalidate_store) sequence.push(invalidate_store);
+    const array = b.call(
+        "$.iterable",
+        /** @type {import("estree").Expression} */ (visit(node.expression)),
+    );
+    const unwrapIndex = b.id("$$index");
+    const loopInit = [];
 
-    if (node.context.type === "Identifier") {
-        const binding = /** @type {Binding} */ (
-            context.state.scope.get(node.context.name)
-        );
-
-        child_state.transform[node.context.name] = {
-            read: (node) => {
-                if (binding.reassigned) {
-                    // we need to do `array[$$index]` instead of `$$item` or whatever
-                    // TODO 6.0 this only applies in legacy mode, reassignments are
-                    // forbidden in runes mode
-                    return b.member(
-                        each_node_meta.array_name
-                            ? b.call(each_node_meta.array_name)
-                            : collection,
-                        index,
-                        true,
-                    );
-                }
-
-                return (flags & EACH_ITEM_REACTIVE) !== 0
-                    ? get_value(node)
-                    : node;
-            },
-            assign: (_, value) => {
-                uses_index = true;
-
-                const left = b.member(
-                    each_node_meta.array_name
-                        ? b.call(each_node_meta.array_name)
-                        : collection,
-                    index,
-                    true,
-                );
-
-                return b.sequence([
-                    b.assignment("=", left, value),
-                    ...sequence,
-                ]);
-            },
-            mutate: (_, mutation) => b.sequence([mutation, ...sequence]),
-        };
-
-        delete key_state.transform[node.context.name];
-
-        // Context can only be an identifier for now
-        //
-        // } else {
-        //     const unwrapped =
-        //         (flags & EACH_ITEM_REACTIVE) !== 0 ? b.call("$.get", item) : item;
-        //
-        //     for (const path of extract_paths(node.context)) {
-        //         const name = /** @type {Identifier} */ (path.node).name;
-        //         const needs_derived = path.has_default_value; // to ensure that default value is only called once
-        //
-        //         const fn = b.thunk(
-        //             /** @type {Expression} */ (
-        //                 context.visit(path.expression?.(unwrapped), child_state)
-        //             ),
-        //         );
-        //
-        //         declarations.push(
-        //             b.let(
-        //                 path.node,
-        //                 needs_derived ? b.call("$.derived_safe_equal", fn) : fn,
-        //             ),
-        //         );
-        //
-        //         const read = needs_derived ? get_value : b.call;
-        //
-        //         child_state.transform[name] = {
-        //             read,
-        //             assign: (_, value) => {
-        //                 const left = /** @type {Pattern} */ (
-        //                     path.update_expression(unwrapped)
-        //                 );
-        //                 return b.sequence([
-        //                     b.assignment("=", left, value),
-        //                     ...sequence,
-        //                 ]);
-        //             },
-        //             mutate: (_, mutation) => {
-        //                 return b.sequence([mutation, ...sequence]);
-        //             },
-        //         };
-        //
-        //         // we need to eagerly evaluate the expression in order to hit any
-        //         // 'Cannot access x before initialization' errors
-        //         if (dev) {
-        //             declarations.push(b.stmt(read(b.id(name))));
-        //         }
-        //
-        //         delete key_state.transform[name];
-        //     }
+    if (isInForBlock) {
+        state.init.push(b.var(b.id("parentLoop"), b.id("loop")));
     }
 
-    // @ts-expect-error
-    const block = /** @type {import('estree').BlockStatement} */ (
-        context.visit(node.body, child_state)
+    loopInit.push(
+        b.var(
+            b.id("loop"),
+            b.call(
+                "$.loop",
+                b.thunk(unwrapIndex),
+                b.thunk(array),
+                isInForBlock ? b.id("parentLoop") : b.literal(null),
+            ),
+        ),
     );
 
-    /** @type {import('estree').Expression} */
-    let key_function = b.id("$.index");
-
-    if (node.metadata.keyed) {
-        const expression = /** @type {import('estree').Expression} */ (
-            context.visit(
-                /** @type {import('#ast').Expression} */ (node.key),
-                key_state,
-            )
-        );
-
-        key_function = b.arrow(
-            key_uses_index ? [node.context, index] : [node.context],
-            expression,
-        );
-    }
-
-    if (node.index && each_node_meta.contains_group_binding) {
-        // We needed to create a unique identifier for the index above, but we want to use the
-        // original index name in the template, therefore create another binding
-        declarations.push(b.let(node.index, index));
-    }
-
-    if (dev && node.metadata.keyed) {
-        context.state.init.push(
-            b.stmt(
-                b.call(
-                    "$.validate_each_keys",
-                    b.thunk(collection),
-                    key_function,
+    if (node.index) {
+        const expression = b.member(
+            b.call(
+                "Object.keys",
+                /** @type {import("estree").Expression} */ (
+                    visit(node.expression)
                 ),
             ),
+            unwrapIndex,
+            true,
+        );
+
+        loopInit.push(
+            b.var(node.index.name, b.call("$.derived", b.thunk(expression))),
         );
     }
 
-    /** @type {import('estree').Expression[]} */
-    const args = [
-        context.state.node,
-        b.literal(flags),
-        each_node_meta.array_name
-            ? each_node_meta.array_name
-            : b.thunk(collection),
-        key_function,
+    body.body.unshift(...loopInit);
+
+    call.arguments.push(
+        b.literal(forType),
+        b.thunk(array),
+        key,
         b.arrow(
-            uses_index
-                ? [b.id("$$anchor"), item, index]
-                : [b.id("$$anchor"), item],
-            b.block(declarations.concat(block.body)),
+            [b.id("$$anchor"), b.id(node.context.name), b.id("$$index")],
+            body,
         ),
-    ];
+    );
 
     if (node.fallback) {
-        args.push(
-            b.arrow(
-                [b.id("$$anchor")],
-                // @ts-expect-error
-                /** @type {import('estree').BlockStatement} */ (
-                    context.visit(node.fallback)
-                ),
-            ),
+        // @ts-ignore
+        const fallback = /** @type {import('estree').BlockStatement} */ (
+            visit(node.fallback)
         );
+
+        call.arguments.push(b.arrow([b.id("$$anchor")], fallback));
     }
 
-    context.state.init.push(b.stmt(b.call("$.each", ...args)));
-}
-
-/**
- * @param {import("../types.js").ComponentContext} context
- */
-function collect_parent_each_blocks(context) {
-    return /** @type {import('#ast').ForBlock[]} */ (
-        context.path.filter((node) => node.type === "ForBlock")
-    );
-}
-
-/**
- * @param {Set<Binding>} references
- * @param {import("../types.js").ComponentContext} context
- */
-function build_transitive_dependencies(references, context) {
-    /** @type {Set<Binding>} */
-    const dependencies = new Set();
-
-    for (const ref of references) {
-        const deps = collect_transitive_dependencies(ref);
-        for (const dep of deps) {
-            dependencies.add(dep);
-        }
-    }
-
-    return [...dependencies].map((dep) =>
-        build_getter({ ...dep.node }, context.state),
-    );
-}
-
-/**
- * @param {Binding} binding
- * @param {Set<Binding>} seen
- * @returns {Binding[]}
- */
-function collect_transitive_dependencies(binding, seen = new Set()) {
-    if (binding.kind !== "legacy_reactive") return [];
-
-    for (const dep of binding.legacy_dependencies) {
-        if (!seen.has(dep)) {
-            seen.add(dep);
-            for (const transitive_dep of collect_transitive_dependencies(
-                dep,
-                seen,
-            )) {
-                seen.add(transitive_dep);
-            }
-        }
-    }
-
-    return [...seen];
+    state.init.push(call);
 }

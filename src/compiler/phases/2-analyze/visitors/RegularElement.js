@@ -127,7 +127,7 @@ export function RegularElement(node, context) {
 
             if (
                 ancestor.type === "IfBlock" ||
-                ancestor.type === "EachBlock" ||
+                ancestor.type === "ForBlock" ||
                 ancestor.type === "AwaitBlock" ||
                 ancestor.type === "KeyBlock"
             ) {
@@ -146,9 +146,11 @@ export function RegularElement(node, context) {
                     );
                     if (message) {
                         if (only_warn) {
-                            w.node_invalid_placement_ssr(node, message);
+                            console.warn(message);
+                            // w.node_invalid_placement_ssr(node, message);
                         } else {
-                            e.node_invalid_placement(node, message);
+                            console.error(message);
+                            // e.node_invalid_placement(node, message);
                         }
                     }
 
