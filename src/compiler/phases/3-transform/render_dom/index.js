@@ -686,6 +686,11 @@ const templateVisitors = {
             if (state.overrides[member.object.name]) {
                 const o = state.overrides[member.object.name];
                 member = b.member(o, property);
+            } else if (state.transform[member.object.name]) {
+                const o = state.transform[member.object.name].read(
+                    member.object,
+                );
+                member = b.member(o, property);
             } else if (state.nonPropUnwraps.includes(member.object.name)) {
                 member = b.member(member.object, property);
             } else if (state.nonPropSources.includes(member.object.name)) {
@@ -722,6 +727,8 @@ const templateVisitors = {
         ) {
             if (state.overrides[id.name]) {
                 id = state.overrides[id.name];
+            } else if (state.transform[id.name]) {
+                id = state.transform[id.name].read(id);
             } else if (state.nonPropUnwraps.includes(id.name)) {
                 id = id;
             } else if (state.nonPropSources.includes(id.name)) {
