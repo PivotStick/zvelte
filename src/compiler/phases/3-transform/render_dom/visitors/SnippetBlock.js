@@ -94,13 +94,15 @@ export function SnippetBlock(node, context) {
     const declaration = b.const(node.expression, snippet);
 
     // Top-level snippets are hoisted so they can be referenced in the `<script>`
-    // if (context.path.length === 1 && context.path[0].type === "Fragment") {
-    //     if (node.metadata.can_hoist) {
-    //         context.state.module_level_snippets.push(declaration);
-    //     } else {
-    //         context.state.instance_level_snippets.push(declaration);
-    //     }
-    // } else {
-    context.state.init.push(declaration);
-    // }
+    if (context.path.length === 1 && context.path[0].type === "Fragment") {
+        context.state.before_init.push(
+            b.assignment(
+                "=",
+                b.member(b.id("$$props"), node.expression),
+                snippet,
+            ),
+        );
+    } else {
+        context.state.init.push(declaration);
+    }
 }
