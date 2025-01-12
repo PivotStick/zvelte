@@ -414,10 +414,7 @@ const templateVisitors = {
 
             key = b.arrow([b.id("$$key"), b.id("$$index")], b.id("$$key"));
 
-            // If there's a destructuring, then we likely need the generated $$index
-            if (node.index || node.context.type !== "Identifier") {
-                forType |= EACH_INDEX_REACTIVE;
-            }
+            forType |= EACH_INDEX_REACTIVE;
 
             if (
                 node.key.type === "Identifier" &&
