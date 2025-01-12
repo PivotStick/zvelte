@@ -7,10 +7,11 @@ import {
 } from "../3-transform/render_dom/scope.js";
 import { analyze_css } from "./css/css-analyze.js";
 import { prune } from "./css/css-prune.js";
-import { create_attribute } from "../nodes.js";
-import { MathMLElements, SVGElements } from "../3-transform/constants.js";
-import { regex_starts_with_newline } from "../patterns.js";
+import { create_attribute, is_custom_element_node } from "../nodes.js";
 import { is_expression_attribute } from "../../utils/ast.js";
+import { mark_subtree_dynamic } from "./visitors/shared/fragment.js";
+
+import { RegularElement } from "./visitors/RegularElement.js";
 
 /**
  * @param {import("#ast").Root} root
@@ -65,17 +66,17 @@ export function analyseComponent(root, options) {
             prune(analysis.css.ast, element);
         }
 
-        outer: for (const element of analysis.elements) {
-            if (element.metadata.scoped) {
+        outer: for (const node of analysis.elements) {
+            if (node.metadata.scoped) {
                 // Dynamic elements in dom mode always use spread for attributes and therefore shouldn't have a class attribute added to them
                 // TODO this happens during the analysis phase, which shouldn't know anything about client vs server
-                if (element.type === "ZvelteElement" && options.generate === "")
+                if (node.type === "ZvelteElement" && options.generate === "")
                     continue;
 
                 /** @type {import('#ast').Attribute | undefined} */
                 let class_attribute = undefined;
 
-                for (const attribute of element.attributes) {
+                for (const attribute of node.attributes) {
                     if (attribute.type === "SpreadAttribute") {
                         // The spread method appends the hash to the end of the class attribute on its own
                         continue outer;
@@ -102,7 +103,7 @@ export function analyseComponent(root, options) {
                         });
                     }
                 } else {
-                    element.attributes.push(
+                    node.attributes.push(
                         create_attribute("class", -1, -1, [
                             {
                                 type: "Text",
@@ -113,6 +114,13 @@ export function analyseComponent(root, options) {
                             },
                         ]),
                     );
+
+                    if (
+                        is_custom_element_node(node) &&
+                        node.attributes.length === 1
+                    ) {
+                        mark_subtree_dynamic(node.metadata.path);
+                    }
                 }
             }
         }
@@ -218,79 +226,7 @@ const visitors = {
         node.metadata.keyed = node.key !== null;
         return next();
     },
-    RegularElement(node, context) {
-        if (context.state.options.namespace !== "foreign") {
-            if (SVGElements.includes(node.name)) node.metadata.svg = true;
-            else if (MathMLElements.includes(node.name))
-                node.metadata.mathml = true;
-        }
-
-        determine_element_spread(node);
-
-        // Special case: Move the children of <textarea> into a value attribute if they are dynamic
-        if (
-            context.state.options.namespace !== "foreign" &&
-            node.name === "textarea" &&
-            node.fragment.nodes.length > 0
-        ) {
-            if (
-                node.fragment.nodes.length > 1 ||
-                node.fragment.nodes[0].type !== "Text"
-            ) {
-                const first = node.fragment.nodes[0];
-                if (first.type === "Text") {
-                    // The leading newline character needs to be stripped because of a qirk:
-                    // It is ignored by browsers if the tag and its contents are set through
-                    // innerHTML, but we're now setting it through the value property at which
-                    // point it is _not_ ignored, so we need to strip it ourselves.
-                    // see https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
-                    // see https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
-                    first.data = first.data.replace(
-                        regex_starts_with_newline,
-                        "",
-                    );
-                }
-
-                node.attributes.push(
-                    create_attribute(
-                        "value",
-                        /** @type {import('#ast').Text} */ (
-                            node.fragment.nodes.at(0)
-                        ).start,
-                        /** @type {import('#ast').Text} */ (
-                            node.fragment.nodes.at(-1)
-                        ).end,
-                        // @ts-ignore
-                        node.fragment.nodes,
-                    ),
-                );
-
-                node.fragment.nodes = [];
-            }
-        }
-
-        // Special case: single expression tag child of option element -> add "fake" attribute
-        // to ensure that value types are the same (else for example numbers would be strings)
-        if (
-            context.state.options.namespace !== "foreign" &&
-            node.name === "option" &&
-            node.fragment.nodes?.length === 1 &&
-            node.fragment.nodes[0].type === "ExpressionTag" &&
-            !node.attributes.some(
-                (attribute) =>
-                    attribute.type === "Attribute" &&
-                    attribute.name === "value",
-            )
-        ) {
-            const child = node.fragment.nodes[0];
-            node.attributes.push(
-                create_attribute("value", child.start, child.end, [child]),
-            );
-        }
-
-        context.state.analysis.elements.push(node);
-        return context.next();
-    },
+    RegularElement,
     ZvelteElement(node, context) {
         context.state.analysis.elements.push(node);
         return context.next();

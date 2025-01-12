@@ -137,6 +137,103 @@ export function build_template_literal(values, visit, state) {
 }
 
 /**
+ * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
+ * @param {(node: import("#ast").ZvelteNode, state: any) => any} visit
+ * @param {import("../../types.js").ComponentClientTransformState} state
+ * @returns {{ value: import("estree").Expression, has_state: boolean, has_call: boolean }}
+ */
+export function build_template_chunk(values, visit, state) {
+    /** @type {import("estree").Expression[]} */
+    const expressions = [];
+
+    let quasi = b.quasi("");
+    const quasis = [quasi];
+
+    let has_call = false;
+    let has_state = false;
+    let contains_multiple_call_expression = false;
+
+    for (const node of values) {
+        if (node.type === "ExpressionTag") {
+            const metadata = node.metadata.expression;
+
+            contains_multiple_call_expression ||= has_call && metadata.has_call;
+            has_call ||= metadata.has_call;
+            has_state ||= metadata.has_state;
+        }
+    }
+
+    for (let i = 0; i < values.length; i++) {
+        const node = values[i];
+
+        if (node.type === "Text") {
+            quasi.value.cooked += node.data;
+        } else if (
+            node.type === "ExpressionTag" &&
+            (node.expression.type === "NullLiteral" ||
+                node.expression.type === "BooleanLiteral" ||
+                node.expression.type === "StringLiteral" ||
+                node.expression.type === "NumericLiteral")
+        ) {
+            if (node.expression.value != null) {
+                quasi.value.cooked += node.expression.value + "";
+            }
+        } else {
+            if (contains_multiple_call_expression) {
+                const id = b.id(state.scope.generate("stringified_text"));
+                state.init.push(
+                    b.const(
+                        id,
+                        b.call(
+                            "$.derived",
+                            b.thunk(
+                                b.logical(
+                                    /** @type {import("estree").Expression} */ (
+                                        visit(node.expression, state)
+                                    ),
+                                    "??",
+                                    b.literal(""),
+                                ),
+                            ),
+                        ),
+                    ),
+                );
+                expressions.push(b.call("$.get", id));
+            } else if (values.length === 1) {
+                // If we have a single expression, then pass that in directly to possibly avoid doing
+                // extra work in the template_effect (instead we do the work in set_text).
+                return {
+                    value: visit(node.expression, state),
+                    has_state,
+                    has_call,
+                };
+            } else {
+                expressions.push(
+                    b.logical(
+                        visit(node.expression, state),
+                        "??",
+                        b.literal(""),
+                    ),
+                );
+            }
+
+            quasi = b.quasi("", i + 1 === values.length);
+            quasis.push(quasi);
+        }
+    }
+
+    for (const quasi of quasis) {
+        quasi.value.raw = sanitize_template_string(
+            /** @type {string} */ (quasi.value.cooked),
+        );
+    }
+
+    const value = b.template(quasis, expressions);
+
+    return { value, has_state, has_call };
+}
+
+/**
  * @param {import("../../types.js").ComponentClientTransformState} state
  * @param {string} id
  * @param {import('estree').Expression | undefined} init

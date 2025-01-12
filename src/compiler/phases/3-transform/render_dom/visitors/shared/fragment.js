@@ -2,8 +2,9 @@ import {
     is_event_attribute,
     is_text_attribute,
 } from "../../../../../utils/ast.js";
+import { cannot_be_set_statically } from "../../../utils.js";
 import * as b from "../../builders.js";
-import { build_template_literal, build_update } from "./utils.js";
+import { build_template_chunk, build_update } from "./utils.js";
 
 /**
  * Processes an array of template nodes, joining sibling text/expression nodes
@@ -62,17 +63,13 @@ export function process_children(nodes, initial, is_element, { visit, state }) {
     function flush_sequence(sequence) {
         if (sequence.every((node) => node.type === "Text")) {
             skipped += 1;
-            state.template.push(
-                /** @type {import("#ast").Text[]} */ (sequence)
-                    .map((node) => node.data)
-                    .join(""),
-            );
+            state.template.push(sequence.map((node) => node.data).join(""));
             return;
         }
 
         state.template.push(" ");
 
-        const { has_state, has_call, value } = build_template_literal(
+        const { has_state, has_call, value } = build_template_chunk(
             sequence,
             visit,
             state,
@@ -107,7 +104,7 @@ export function process_children(nodes, initial, is_element, { visit, state }) {
 
             let child_state = state;
 
-            if (is_static_element(node)) {
+            if (is_static_element(node, state)) {
                 skipped += 1;
             } else if (
                 node.type === "ForBlock" &&
@@ -143,10 +140,12 @@ export function process_children(nodes, initial, is_element, { visit, state }) {
 
 /**
  * @param {import("#ast").ZvelteNode} node
+ * @param {import("../../types.js").ComponentContext["state"]} state
  */
-function is_static_element(node) {
+function is_static_element(node, state) {
     if (node.type !== "RegularElement") return false;
     if (node.fragment.metadata.dynamic) return false;
+    if (node.name.includes("-")) return false; // we're setting all attributes on custom elements through properties
 
     for (const attribute of node.attributes) {
         if (attribute.type !== "Attribute") {
@@ -157,7 +156,7 @@ function is_static_element(node) {
             return false;
         }
 
-        if (attribute.value !== true && !is_text_attribute(attribute)) {
+        if (cannot_be_set_statically(attribute.name)) {
             return false;
         }
 
@@ -165,8 +164,13 @@ function is_static_element(node) {
             return false;
         }
 
-        if (node.name.includes("-")) {
-            return false; // we're setting all attributes on custom elements through properties
+        // We need to apply src and loading after appending the img to the DOM for lazy loading to work
+        if (node.name === "img" && attribute.name === "loading") {
+            return false;
+        }
+
+        if (attribute.value !== true && !is_text_attribute(attribute)) {
+            return false;
         }
     }
 

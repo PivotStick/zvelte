@@ -42,10 +42,11 @@ export function build_attribute_value(value, context) {
  * @param {Array<import("#ast").Attribute | import("#ast").SpreadAttribute>} attributes
  * @param {import("../../types.js").ComponentContext} context
  * @param {import("#ast").RegularElement | import("#ast").ZvelteElement} element
- * @param {import("estree").Identifier} element_id
+ * @param {import("#ast").Identifier} element_id
  * @param {import("estree").Identifier} attributes_id
  * @param {false | import("estree").Expression} preserve_attribute_case
  * @param {false | import("estree").Expression} is_custom_element
+ * @param {import("../../types.js").ComponentClientTransformState} state
  */
 export function build_set_attributes(
     attributes,
@@ -55,8 +56,8 @@ export function build_set_attributes(
     attributes_id,
     preserve_attribute_case,
     is_custom_element,
+    state,
 ) {
-    let needs_isolation = false;
     let has_state = false;
 
     /** @type {import("estree").ObjectExpression['properties']} */
@@ -74,25 +75,28 @@ export function build_set_attributes(
                 // Give the event handler a stable ID so it isn't removed and readded on every update
                 const id = context.state.scope.generate("event_handler");
                 context.state.init.push(b.var(id, value));
-                values.push(b.prop("init", attribute.name, b.id(id)));
+                values.push(b.init(attribute.name, b.id(id)));
             } else {
-                values.push(b.prop("init", attribute.name, value));
+                values.push(b.init(attribute.name, value));
             }
 
             has_state ||= attribute.metadata.expression.has_state;
         } else {
-            values.push(
-                b.spread(
-                    /** @type {import("estree").Expression} */ (
-                        context.visit(attribute)
-                    ),
-                ),
-            );
-
             // objects could contain reactive getters -> play it safe and always assume spread attributes are reactive
             has_state = true;
 
-            needs_isolation ||= attribute.metadata.expression.has_call;
+            let value = /** @type {import("estree").Expression} */ (
+                context.visit(attribute)
+            );
+
+            if (attribute.metadata.expression.has_call) {
+                const id = b.id(state.scope.generate("spread_with_call"));
+                state.init.push(
+                    b.const(id, b.call("$.derived", b.thunk(value))),
+                );
+                value = b.call("$.get", id);
+            }
+            values.push(b.spread(value));
         }
     }
 
@@ -101,9 +105,8 @@ export function build_set_attributes(
         element_id,
         has_state ? attributes_id : b.literal(null),
         b.object(values),
-        context.state.analysis.css !== null &&
-            context.state.analysis.css.hash !== "" &&
-            b.literal(context.state.analysis.css.hash),
+        context.state.analysis.css?.hash !== "" &&
+            b.literal(context.state.analysis.css?.hash ?? ""),
         preserve_attribute_case,
         is_custom_element,
         is_ignored(element, "hydration_attribute_changed") && b.true,
@@ -111,14 +114,7 @@ export function build_set_attributes(
 
     if (has_state) {
         context.state.init.push(b.let(attributes_id));
-
         const update = b.stmt(b.assignment("=", attributes_id, call));
-
-        if (needs_isolation) {
-            context.state.init.push(build_update(update));
-            return false;
-        }
-
         context.state.update.push(update);
         return true;
     }

@@ -417,6 +417,22 @@ export function is_dom_property(name) {
     return DOM_PROPERTIES.includes(name);
 }
 
+const NON_STATIC_PROPERTIES = [
+    "autofocus",
+    "muted",
+    "defaultValue",
+    "defaultChecked",
+];
+
+/**
+ * Returns `true` if the given attribute cannot be set through the template
+ * string, i.e. needs some kind of JavaScript handling to work.
+ * @param {string} name
+ */
+export function cannot_be_set_statically(name) {
+    return NON_STATIC_PROPERTIES.includes(name);
+}
+
 const LOAD_ERROR_ELEMENTS = [
     "body",
     "embed",
@@ -453,33 +469,4 @@ export function determine_namespace_for_children(node, namespace) {
     }
 
     return node.metadata.mathml ? "mathml" : "html";
-}
-
-const VOID_ELEMENT_NAMES = [
-    "area",
-    "base",
-    "br",
-    "col",
-    "command",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "keygen",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
-];
-
-/**
- * Returns `true` if `name` is of a void element
- * @param {string} name
- */
-export function is_void(name) {
-    return (
-        VOID_ELEMENT_NAMES.includes(name) || name.toLowerCase() === "!doctype"
-    );
 }
