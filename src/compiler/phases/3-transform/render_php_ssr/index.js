@@ -632,9 +632,8 @@ const visitors = {
         const call = b.call(callee, args, true);
         const test = b.call(b.id("is_callable"), [callee]);
 
-        state.appendText(BLOCK_OPEN);
+        state.appendText(EMPTY_COMMENT);
         state.block.children.push(b.ifStatement(test, b.block([b.stmt(call)])));
-        state.appendText(BLOCK_CLOSE);
     },
 
     HtmlTag(node, { state, visit }) {

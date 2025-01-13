@@ -2,7 +2,7 @@
     import Header from "../T003/main.svelte";
     import Footer from "../T002/main.svelte";
 
-    let { data } = $props();
+    let { data, children } = $props();
 </script>
 
 <svelte:head>
@@ -45,11 +45,17 @@
 
 <Header {data} />
 
+{@render children?.()}
+
 <Footer {data} />
 
 <!-- start cookie message -->
 <div id="cookies-model" class="cookie-message bg-dark-gray border-radius-8px">
-    <div class="cookie-description fs-14 text-white mb-20px lh-22">We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Allow cookies" you consent to our use of cookies.</div>
+    <div class="cookie-description fs-14 text-white mb-20px lh-22">
+        We use cookies to enhance your browsing experience, serve personalized
+        ads or content, and analyze our traffic. By clicking "Allow cookies" you
+        consent to our use of cookies.
+    </div>
     <div class="cookie-btn">
         <a
             href="#"

@@ -26,58 +26,70 @@
 
 <Header {{ data }} />
 
+{{ @render children?.() }}
+
 <Footer {{ data }} />
 
 <!-- start cookie message -->
 <div id="cookies-model" class="cookie-message bg-dark-gray border-radius-8px">
-	<div class="cookie-description fs-14 text-white mb-20px lh-22">We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Allow cookies" you consent to our use of cookies.</div>
-	<div class="cookie-btn">
-		<a
-			href="#"
-			class="btn btn-transparent-white border-1 border-color-transparent-white-light btn-very-small btn-switch-text btn-rounded w-100 mb-15px"
-			aria-label="btn"
-		>
-			<span>
-				<span class="btn-double-text" data-text="Cookie policy">Cookie policy</span>
-			</span>
-		</a>
-		<a
-			href="#"
-			class="btn btn-white btn-very-small btn-switch-text btn-box-shadow accept_cookies_btn btn-rounded w-100"
-			data-accept-btn
-			aria-label="text"
-		>
-			<span>
-				<span class="btn-double-text" data-text="Allow cookies">Allow cookies</span>
-			</span>
-		</a>
-	</div>
+    <div class="cookie-description fs-14 text-white mb-20px lh-22">
+        We use cookies to enhance your browsing experience, serve personalized
+        ads or content, and analyze our traffic. By clicking "Allow cookies" you
+        consent to our use of cookies.
+    </div>
+    <div class="cookie-btn">
+        <a
+            href="#"
+            class="btn btn-transparent-white border-1 border-color-transparent-white-light btn-very-small btn-switch-text btn-rounded w-100 mb-15px"
+            aria-label="btn"
+        >
+            <span>
+                <span class="btn-double-text" data-text="Cookie policy"
+                    >Cookie policy</span
+                >
+            </span>
+        </a>
+        <a
+            href="#"
+            class="btn btn-white btn-very-small btn-switch-text btn-box-shadow accept_cookies_btn btn-rounded w-100"
+            data-accept-btn
+            aria-label="text"
+        >
+            <span>
+                <span class="btn-double-text" data-text="Allow cookies"
+                    >Allow cookies</span
+                >
+            </span>
+        </a>
+    </div>
 </div>
 <!-- end cookie message -->
 <!-- start sticky elements -->
 <div
-	class="sticky-wrap d-none d-xl-inline-block z-index-1"
-	data-animation-delay="100"
-	data-shadow-animation="true"
+    class="sticky-wrap d-none d-xl-inline-block z-index-1"
+    data-animation-delay="100"
+    data-shadow-animation="true"
 >
-	<div class="elements-social social-icon-style-10">
-		<ul class="fs-15 fw-500">
-			{% for social in data.socials %}
-				<li class="me-30px">
-					<a class={{ social.id }} href={{ social.href }} target="_blank">
-						<i class="fa-brands {{ social.icon }} me-10px"></i>
-						<span class="alt-font">{{ social.name }}</span>
-					</a>
-				</li>
-			{% endfor %}
-		</ul>
-	</div>
+    <div class="elements-social social-icon-style-10">
+        <ul class="fs-15 fw-500">
+            {% for social in data.socials %}
+                <li class="me-30px">
+                    <a class={{ social.id }} href={{ social.href }} target="_blank">
+                        <i class="fa-brands {{ social.icon }} me-10px"></i>
+                        <span class="alt-font">{{ social.name }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
 </div>
 <!-- end sticky elements -->
 <!-- start scroll progress -->
 <div class="scroll-progress d-none d-xxl-block">
-	<a href="#" class="scroll-top" aria-label="scroll">
-		<span class="scroll-text">Scroll</span><span class="scroll-line"><span class="scroll-point"></span></span>
-	</a>
+    <a href="#" class="scroll-top" aria-label="scroll">
+        <span class="scroll-text">Scroll</span><span class="scroll-line"
+            ><span class="scroll-point"></span></span
+        >
+    </a>
 </div>
 <!-- end scroll progress -->

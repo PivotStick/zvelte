@@ -1,7 +1,7 @@
-{% if layout %}
-	<zvelte:component this={{ layout }} __$$initialLoad={{ layoutProps }}>
-		<zvelte:component this={{ page }} __$$initialLoad={{ pageProps }} />
-	</zvelte:component>
+{% if Layout %}
+	<Layout __$$initialLoad={{ layoutProps }}>
+		<Page __$$initialLoad={{ pageProps }} />
+	</Layout>
 {% else %}
-	<zvelte:component this={{ page }} __$$initialLoad={{ pageProps }} />
+	<Page __$$initialLoad={{ pageProps }} />
 {% endif %}
