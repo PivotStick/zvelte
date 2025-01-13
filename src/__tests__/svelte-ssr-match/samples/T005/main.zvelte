@@ -1,7 +1,10 @@
-{% if Layout %}
-	<Layout __$$initialLoad={{ layoutProps }}>
-		<Page __$$initialLoad={{ pageProps }} />
-	</Layout>
-{% else %}
-	<Page __$$initialLoad={{ pageProps }} />
-{% endif %}
+<div class="hero-header" bind:this={{ heroHeader }}>
+	<p>
+		{% key currentItem %}
+			<span
+				in:fly={{ { duration: 500, y: "100%" } }}
+				out:fly={{ { duration: 500, y: "-100%" } }}
+			>{{ currentItem.title }}</span>
+		{% endkey %}
+	</p>
+</div>

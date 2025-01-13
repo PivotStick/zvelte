@@ -641,9 +641,9 @@ const visitors = {
     },
 
     KeyBlock(node, { state, visit }) {
-        state.appendText(BLOCK_OPEN);
+        state.appendText(EMPTY_COMMENT);
         visit(node.fragment);
-        state.appendText(BLOCK_CLOSE);
+        state.appendText(EMPTY_COMMENT);
     },
 
     SnippetBlock(node, context) {

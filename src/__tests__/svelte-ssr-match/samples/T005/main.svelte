@@ -1,11 +1,18 @@
 <script>
-    let { Layout, Page, layoutProps, pageProps } = $props();
+    import { fly } from "svelte/transition";
+
+    let { currentItem } = $props();
+    let heroHeader;
 </script>
 
-{#if Layout}
-    <Layout __initialLoad={layoutProps}>
-        <Page __initialLoad={pageProps} />
-    </Layout>
-{:else}
-    <Page __initialLoad={pageProps} />
-{/if}
+<div class="hero-header" bind:this={heroHeader}>
+    <p>
+        {#key currentItem}
+            <span
+                in:fly={{ duration: 500, y: "100%" }}
+                out:fly={{ duration: 500, y: "-100%" }}
+                >{currentItem.title}</span
+            >
+        {/key}
+    </p>
+</div>
