@@ -412,6 +412,11 @@ const visitors = {
 
         state.appendText(`<${node.name}`);
 
+        /**
+         * @type {null | import("./type.d.ts").Expression}
+         */
+        let body = null;
+
         if (node.attributes.some((a) => a.type === "SpreadAttribute")) {
             /** @type {import("./type.js").Entry[]} */
             const attrs = [];
@@ -529,16 +534,24 @@ const visitors = {
                     }
 
                     case "BindDirective": {
-                        state.append(
-                            state.internal(
+                        const value = b.bin(
+                            /** @type {any} */ (visit(attr.expression)),
+                            "??",
+                            b.literal(""),
+                        );
+
+                        const expression = state.internal(
                                 "attr",
                                 b.string(attr.name),
-                                b.bin(
-                                    /** @type {any} */ (visit(attr.expression)),
-                                    "??",
-                                    b.literal(""),
-                                ),
-                            ),
+                                value,
+                            );
+
+                        if (node.name === "textarea" && attr.name === "value") {
+                            body = value;
+                            break;
+                        }
+                        state.append(
+                            expression
                         );
                         break;
                     }
@@ -597,8 +610,13 @@ const visitors = {
             visit(node);
         }
 
-        for (const node of trimmed) {
-            visit(node);
+        if (body === null) {
+            for (const node of trimmed) {
+                visit(node);
+            }
+        } else {
+            // stuff
+            state.append(body);
         }
 
         state.appendText(`</${node.name}>`);
