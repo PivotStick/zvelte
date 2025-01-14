@@ -49,7 +49,7 @@ const scoped = (fn) => {
 };
 
 /**
- * @param {import("../type.js").Node} node
+ * @param {import("../types.js").Node} node
  * @param {State} state
  *
  * @returns {Chunk[]}
@@ -400,7 +400,7 @@ const handlers = {
     },
 
     /**
-     * @param {import("../type.js").UseGroup} node
+     * @param {import("../types.js").UseGroup} node
      */
     usegroup(node, state) {
         const chunks = [c("use ")];
@@ -430,7 +430,7 @@ const handlers = {
     },
 
     /**
-     * @param {import("../type.js").UseItem} node
+     * @param {import("../types.js").UseItem} node
      */
     useitem(node, state) {
         const chunks = [c(node.name)];
@@ -666,10 +666,40 @@ const handlers = {
 
         return chunks;
     },
+
+    /**
+     * @param {import("../types.js").Template} node
+     */
+    template(node, state) {
+        if (node.quasis.length === 1 && node.expressions.length === 0) {
+            return [c(`'${node.quasis[0].value.cooked}'`)];
+        }
+
+        const chunks = [c("sprintf('")];
+
+        for (let i = 0; i < node.quasis.length; i++) {
+            const quasi = node.quasis[i];
+            chunks.push(c(quasi.value.cooked));
+
+            if (!quasi.tail) {
+                chunks.push(c("%s"));
+            }
+        }
+
+        chunks.push(c("'"));
+
+        for (const expression of node.expressions) {
+            chunks.push(c(", "));
+            chunks.push(...handle(expression, state));
+        }
+
+        chunks.push(c(")"));
+        return chunks;
+    },
 };
 
 /**
- * @param {import("../type.js").Node[]} nodes
+ * @param {import("../types.js").Node[]} nodes
  * @param {State} state
  */
 const handle_body = (nodes, state) => {
@@ -709,7 +739,7 @@ const handle_body = (nodes, state) => {
 
 /**
  * @param {string} content
- * @param {import("../type.js").Node} [node]
+ * @param {import("../types.js").Node} [node]
  * @returns {Chunk}
  */
 function c(content, node) {

@@ -1,7 +1,9 @@
+/** @import * as PHP from "./types.js" */
+
 /**
- * @param {import("./type.js").Expression} expr
+ * @param {PHP.Expression} expr
  *
- * @returns {import("./type.js").Silent}
+ * @returns {PHP.Silent}
  */
 export function silent(expr) {
     return {
@@ -11,9 +13,9 @@ export function silent(expr) {
 }
 
 /**
- * @param {import("./type.js").Program["children"]} children
+ * @param {PHP.Program["children"]} children
  *
- * @returns {import("./type.js").Program}
+ * @returns {PHP.Program}
  */
 export function program(children) {
     return {
@@ -26,9 +28,9 @@ export function program(children) {
 
 /**
  * @param {string} name
- * @param {import("./type.js").Class["body"]} body
+ * @param {PHP.Class["body"]} body
  *
- * @returns {import("./type.js").Class}
+ * @returns {PHP.Class}
  */
 export function declareClass(name, body = []) {
     return {
@@ -46,7 +48,7 @@ export function declareClass(name, body = []) {
 /**
  * @param {string} name
  *
- * @returns {import("./type.js").Identifier}
+ * @returns {PHP.Identifier}
  */
 export function id(name) {
     return {
@@ -59,7 +61,7 @@ export function id(name) {
  * @param {string} name
  * @param {string=} returnType
  *
- * @returns {import("./type.js").Method}
+ * @returns {PHP.Method}
  */
 export function method(name, returnType) {
     return {
@@ -80,7 +82,7 @@ export function method(name, returnType) {
 /**
  * @param {string} name
  *
- * @returns {import("./type.js").TypeReference}
+ * @returns {PHP.TypeReference}
  */
 export function typeReference(name) {
     return {
@@ -91,8 +93,8 @@ export function typeReference(name) {
 }
 
 /**
- * @param {import("./type.js").Block["children"]} [children=[]]
- * @returns {import("./type.js").Block}
+ * @param {PHP.Block["children"]} [children=[]]
+ * @returns {PHP.Block}
  */
 export function block(children = []) {
     return {
@@ -103,9 +105,9 @@ export function block(children = []) {
 
 /**
  * @param {string} name
- * @param {import("./type.js").Namespace["children"]} children
+ * @param {PHP.Namespace["children"]} children
  *
- * @returns {import("./type.js").Namespace}
+ * @returns {PHP.Namespace}
  */
 export function namespace(name, children = []) {
     return {
@@ -120,7 +122,7 @@ export function namespace(name, children = []) {
  * @param {string} name
  * @param {string=} type
  *
- * @returns {import("./type.js").Parameter}
+ * @returns {PHP.Parameter}
  */
 export function parameter(name, type, byref = false) {
     return {
@@ -136,7 +138,7 @@ export function parameter(name, type, byref = false) {
 /**
  * @param {string} name
  *
- * @returns {import("./type.js").Variable}
+ * @returns {PHP.Variable}
  */
 export function variable(name, byref = false) {
     return {
@@ -148,9 +150,9 @@ export function variable(name, byref = false) {
 }
 
 /**
- * @param {import("./type.js").ArrayLiteral["items"]} items
+ * @param {PHP.ArrayLiteral["items"]} items
  *
- * @returns {import("./type.js").ArrayLiteral}
+ * @returns {PHP.ArrayLiteral}
  */
 export function array(items = []) {
     return {
@@ -161,12 +163,12 @@ export function array(items = []) {
 }
 
 /**
- * @param {Record<string, import("./type.js").Expression>} o
+ * @param {Record<string, PHP.Expression>} o
  *
- * @returns {import("./type.js").ArrayLiteral}
+ * @returns {PHP.ArrayLiteral}
  */
 export function arrayFromObject(o) {
-    /** @type {import("./type.js").Entry[]} */
+    /** @type {PHP.Entry[]} */
     const entries = [];
 
     Object.entries(o).forEach(([key, value]) => {
@@ -177,11 +179,11 @@ export function arrayFromObject(o) {
 }
 
 /**
- * @param {import("./type.js").Assign["left"]} left
- * @param {import("./type.js").Assign["operator"]} operator
- * @param {import("./type.js").Assign["right"]} right
+ * @param {PHP.Assign["left"]} left
+ * @param {PHP.Assign["operator"]} operator
+ * @param {PHP.Assign["right"]} right
  *
- * @returns {import("./type.js").ExpressionStatement<import("./type.js").Assign>}
+ * @returns {PHP.Statement<PHP.Assign>}
  */
 export function assign(left, operator, right) {
     return stmt({
@@ -193,9 +195,9 @@ export function assign(left, operator, right) {
 }
 
 /**
- * @param {import("./type.js").Post["type"]} type
- * @param {import("./type.js").Post["what"]} what
- * @returns {import("./type.js").Post}
+ * @param {PHP.Post["type"]} type
+ * @param {PHP.Post["what"]} what
+ * @returns {PHP.Post}
  */
 export function post(type, what) {
     return {
@@ -206,9 +208,9 @@ export function post(type, what) {
 }
 
 /**
- * @param {import("./type.js").Pre["type"]} type
- * @param {import("./type.js").Pre["what"]} what
- * @returns {import("./type.js").Pre}
+ * @param {PHP.Pre["type"]} type
+ * @param {PHP.Pre["what"]} what
+ * @returns {PHP.Pre}
  */
 export function pre(type, what) {
     return {
@@ -219,10 +221,9 @@ export function pre(type, what) {
 }
 
 /**
- * @template {import("./type.js").Expression} T
+ * @param {PHP.Expression} expression
  *
- * @param {T} expression
- * @returns {import("./type.js").ExpressionStatement<T>}
+ * @returns {PHP.ExpressionStatement}
  */
 export function stmt(expression) {
     return {
@@ -232,8 +233,8 @@ export function stmt(expression) {
 }
 
 /**
- * @param {import("./type.js").Return["expr"]} expression
- * @returns {import("./type.js").Return}
+ * @param {PHP.Return["expr"]} expression
+ * @returns {PHP.Return}
  */
 export function returnExpression(expression) {
     return {
@@ -243,9 +244,9 @@ export function returnExpression(expression) {
 }
 
 /**
- * @param {import("./type.js").Call["what"] | string} what
- * @param {import("./type.js").Call["arguments"]} args
- * @returns {import("./type.js").Call}
+ * @param {PHP.Call["what"] | string} what
+ * @param {PHP.Call["arguments"]} args
+ * @returns {PHP.Call}
  */
 export function call(what, args = [], wrap = false) {
     return {
@@ -257,8 +258,19 @@ export function call(what, args = [], wrap = false) {
 }
 
 /**
+ * @param {PHP.Expression | string} what
+ * @param {PHP.Expression[]} args
+ * @returns {PHP.If}
+ */
+export function maybe_call(what, args = [], wrap = false) {
+    what = typeof what === "string" ? id(what) : what;
+
+    return if_statement(call("is_callable", [what]), call(what, args, wrap));
+}
+
+/**
  * @param {string} name
- * @returns {import("./type.js").Name}
+ * @returns {PHP.Name}
  */
 export function name(name) {
     return {
@@ -273,10 +285,10 @@ export function name(name) {
 }
 
 /**
- * @param {import("./type.js").StaticLookup["what"]} what
+ * @param {PHP.StaticLookup["what"]} what
  * @param {string} name
  *
- * @returns {import("./type.js").StaticLookup}
+ * @returns {PHP.StaticLookup}
  */
 export function staticLookup(what, name) {
     return {
@@ -289,10 +301,10 @@ export function staticLookup(what, name) {
 /**
  * @param {string | number | boolean | null} value
  *
- * @returns {import("./type.js").StringLiteral
- *  | import("./type.js").NumberLiteral
- *  | import("./type.js").BooleanLiteral
- *  | import("./type.js").NullKeyword
+ * @returns {PHP.StringLiteral
+ *  | PHP.NumberLiteral
+ *  | PHP.BooleanLiteral
+ *  | PHP.NullKeyword
  * }
  */
 export function literal(value) {
@@ -315,7 +327,7 @@ export function literal(value) {
     throw new Error(`${typeof value} is not a literal`);
 }
 
-/** @returns {import("./type.js").NullKeyword} */
+/** @returns {PHP.NullKeyword} */
 export function nullKeyword() {
     return {
         kind: "nullkeyword",
@@ -325,7 +337,7 @@ export function nullKeyword() {
 
 /**
  * @param {string} value
- * @returns {import("./type.js").StringLiteral} */
+ * @returns {PHP.StringLiteral} */
 export function string(value) {
     return {
         kind: "string",
@@ -338,7 +350,7 @@ export function string(value) {
 
 /**
  * @param {number} value
- * @returns {import("./type.js").NumberLiteral} */
+ * @returns {PHP.NumberLiteral} */
 export function number(value) {
     return {
         kind: "number",
@@ -349,7 +361,7 @@ export function number(value) {
 
 /**
  * @param {boolean} value
- * @returns {import("./type.js").BooleanLiteral}
+ * @returns {PHP.BooleanLiteral}
  */
 export function boolean(value) {
     return {
@@ -360,10 +372,10 @@ export function boolean(value) {
 }
 
 /**
- * @param {import("./type.js").OffsetLookup["what"]} what
- * @param {import("./type.js").OffsetLookup["offset"]} offset
+ * @param {PHP.OffsetLookup["what"]} what
+ * @param {PHP.OffsetLookup["offset"]} offset
  *
- * @returns {import("./type.js").OffsetLookup}
+ * @returns {PHP.OffsetLookup}
  */
 export function offsetLookup(what, offset = false) {
     return {
@@ -374,10 +386,10 @@ export function offsetLookup(what, offset = false) {
 }
 
 /**
- * @param {import("./type.js").PropertyLookup["what"]} what
- * @param {import("./type.js").PropertyLookup["offset"]} offset
- * @param {import("./type.js").PropertyLookup["optional"]} optional
- * @returns {import("./type.js").PropertyLookup}
+ * @param {PHP.PropertyLookup["what"]} what
+ * @param {PHP.PropertyLookup["offset"]} offset
+ * @param {PHP.PropertyLookup["optional"]} optional
+ * @returns {PHP.PropertyLookup}
  */
 export function propertyLookup(what, offset, optional = false) {
     return {
@@ -389,11 +401,20 @@ export function propertyLookup(what, offset, optional = false) {
 }
 
 /**
- * @param {import("./type.js").EncapsedPart["expression"]} expression
+ * @param {PHP.EncapsedPart["expression"] | string} expression
  *
- * @returns {import("./type.js").EncapsedPart}
+ * @returns {PHP.EncapsedPart}
  */
 export function encapsedPart(expression) {
+    if (typeof expression === "string") {
+        return {
+            kind: "encapsedpart",
+            expression: string(expression),
+            curly: false,
+            syntax: null,
+        };
+    }
+
     return {
         kind: "encapsedpart",
         expression,
@@ -403,10 +424,47 @@ export function encapsedPart(expression) {
 }
 
 /**
- * @param {import("./type.js").Bin["left"]} left
- * @param {import("./type.js").Bin["type"]} operator
- * @param {import("./type.js").Bin["right"]} right
- * @returns {import("./type.js").Bin}
+ * @param {PHP.Template['quasis']} elements
+ * @param {PHP.Template['expressions']} expressions
+ *
+ * @returns {PHP.Template}
+ */
+export function template(elements, expressions) {
+    return {
+        kind: "template",
+        quasis: elements,
+        expressions,
+    };
+}
+
+/**
+ * @param {string} cooked
+ * @param {boolean} tail
+ *
+ * @returns {PHP.TemplateElement}
+ */
+export function quasi(cooked, tail = false) {
+    const raw = cooked.replace(/('|\${|\\)/g, "\\$1");
+    return { kind: "templateelement", value: { raw, cooked }, tail };
+}
+
+/**
+ * @param {PHP.EncapsedPart[]} parts
+ *
+ * @returns {PHP.Encapsed}
+ */
+export function encapsed(parts) {
+    return {
+        kind: "encapsed",
+        value: parts,
+    };
+}
+
+/**
+ * @param {PHP.Bin["left"]} left
+ * @param {PHP.Bin["type"]} operator
+ * @param {PHP.Bin["right"]} right
+ * @returns {PHP.Bin}
  */
 export function bin(left, operator, right) {
     return {
@@ -418,12 +476,12 @@ export function bin(left, operator, right) {
 }
 
 /**
- * @param {import("./type.js").If["test"]} test
- * @param {import("./type.js").If["body"]=} consequent
- * @param {import("./type.js").If["alternate"]=} alternate
- * @returns {import("./type.js").If}
+ * @param {PHP.If["test"]} test
+ * @param {PHP.If["body"]=} consequent
+ * @param {PHP.If["alternate"]=} alternate
+ * @returns {PHP.If}
  */
-export function ifStatement(test, consequent = block(), alternate = undefined) {
+function if_statement(test, consequent = block(), alternate = undefined) {
     return {
         kind: "if",
         shortForm: false,
@@ -434,11 +492,11 @@ export function ifStatement(test, consequent = block(), alternate = undefined) {
 }
 
 /**
- * @param {import("./type.js").RetIf["test"]} test
- * @param {import("./type.js").RetIf["trueExpr"]} consequent
- * @param {import("./type.js").RetIf["falseExpr"]} alternate
+ * @param {PHP.RetIf["test"]} test
+ * @param {PHP.RetIf["trueExpr"]} consequent
+ * @param {PHP.RetIf["falseExpr"]} alternate
  *
- * @returns {import("./type.js").RetIf}
+ * @returns {PHP.RetIf}
  */
 export function ternary(test, consequent, alternate) {
     return {
@@ -450,10 +508,14 @@ export function ternary(test, consequent, alternate) {
 }
 
 /**
- * @param {Map<import("./type.js").Expression, import("./type.js").Expression>} map
- * @returns {import("./type.js").Cast}
+ * @param {Map<PHP.Expression, PHP.Expression> | PHP.Entry[]} map
+ * @returns {PHP.Cast}
  */
 export function object(map = new Map()) {
+    if (map instanceof Array) {
+        return cast(array(map), "object");
+    }
+
     const entries = Array.from(map.entries());
 
     return cast(
@@ -463,8 +525,8 @@ export function object(map = new Map()) {
 }
 
 /**
- * @param {Record<string, import("./type.js").Expression>} o
- * @returns {import("./type.js").Cast}
+ * @param {Record<string, PHP.Expression>} o
+ * @returns {PHP.Cast}
  */
 export function objectFromLiteral(o) {
     /**
@@ -480,22 +542,22 @@ export function objectFromLiteral(o) {
 }
 
 /**
- * @param {import("./type.js").Entry["value"]} value
- * @param {import("./type.js").Entry["key"]=} key
+ * @param {PHP.Entry["key"] | undefined | string} key
+ * @param {PHP.Entry["value"]} value
  *
- * @returns {import("./type.js").Entry}
+ * @returns {PHP.Entry}
  */
-export function entry(value, key, unpack = false) {
+export function entry(key, value, unpack = false) {
     return {
         kind: "entry",
         value,
-        key,
+        key: typeof key === "string" ? string(key) : key,
         unpack,
     };
 }
 
 /**
- * @param {(string | import("./type.js").Expression)[]} template
+ * @param {(string | PHP.Expression)[]} template
  */
 export function sprintf(template) {
     let format = "";
@@ -516,10 +578,10 @@ export function sprintf(template) {
 }
 
 /**
- * @param {import("./type.js").ForEach["source"]} source
- * @param {import("./type.js").ForEach["value"]} value
- * @param {import("./type.js").ForEach["key"]=} key
- * @returns {import("./type.js").ForEach}
+ * @param {PHP.ForEach["source"]} source
+ * @param {PHP.ForEach["value"]} value
+ * @param {PHP.ForEach["key"]=} key
+ * @returns {PHP.ForEach}
  */
 export function forEach(source, value, key) {
     return {
@@ -533,8 +595,8 @@ export function forEach(source, value, key) {
 }
 
 /**
- * @param {import("./type.js").Empty["expression"]} expression
- * @returns {import("./type.js").Empty}
+ * @param {PHP.Empty["expression"]} expression
+ * @returns {PHP.Empty}
  */
 export function empty(expression) {
     return {
@@ -544,8 +606,8 @@ export function empty(expression) {
 }
 
 /**
- * @param {import("./type.js").Isset["variables"]} variables
- * @returns {import("./type.js").Isset}
+ * @param {PHP.Isset["variables"]} variables
+ * @returns {PHP.Isset}
  */
 export function isset(...variables) {
     return {
@@ -555,9 +617,9 @@ export function isset(...variables) {
 }
 
 /**
- * @param {import("./type.js").Unary["type"]} type
- * @param {import("./type.js").Unary["what"]} what
- * @returns {import("./type.js").Unary}
+ * @param {PHP.Unary["type"]} type
+ * @param {PHP.Unary["what"]} what
+ * @returns {PHP.Unary}
  */
 export function unary(type, what, wrap = false) {
     return {
@@ -569,22 +631,23 @@ export function unary(type, what, wrap = false) {
 }
 
 /**
- * @param {import("./type.js").Closure["arguments"]} args
- * @param {import("./type.js").Closure["isStatic"]} isStatic
- * @param {import("./type.js").Closure["uses"]} uses
+ * @param {PHP.Closure["arguments"]} args
+ * @param {PHP.Closure["isStatic"]} isStatic
+ * @param {PHP.Closure["uses"]} uses
  * @param {string=} type
  *
- * @returns {import("./type.js").Closure}
+ * @returns {PHP.Closure}
  */
 export function closure(
     isStatic = false,
     args = [],
     uses = [],
+    body = block(),
     type = undefined,
 ) {
     return {
         kind: "closure",
-        body: block(),
+        body,
         nullable: false,
         isStatic: isStatic,
         arguments: args,
@@ -595,9 +658,9 @@ export function closure(
 }
 
 /**
- * @param {import("./type.js").Cast["expr"]} expr
- * @param {import("./type.js").Cast["type"]} type
- * @returns {import("./type.js").Cast}
+ * @param {PHP.Cast["expr"]} expr
+ * @param {PHP.Cast["type"]} type
+ * @returns {PHP.Cast}
  */
 export function cast(expr, type) {
     return {
@@ -609,10 +672,10 @@ export function cast(expr, type) {
 }
 
 /**
- * @param {import("./type.js").ArrowFunc["arguments"]} args
- * @param {import("./type.js").ArrowFunc["body"]} body
+ * @param {PHP.ArrowFunc["arguments"]} args
+ * @param {PHP.ArrowFunc["body"]} body
  *
- * @returns {import("./type.js").ArrowFunc}
+ * @returns {PHP.ArrowFunc}
  */
 export function arrow(args, body) {
     return {
@@ -627,7 +690,7 @@ export function arrow(args, body) {
  * @param {string} name
  * @param {...string} items
  *
- * @returns {import("./type.js").UseGroup}
+ * @returns {PHP.UseGroup}
  */
 export function use(name, ...items) {
     return {
@@ -641,7 +704,7 @@ export function use(name, ...items) {
  * @param {string} name
  * @param {string | null} [alias=null]
  *
- * @returns {import("./type.js").UseGroup}
+ * @returns {PHP.UseGroup}
  */
 export function useitem(name, alias = null) {
     return {
@@ -659,9 +722,9 @@ export function useitem(name, alias = null) {
 
 /**
  * @param {string} what
- * @param {...import("./type.js").Expression} args
+ * @param {...PHP.Expression} args
  *
- * @returns {import("./type.js").New}
+ * @returns {PHP.New}
  */
 function new_builder(what, ...args) {
     return {
@@ -674,4 +737,9 @@ function new_builder(what, ...args) {
 const true_instance = boolean(true);
 const false_instance = boolean(false);
 
-export { true_instance as true, false_instance as false, new_builder as new };
+export {
+    true_instance as true,
+    false_instance as false,
+    new_builder as new,
+    if_statement as if,
+};

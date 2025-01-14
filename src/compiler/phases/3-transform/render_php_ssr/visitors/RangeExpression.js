@@ -1,0 +1,17 @@
+/** @import * as AST from '#ast' */
+/** @import { ComponentContext } from '../types.js' */
+
+import * as b from "../builders.js";
+
+/**
+ * @param {AST.} node
+ * @param {ComponentContext} context
+ *
+ * @returns {any};
+ */
+// RangeExpression(node, { visit }) {
+//     const start = /** @type {any} */ (visit(node.from));
+//     const end = /** @type {any} */ (visit(node.to));
+//
+//     return b.call(b.id("range"), [start, end, b.number(node.step)]);
+// },

@@ -1,3 +1,29 @@
+import type { ZvelteNode } from "#ast";
+import type { CompilerOptions } from "../../../types.js";
+import type { ComponentAnalysis } from "../../2-analyze/types.js";
+
+export type ComponentServerTransformState = {
+    options: CompilerOptions;
+    analysis: ComponentAnalysis;
+
+    isInIsset: boolean;
+
+    imports: import("#ast").Root["imports"];
+    skipHydrationBoundaries: boolean;
+    namespace: import("#ast").Namespace;
+
+    overrides: Record<string, Expression>;
+    template: Array<Statement | Expression>;
+    init: Array<Statement>;
+};
+
+export type ComponentContext = import("zimmerframe").Context<
+    ZvelteNode,
+    ComponentServerTransformState
+>;
+
+// ----- Php ast
+
 export type Program = {
     kind: "program";
     children: Array<Class | Namespace>;
@@ -32,7 +58,7 @@ export type Method = {
 
 export type Block = {
     kind: "block";
-    children: Array<ExpressionStatement | Return | If | ForEach | Call>;
+    children: Array<Statement | Return | If | ForEach | Call>;
 };
 
 export type Identifier = {
@@ -68,10 +94,12 @@ export type ExpressionStatement<T extends Expression = Expression> = {
     expression: T;
 };
 
+export type Statement = ExpressionStatement | If | ForEach | Block;
+
 export type If = {
     kind: "if";
     test: Expression;
-    body: Block;
+    body: Block | Expression;
     alternate?: Block;
     shortForm: boolean;
 };
@@ -86,6 +114,7 @@ export type ForEach = {
 };
 
 export type Expression =
+    | Template
     | Cast
     | Silent
     | Name
@@ -94,6 +123,7 @@ export type Expression =
     | OffsetLookup
     | StaticLookup
     | PropertyLookup
+    | ArrayLiteral
     | Assign
     | Bin
     | Closure
@@ -125,8 +155,10 @@ export type Assign = {
     kind: "assign";
     left: Expression;
     right: Expression;
-    operator: "=" | "+=" | "-=" | "??=" | ".=" | "/=" | "*=";
+    operator: AssignmentOperator;
 };
+
+export type AssignmentOperator = "=" | "+=" | "-=" | "??=" | ".=" | "/=" | "*=";
 
 export type Return = {
     kind: "return";
@@ -175,8 +207,28 @@ export type PropertyLookup = {
 export type EncapsedPart = {
     kind: "encapsedpart";
     expression: Expression;
-    syntax: "complex";
+    syntax: "complex" | null;
     curly: boolean;
+};
+
+export type Encapsed = {
+    kind: "encapsed";
+    value: EncapsedPart[];
+};
+
+export type Template = {
+    kind: "template";
+    expressions: Expression[];
+    quasis: TemplateElement[];
+};
+
+export type TemplateElement = {
+    kind: "templateelement";
+    tail: boolean;
+    value: {
+        raw: string;
+        cooked: string;
+    };
 };
 
 export type Primary =
@@ -265,7 +317,7 @@ export type NullKeyword = {
 
 export type ArrowFunc = {
     kind: "arrowfunc";
-    arguments: Expression[];
+    arguments: Parameter[];
     body: Expression;
     isStatic: boolean;
 };
@@ -305,4 +357,4 @@ export type Pre = {
     what: Expression;
 };
 
-export type Node = Literal | Expression | UseGroup | UseItem;
+export type Node = Literal | Expression | UseGroup | UseItem | Statement;

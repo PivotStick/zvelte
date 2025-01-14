@@ -47,6 +47,11 @@ export default defineConfig({
                     overrides = JSON.parse(json);
                 }
 
+                /**
+                 * @type {import("./src/compiler/phases/1-parse/types").ImportTag[]}
+                 */
+                const imports = [];
+
                 /** @type {import("./src/compiler/types").CompilerOptions} */
                 const options = {
                     hasJS,
@@ -61,6 +66,14 @@ export default defineConfig({
                     generate: "dom",
                     preserveComments: true,
                     ...overrides,
+                    transformers: {
+                        ast: {
+                            ImportTag(node, ctx) {
+                                imports.push(node);
+                                ctx.next();
+                            }
+                        }
+                    }
                 };
 
                 const output = compile(code, options);
@@ -81,7 +94,11 @@ export default defineConfig({
                         "",
                     );
 
-                    return `export default async function(payload, props) {
+                    // Zvelte/Components/samples/T007/Layout
+                    return `
+${imports.map(n => `import "${join(__dirname, './src/__tests__/svelte-ssr-match', n.source.value.replace(/^Zvelte\/Components\//, ""))}.zvelte?${query}";`).join('\n')}
+
+export default async function(payload, props) {
     const result = await fetch("${endpoint}", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -91,7 +108,7 @@ export default defineConfig({
     payload.out = result.out;
     payload.head.out = result.head.out;
     payload.head.title = result.head.title;
-}`;
+}`.trim();
                 }
 
                 return output.code;
