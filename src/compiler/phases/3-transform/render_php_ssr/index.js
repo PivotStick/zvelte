@@ -2,7 +2,7 @@ import { walk } from "zimmerframe";
 import { isVoid } from "../../../shared/utils/names.js";
 import * as b from "./builders.js";
 import { print } from "./print/index.js";
-import { clean_nodes } from "../utils.js";
+import { clean_nodes, determine_namespace_for_children, infer_namespace } from "../utils.js";
 import { DOMBooleanAttributes } from "../constants.js";
 import {
     BLOCK_CLOSE,
@@ -31,6 +31,7 @@ const propsName = "props";
  *  componentName: string;
  *  imports: import("#ast").Root["imports"];
  *  skipHydrationBoundaries: boolean;
+ *  namespace: import("#ast").Namespace
  * }} State
  *
  * @typedef {import("zimmerframe").Context<import("#ast").ZvelteNode, State>} ComponentContext
@@ -72,6 +73,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
             counter: 0,
             componentName,
             skipHydrationBoundaries: false,
+                namespace: "html",
             import(name) {
                 internalImports.add(name);
             },
@@ -199,7 +201,7 @@ const visitors = {
             node,
             node.fragment.nodes,
             [node],
-            undefined,
+            context.state.namespace,
             context.state,
             context.state.options.preserveWhitespace,
             context.state.options.preserveComments,
@@ -227,12 +229,13 @@ const visitors = {
 
     Fragment(node, { visit, state, path }) {
         const parent = path[path.length - 1];
+        const namespace = infer_namespace(state.namespace, parent, node.nodes);
 
         const { trimmed, hoisted, is_text_first, is_standalone } = clean_nodes(
             parent,
             node.nodes,
             path,
-            "html",
+            namespace,
             state,
             state.options.preserveWhitespace,
             state.options.preserveComments,
@@ -407,10 +410,10 @@ const visitors = {
         state.appendText(BLOCK_CLOSE);
     },
 
-    RegularElement(node, { state, path, visit }) {
-        const parent = path[path.length - 1];
+    RegularElement(node, context) {
+        const parent = context.path[context.path.length - 1];
 
-        state.appendText(`<${node.name}`);
+        context.state.appendText(`<${node.name}`);
 
         /**
          * @type {null | import("./type.d.ts").Expression}
@@ -429,7 +432,7 @@ const visitors = {
                         const value = serializeAttributeValue(
                             attr.value,
                             false,
-                            { visit, state },
+                            context,
                         );
                         const n = b.entry(value, b.literal(attr.name));
                         attrs.push(n);
@@ -438,7 +441,7 @@ const visitors = {
 
                     case "SpreadAttribute": {
                         const value = /** @type {any} */ (
-                            visit(attr.expression)
+                            context.visit(attr.expression)
                         );
                         attrs.push(b.entry(value, undefined, true));
                         break;
@@ -446,7 +449,7 @@ const visitors = {
 
                     case "ClassDirective": {
                         const value = /** @type {any} */ (
-                            visit(attr.expression)
+                            context.visit(attr.expression)
                         );
                         classes[attr.name] = value;
                         break;
@@ -463,7 +466,7 @@ const visitors = {
                 args.push(b.objectFromLiteral(classes));
             }
 
-            state.append(state.internal("spread_attributes", ...args));
+            context.state.append(context.state.internal("spread_attributes", ...args));
         } else {
             const classDirectives =
                 /** @type {Array<import("#ast").ClassDirective>} */ (
@@ -489,14 +492,11 @@ const visitors = {
 
                             values.push(...classDirectives);
 
-                            state.append(
-                                state.internal(
+                            context.state.append(
+                                context.state.internal(
                                     "attr",
                                     b.string(attr.name),
-                                    serializeAttributeValue(values, true, {
-                                        visit,
-                                        state,
-                                    }),
+                                    serializeAttributeValue(values, true, context),
                                 ),
                             );
 
@@ -505,9 +505,9 @@ const visitors = {
                         }
 
                         if (attr.value === true) {
-                            state.appendText(` ${attr.name}`);
+                            context.state.appendText(` ${attr.name}`);
                             if (!DOMBooleanAttributes.includes(attr.name)) {
-                                state.appendText(`=""`);
+                                context.state.appendText(`=""`);
                             }
                         } else if (
                             attr.value.length === 1 &&
@@ -515,18 +515,15 @@ const visitors = {
                         ) {
                             const quote = attr.doubleQuotes ? '"' : "'";
 
-                            state.appendText(` ${attr.name}=${quote}`);
-                            state.appendText(attr.value[0].data);
-                            state.appendText(quote);
+                            context.state.appendText(` ${attr.name}=${quote}`);
+                            context.state.appendText(attr.value[0].data);
+                            context.state.appendText(quote);
                         } else {
-                            state.append(
-                                state.internal(
+                            context.state.append(
+                                context.state.internal(
                                     "attr",
                                     b.string(attr.name),
-                                    serializeAttributeValue(attr.value, true, {
-                                        visit,
-                                        state,
-                                    }),
+                                    serializeAttributeValue(attr.value, true, context),
                                 ),
                             );
                         }
@@ -535,12 +532,12 @@ const visitors = {
 
                     case "BindDirective": {
                         const value = b.bin(
-                            /** @type {any} */ (visit(attr.expression)),
+                            /** @type {any} */ (context.visit(attr.expression)),
                             "??",
                             b.literal(""),
                         );
 
-                        const expression = state.internal(
+                        const expression = context.state.internal(
                                 "attr",
                                 b.string(attr.name),
                                 value,
@@ -550,7 +547,7 @@ const visitors = {
                             body = value;
                             break;
                         }
-                        state.append(
+                        context.state.append(
                             expression
                         );
                         break;
@@ -576,50 +573,58 @@ const visitors = {
             }
 
             if (classDirectives.length) {
-                state.append(
-                    state.internal(
+                context.state.append(
+                    context.state.internal(
                         "attr",
                         b.string("class"),
-                        serializeAttributeValue(classDirectives, true, {
-                            visit,
-                            state,
-                        }),
+                        serializeAttributeValue(classDirectives, true, context),
                     ),
                 );
             }
         }
 
         if (isVoid(node.name)) {
-            state.appendText(`>`);
+            context.state.appendText(`>`);
             return;
         }
 
-        state.appendText(`>`);
+        context.state.appendText(`>`);
+
+        const namespace = determine_namespace_for_children(node, context.state.namespace);
+
+        const state = {
+            ...context.state,
+            namespace,
+            options: {
+                ...context.state.options,
+                preserveWhitespace: context.state.options.preserveWhitespace || node.name === 'pre' || node.name === 'textarea'
+            }
+        };
 
         const { trimmed, hoisted } = clean_nodes(
             parent,
             node.fragment.nodes,
-            path,
-            "html",
+            context.path,
+            namespace,
             state,
             state.options.preserveWhitespace,
             state.options.preserveComments,
         );
 
         for (const node of hoisted) {
-            visit(node);
+            context.visit(node);
         }
 
         if (body === null) {
             for (const node of trimmed) {
-                visit(node);
+                context.visit(node);
             }
         } else {
             // stuff
-            state.append(body);
+            context.state.append(body);
         }
 
-        state.appendText(`</${node.name}>`);
+        context.state.appendText(`</${node.name}>`);
     },
 
     ExpressionTag(node, { state, visit }) {

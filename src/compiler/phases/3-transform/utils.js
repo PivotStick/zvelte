@@ -110,6 +110,8 @@ export function clean_nodes(
                     parent.name === "colgroup" ||
                     parent.name === "datalist"));
 
+        console.log({ can_remove_entirely, namespace })
+
         // Replace any whitespace between a text and non-text node with a single spaceand keep whitespace
         // as-is within text nodes, or between text nodes and expression tags (because in the end they count
         // as one text). This way whitespace is mostly preserved when using CSS with `white-space: pre-line`
