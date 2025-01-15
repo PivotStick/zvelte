@@ -13,9 +13,20 @@ export function build_inline_component(node, expression, context) {
     const dynamic =
         node.type === "ZvelteComponent" ||
         (node.type === "Component" && node.metadata.dynamic);
+    let wrapCall = true;
 
-    if (dynamic) {
-        expression = b.propertyLookup(b.variable("props"), expression);
+    if (node.type === "Component") {
+        if (expression.kind === "identifier") {
+            expression = b.staticLookup(
+                b.name(expression.name.replace(/\./g, "->")),
+                "render",
+            );
+        }
+
+        if (node.metadata.dynamic) {
+            expression = b.propertyLookup(b.variable("props"), expression);
+            wrapCall = false;
+        }
     }
 
     /** @type {Array<Entry[] | Expression>} */
@@ -239,7 +250,7 @@ export function build_inline_component(node, expression, context) {
         (node.type === "ZvelteComponent" ? b.maybe_call : b.call)(
             expression,
             [b.id("$payload"), props_expression],
-            dynamic,
+            dynamic && wrapCall,
         ),
     );
 

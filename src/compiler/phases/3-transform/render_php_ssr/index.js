@@ -31,6 +31,7 @@ import { UpdateExpression } from "./visitors/UpdateExpression.js";
 import { AssignmentExpression } from "./visitors/AssignmentExpression.js";
 import { ArrowFunctionExpression } from "./visitors/ArrowFunctionExpression.js";
 import { ZvelteSelf } from "./visitors/ZvelteSelf.js";
+import { ZvelteComponent } from "./visitors/ZvelteComponent.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -127,6 +128,7 @@ const visitors = {
 
     ZvelteHead,
     ZvelteSelf,
+    ZvelteComponent,
     TitleElement,
 
     Identifier,
@@ -295,12 +297,5 @@ const visitors = {
     // VariableTag(node, { state, visit }) {
     //     const assignment = /** @type {any} */ (visit(node.assignment));
     //     state.block.children.push(assignment);
-    // },
-    //
-    // ZvelteComponent(node, context) {
-    //     const callee = /** @type {any} */ (context.visit(node.expression));
-    //     const props = getComponentProps(node, context);
-    //
-    //     buildDynamicComponent(context, props, callee);
     // },
 };
