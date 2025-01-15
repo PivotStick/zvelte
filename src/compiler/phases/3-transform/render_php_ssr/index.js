@@ -19,6 +19,18 @@ import { HtmlTag } from "./visitors/HtmlTag.js";
 import { Component } from "./visitors/Component.js";
 import { BinaryExpression } from "./visitors/BinaryExpression.js";
 import { ArrayExpression } from "./visitors/ArrayExpression.js";
+import { ObjectExpression } from "./visitors/ObjectExpression.js";
+import { CallExpression } from "./visitors/CallExpression.js";
+import { FilterExpression } from "./visitors/FilterExpression.js";
+import { InExpression } from "./visitors/InExpression.js";
+import { IsExpression } from "./visitors/IsExpression.js";
+import { RangeExpression } from "./visitors/RangeExpression.js";
+import { LogicalExpression } from "./visitors/LogicalExpression.js";
+import { UnaryExpression } from "./visitors/UnaryExpression.js";
+import { UpdateExpression } from "./visitors/UpdateExpression.js";
+import { AssignmentExpression } from "./visitors/AssignmentExpression.js";
+import { ArrowFunctionExpression } from "./visitors/ArrowFunctionExpression.js";
+import { ZvelteSelf } from "./visitors/ZvelteSelf.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -114,19 +126,33 @@ const visitors = {
     Component,
 
     ZvelteHead,
+    ZvelteSelf,
     TitleElement,
 
     Identifier,
     MemberExpression,
 
     ArrayExpression,
+    ObjectExpression,
+    ArrowFunctionExpression,
+
+    CallExpression,
+    FilterExpression,
+
+    InExpression,
+    IsExpression,
+    RangeExpression,
+    UnaryExpression,
+    UpdateExpression,
+    AssignmentExpression,
+
+    BinaryExpression,
+    LogicalExpression,
 
     NullLiteral,
     BooleanLiteral,
     NumericLiteral,
     StringLiteral,
-
-    BinaryExpression,
 
     // ForBlock(node, { state, path, visit }) {
     //     state.appendText(BLOCK_OPEN);
@@ -276,18 +302,5 @@ const visitors = {
     //     const props = getComponentProps(node, context);
     //
     //     buildDynamicComponent(context, props, callee);
-    // },
-    //
-    // ZvelteSelf(node, context) {
-    //     const props = getComponentProps(node, context);
-    //
-    //     context.state.appendText(BLOCK_OPEN);
-    //     context.state.append(
-    //         b.call(b.staticLookup(b.name("self"), "render"), [
-    //             b.variable(outputName),
-    //             props,
-    //         ]),
-    //     );
-    //     context.state.appendText(EMPTY_COMMENT);
     // },
 };

@@ -4,14 +4,14 @@
 import * as b from "../builders.js";
 
 /**
- * @param {AST.} node
+ * @param {AST.UpdateExpression} node
  * @param {ComponentContext} context
  *
  * @returns {any};
  */
-// UpdateExpression(node, { visit }) {
-//     const type = node.operator === "++" ? "+" : "-";
-//     const what = /** @type {any} */ (visit(node.argument));
-//
-//     return node.prefix ? b.pre(type, what) : b.post(type, what);
-// },
+export function UpdateExpression(node, { visit }) {
+    const type = node.operator === "++" ? "+" : "-";
+    const what = /** @type {any} */ (visit(node.argument));
+
+    return node.prefix ? b.pre(type, what) : b.post(type, what);
+}

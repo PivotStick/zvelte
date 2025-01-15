@@ -4,15 +4,15 @@
 import * as b from "../builders.js";
 
 /**
- * @param {AST.} node
+ * @param {AST.ConditionalExpression} node
  * @param {ComponentContext} context
  *
  * @returns {any};
  */
-// ConditionalExpression(node, { visit }) {
-//     const test = /** @type {any} */ (visit(node.test));
-//     const consequent = /** @type {any} */ (visit(node.consequent));
-//     const alternate = /** @type {any} */ (visit(node.alternate));
-//
-//     return b.ternary(test, consequent, alternate);
-// },
+export function ConditionalExpression(node, { visit }) {
+    const test = /** @type {any} */ (visit(node.test));
+    const consequent = /** @type {any} */ (visit(node.consequent));
+    const alternate = /** @type {any} */ (visit(node.alternate));
+
+    return b.ternary(test, consequent, alternate);
+}
