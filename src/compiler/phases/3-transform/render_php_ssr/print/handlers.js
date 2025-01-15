@@ -1,3 +1,5 @@
+/** @import * as PHP from "../types.d.ts" */
+
 /**
  * Does `array.push` for all `items`. Needed because `array.push(...items)` throws
  * "Maximum call stack size exceeded" when `items` is too big of an array.
@@ -60,9 +62,10 @@ export function handle(node, state) {
     if (!handler) {
         if (!node?.kind) {
             console.error("----->", node);
+            // @ts-ignore
             throw new Error(`Cannot handle ${node?.constructor ?? node}`);
         }
-        throw new Error(`Not implemented ${node.kind}`);
+        throw new Error(`"${node.kind}" node is not yet implemented`);
     }
 
     return handler(node, state);
@@ -506,6 +509,44 @@ const handlers = {
 
         push_array(chunks, handle(node.value, state));
         chunks.push(c(")"));
+        push_array(chunks, handle(node.body, state));
+
+        return chunks;
+    },
+
+    /**
+     * @param {PHP.For} node
+     */
+    for(node, state) {
+        const chunks = [c("for (")];
+
+        /**
+         * @param {PHP.Expression[]} arr
+         */
+        function add(arr = []) {
+            for (let i = 0; i < arr.length; i++) {
+                const n = arr[i];
+
+                push_array(chunks, handle(n, state));
+
+                if (chunks[chunks.length - 1].content === ";") {
+                    chunks.pop();
+                }
+
+                if (i !== arr.length - 1) {
+                    chunks.push(c(", "));
+                }
+            }
+        }
+
+        add(node.init);
+        chunks.push(c("; "));
+        add(node.test);
+        chunks.push(c("; "));
+        add(node.increment);
+
+        chunks.push(c(")"));
+
         push_array(chunks, handle(node.body, state));
 
         return chunks;

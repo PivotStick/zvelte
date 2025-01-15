@@ -35,6 +35,7 @@ import { ZvelteComponent } from "./visitors/ZvelteComponent.js";
 import { KeyBlock } from "./visitors/KeyBlock.js";
 import { AwaitBlock } from "./visitors/AwaitBlock.js";
 import { SnippetBlock } from "./visitors/SnippetBlock.js";
+import { ForBlock } from "./visitors/ForBlock.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -65,6 +66,8 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     /** @type {any[]} */
     const namespace = [];
 
+    let uuid = -1;
+
     /** @type {import("./types.d.ts").ComponentServerTransformState} */
     const state = {
         options,
@@ -78,6 +81,15 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
         overrides: {},
         template: [],
         init: [],
+
+        unique(key) {
+            uuid++;
+            if (uuid === 0) {
+                return key;
+            }
+
+            return key + "_" + uuid;
+        },
     };
 
     ast.imports.forEach((n) => {
@@ -126,12 +138,20 @@ const visitors = {
     Component,
 
     IfBlock,
+    ForBlock,
     KeyBlock,
     AwaitBlock,
     SnippetBlock,
 
     RenderTag,
     HtmlTag,
+
+    VariableTag(node, { state, visit }) {
+        // - TODO, we need to debate about this feature
+        //
+        // const assignment = /** @type {any} */ (visit(node.assignment));
+        // state.template.push(assignment);
+    },
 
     ZvelteHead,
     ZvelteSelf,
@@ -162,117 +182,4 @@ const visitors = {
     BooleanLiteral,
     NumericLiteral,
     StringLiteral,
-
-    // ForBlock(node, { state, path, visit }) {
-    //     state.appendText(BLOCK_OPEN);
-    //
-    //     const hasParent = path.some((n) => n.type === "ForBlock");
-    //
-    //     const source = /** @type {any} */ (visit(node.expression));
-    //     const index = b.variable("i");
-    //     const value = b.variable(node.context.name);
-    //     const key = node.index ? b.variable(node.index.name) : undefined;
-    //
-    //     const forEach = b.forEach(source, value, key);
-    //
-    //     const nonPropVars = ["loop", value.name];
-    //
-    //     if (key) {
-    //         nonPropVars.push(key.name);
-    //     }
-    //
-    //     if (hasParent) {
-    //         state.block.children.push(
-    //             b.assign(b.variable("parent"), "=", b.variable("loop")),
-    //         );
-    //     }
-    //
-    //     const forEachState = createState(state, forEach.body);
-    //     const length = b.variable("length");
-    //
-    //     state.block.children.push(b.assign(index, "=", b.number(0)));
-    //     forEachState.block.children.push(
-    //         b.assign(
-    //             length,
-    //             "=",
-    //             b.call(b.id("count"), [b.cast(source, "array")]),
-    //         ),
-    //     );
-    //
-    //     if (node.fallback) {
-    //         const ifBlock = b.ifStatement(
-    //             b.unary("!", state.internal("testEmpty", source)),
-    //         );
-    //         ifBlock.alternate = b.block();
-    //
-    //         const ifState = createState(state, ifBlock.body);
-    //         const fallbackState = createState(state, ifBlock.alternate);
-    //
-    //         ifBlock.body.children.push(forEach);
-    //         state.block.children.push(ifBlock);
-    //
-    //         visit(node.fallback, fallbackState);
-    //         ifState.appendText(BLOCK_CLOSE);
-    //         fallbackState.appendText(BLOCK_OPEN_ELSE);
-    //     } else {
-    //         state.block.children.push(forEach);
-    //         state.appendText(BLOCK_CLOSE);
-    //     }
-    //
-    //     forEach.body.children.push(
-    //         b.assign(
-    //             b.variable("loop"),
-    //             "=",
-    //             b.object(
-    //                 new Map(
-    //                     /** @type {[any, any][]} */ ([
-    //                         [b.string("index0"), index],
-    //                         [b.string("index"), b.bin(index, "+", b.number(1))],
-    //                         [
-    //                             b.string("revindex0"),
-    //                             b.bin(
-    //                                 b.bin(length, "-", index),
-    //                                 "-",
-    //                                 b.number(1),
-    //                             ),
-    //                         ],
-    //                         [b.string("revindex"), b.bin(length, "-", index)],
-    //                         [
-    //                             b.string("first"),
-    //                             b.bin(index, "===", b.number(0)),
-    //                         ],
-    //                         [
-    //                             b.string("last"),
-    //                             b.bin(
-    //                                 index,
-    //                                 "===",
-    //                                 b.bin(length, "-", b.number(1)),
-    //                             ),
-    //                         ],
-    //                         [b.string("length"), length],
-    //                         [
-    //                             b.string("parent"),
-    //                             hasParent
-    //                                 ? b.variable("parent")
-    //                                 : b.nullKeyword(),
-    //                         ],
-    //                     ]),
-    //                 ),
-    //             ),
-    //         ),
-    //     );
-    //
-    //     forEachState.nonPropVars = [
-    //         ...forEachState.nonPropVars,
-    //         ...nonPropVars,
-    //     ];
-    //
-    //     visit(node.body, forEachState);
-    //
-    //     forEach.body.children.push(b.assign(index, "+=", b.number(1)));
-    // }
-    // VariableTag(node, { state, visit }) {
-    //     const assignment = /** @type {any} */ (visit(node.assignment));
-    //     state.block.children.push(assignment);
-    // }
 };

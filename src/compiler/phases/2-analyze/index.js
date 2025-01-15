@@ -223,7 +223,17 @@ const visitors = {
         return next();
     },
     ForBlock(node, { next }) {
-        node.metadata.keyed = node.key !== null;
+        node.metadata = {
+            expression: {
+                dependencies: new Set(),
+                has_state: false,
+                has_call: false,
+            },
+            keyed: node.key !== null,
+            contains_group_binding: false,
+            array_name: null,
+            is_controlled: false,
+        };
         return next();
     },
     RegularElement,

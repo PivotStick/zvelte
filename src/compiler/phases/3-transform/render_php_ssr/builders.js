@@ -595,6 +595,25 @@ export function forEach(source, value, key) {
 }
 
 /**
+ * @param {PHP.Expression | PHP.Expression[]} init
+ * @param {PHP.Expression | PHP.Expression[]} test
+ * @param {PHP.Expression | PHP.Expression[]} increment
+ * @param {PHP.Statement[]} body
+ *
+ * @returns {PHP.For}
+ */
+function for_statement(init, test, increment, body = []) {
+    return {
+        kind: "for",
+        init: init instanceof Array ? init : [init],
+        test: test instanceof Array ? test : [test],
+        increment: increment instanceof Array ? increment : [increment],
+        body: block(body),
+        shortForm: false,
+    };
+}
+
+/**
  * @param {PHP.Empty["expression"]} expression
  * @returns {PHP.Empty}
  */
@@ -751,4 +770,5 @@ export {
     false_instance as false,
     new_builder as new,
     if_statement as if,
+    for_statement as for,
 };

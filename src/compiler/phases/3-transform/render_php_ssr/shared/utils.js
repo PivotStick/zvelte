@@ -191,6 +191,7 @@ function is_statement(node) {
         node.kind === "expressionstatement" ||
         node.kind === "if" ||
         node.kind === "foreach" ||
+        node.kind === "for" ||
         node.kind === "block"
     );
 }

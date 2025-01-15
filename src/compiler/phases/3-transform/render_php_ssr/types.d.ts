@@ -11,6 +11,7 @@ export type ComponentServerTransformState = {
     imports: import("#ast").Root["imports"];
     skipHydrationBoundaries: boolean;
     namespace: import("#ast").Namespace;
+    unique(name: string): string;
 
     overrides: Record<string, Expression>;
     template: Array<Statement | Expression>;
@@ -58,7 +59,7 @@ export type Method = {
 
 export type Block = {
     kind: "block";
-    children: Array<Statement | Return | If | ForEach | Call>;
+    children: Array<Statement>;
 };
 
 export type Identifier = {
@@ -94,7 +95,13 @@ export type ExpressionStatement<T extends Expression = Expression> = {
     expression: T;
 };
 
-export type Statement = ExpressionStatement | If | ForEach | Block;
+export type Statement =
+    | ExpressionStatement
+    | If
+    | ForEach
+    | Block
+    | Return
+    | For;
 
 export type If = {
     kind: "if";
@@ -109,6 +116,15 @@ export type ForEach = {
     source: Expression;
     value: Variable;
     key?: Variable;
+    body: Block;
+    shortForm: boolean;
+};
+
+export type For = {
+    kind: "for";
+    init: Expression[];
+    test: Expression[];
+    increment: Expression[];
     body: Block;
     shortForm: boolean;
 };
