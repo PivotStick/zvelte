@@ -33,6 +33,7 @@ import { ArrowFunctionExpression } from "./visitors/ArrowFunctionExpression.js";
 import { ZvelteSelf } from "./visitors/ZvelteSelf.js";
 import { ZvelteComponent } from "./visitors/ZvelteComponent.js";
 import { KeyBlock } from "./visitors/KeyBlock.js";
+import { AwaitBlock } from "./visitors/AwaitBlock.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -125,6 +126,7 @@ const visitors = {
 
     IfBlock,
     KeyBlock,
+    AwaitBlock,
 
     RenderTag,
     HtmlTag,
@@ -266,13 +268,6 @@ const visitors = {
     //     visit(node.body, forEachState);
     //
     //     forEach.body.children.push(b.assign(index, "+=", b.number(1)));
-    // }
-    // AwaitBlock(node, { state, visit }) {
-    //     state.appendText(BLOCK_OPEN);
-    //     if (node.pending) {
-    //         visit(node.pending);
-    //     }
-    //     state.appendText(BLOCK_CLOSE);
     // }
     // SnippetBlock(node, context) {
     //     const fn = createSnippetClosure(context, node.parameters, node.body);

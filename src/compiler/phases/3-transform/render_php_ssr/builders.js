@@ -687,6 +687,15 @@ export function arrow(args, body) {
 }
 
 /**
+ * @param {PHP.Expression} body
+ *
+ * @returns {PHP.ArrowFunc}
+ */
+export function thunk(body) {
+    return arrow([], body);
+}
+
+/**
  * @param {string} name
  * @param {...string} items
  *

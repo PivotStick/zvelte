@@ -79,9 +79,14 @@ const handlers = {
     },
 
     block: scoped((node, state) => {
+        const body = node.body ?? node.children;
+        if (!body.length) {
+            return [c(" {}")];
+        }
+
         return [
             c(`\n${state.indent}{\n${state.indent}\t`),
-            ...handle_body(node.body ?? node.children, {
+            ...handle_body(body, {
                 ...state,
                 indent: state.indent + "\t",
             }),
