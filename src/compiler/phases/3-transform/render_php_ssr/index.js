@@ -32,6 +32,7 @@ import { AssignmentExpression } from "./visitors/AssignmentExpression.js";
 import { ArrowFunctionExpression } from "./visitors/ArrowFunctionExpression.js";
 import { ZvelteSelf } from "./visitors/ZvelteSelf.js";
 import { ZvelteComponent } from "./visitors/ZvelteComponent.js";
+import { KeyBlock } from "./visitors/KeyBlock.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -120,11 +121,13 @@ const visitors = {
 
     Fragment,
     RegularElement,
+    Component,
+
     IfBlock,
+    KeyBlock,
+
     RenderTag,
     HtmlTag,
-
-    Component,
 
     ZvelteHead,
     ZvelteSelf,
@@ -263,22 +266,14 @@ const visitors = {
     //     visit(node.body, forEachState);
     //
     //     forEach.body.children.push(b.assign(index, "+=", b.number(1)));
-    // },
-
+    // }
     // AwaitBlock(node, { state, visit }) {
     //     state.appendText(BLOCK_OPEN);
     //     if (node.pending) {
     //         visit(node.pending);
     //     }
     //     state.appendText(BLOCK_CLOSE);
-    // },
-
-    // KeyBlock(node, { state, visit }) {
-    //     state.appendText(EMPTY_COMMENT);
-    //     visit(node.fragment);
-    //     state.appendText(EMPTY_COMMENT);
-    // },
-    //
+    // }
     // SnippetBlock(node, context) {
     //     const fn = createSnippetClosure(context, node.parameters, node.body);
     //
@@ -292,10 +287,9 @@ const visitors = {
     //             fn,
     //         ),
     //     );
-    // },
-    //
+    // }
     // VariableTag(node, { state, visit }) {
     //     const assignment = /** @type {any} */ (visit(node.assignment));
     //     state.block.children.push(assignment);
-    // },
+    // }
 };

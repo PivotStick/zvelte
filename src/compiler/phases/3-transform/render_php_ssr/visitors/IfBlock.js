@@ -1,5 +1,4 @@
 /** @import * as AST from '#ast' */
-
 /** @import { ComponentContext, Expression, Block } from '../types.js' */
 
 import * as b from "../builders.js";
