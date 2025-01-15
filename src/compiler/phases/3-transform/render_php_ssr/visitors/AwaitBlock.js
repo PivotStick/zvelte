@@ -1,5 +1,5 @@
 /** @import * as AST from '#ast' */
-/** @import { ComponentContext, Parameter, Expression, Block } from '../types.js' */
+/** @import { ComponentContext, Expression, Block } from '../types.js' */
 
 import * as b from "../builders.js";
 import { empty_comment } from "../shared/utils.js";

@@ -14,7 +14,12 @@ export function ZvelteHead(node, context) {
         b.stmt(
             b.call("Internal::head", [
                 b.id("$payload"),
-                b.closure(true, [b.parameter("payload", "object")], [], block),
+                b.closure(
+                    true,
+                    [b.parameter("payload", "object")],
+                    [b.variable("props")],
+                    block,
+                ),
             ]),
         ),
     );

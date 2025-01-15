@@ -34,6 +34,7 @@ import { ZvelteSelf } from "./visitors/ZvelteSelf.js";
 import { ZvelteComponent } from "./visitors/ZvelteComponent.js";
 import { KeyBlock } from "./visitors/KeyBlock.js";
 import { AwaitBlock } from "./visitors/AwaitBlock.js";
+import { SnippetBlock } from "./visitors/SnippetBlock.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -127,6 +128,7 @@ const visitors = {
     IfBlock,
     KeyBlock,
     AwaitBlock,
+    SnippetBlock,
 
     RenderTag,
     HtmlTag,
@@ -268,20 +270,6 @@ const visitors = {
     //     visit(node.body, forEachState);
     //
     //     forEach.body.children.push(b.assign(index, "+=", b.number(1)));
-    // }
-    // SnippetBlock(node, context) {
-    //     const fn = createSnippetClosure(context, node.parameters, node.body);
-    //
-    //     context.state.block.children.push(
-    //         b.assign(
-    //             b.propertyLookup(
-    //                 b.variable(propsName),
-    //                 b.id(node.expression.name),
-    //             ),
-    //             "=",
-    //             fn,
-    //         ),
-    //     );
     // }
     // VariableTag(node, { state, visit }) {
     //     const assignment = /** @type {any} */ (visit(node.assignment));
