@@ -243,10 +243,9 @@ export function build_attribute_value(
                 : node.data;
         } else {
             expressions.push(
-                b.call(
-                    "$.stringify",
+                b.call("Internal::stringify", [
                     /** @type {Expression} */ (context.visit(node.expression)),
-                ),
+                ]),
             );
 
             quasi = b.quasi("", i + 1 === value.length);

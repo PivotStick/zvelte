@@ -86,7 +86,7 @@ export function build_element_attributes(node, context) {
 
                     if (attribute.metadata.needs_clsx) {
                         const clsx_value = b.call(
-                            "$.clsx",
+                            "Internal::clsx",
                             /** @type {AST.ExpressionTag} */ (attribute.value)
                                 .expression,
                         );
@@ -193,9 +193,9 @@ export function build_element_attributes(node, context) {
                                           context,
                                       ),
                                   )
-                                : b.binary(
-                                      "===",
+                                : b.bin(
                                       attribute.expression,
+                                      "===",
                                       build_attribute_value(
                                           value_attribute.value,
                                           context,
@@ -312,10 +312,10 @@ export function build_element_attributes(node, context) {
             );
 
             context.state.template.push(
-                b.call("$.attr", [
-                    b.literal(name),
+                b.call("Internal::attr", [
+                    b.string(name),
                     value,
-                    is_boolean_attribute(name) && b.true,
+                    is_boolean_attribute(name) ? b.true : b.false,
                 ]),
             );
         }

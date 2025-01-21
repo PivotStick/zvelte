@@ -27,7 +27,7 @@ export type ComponentContext = import("zimmerframe").Context<
 
 export type Program = {
     kind: "program";
-    children: Array<Class | Namespace>;
+    children: Array<Node>;
     errors: unknown[];
     comments: unknown[];
 };
@@ -373,4 +373,16 @@ export type Pre = {
     what: Expression;
 };
 
-export type Node = Literal | Expression | UseGroup | UseItem | Statement;
+export type Node =
+    | Literal
+    | Expression
+    | UseGroup
+    | UseItem
+    | Statement
+    | EncapsedPart
+    | Entry
+    | TypeReference
+    | Parameter
+    | Class
+    | Program
+    | Namespace;

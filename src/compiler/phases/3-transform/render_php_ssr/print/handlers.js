@@ -51,7 +51,7 @@ const scoped = (fn) => {
 };
 
 /**
- * @param {import("../types.js").Node} node
+ * @param {PHP.Node} node
  * @param {State} state
  *
  * @returns {Chunk[]}
@@ -73,6 +73,9 @@ export function handle(node, state) {
 
 /** @type {Record<string, Handler>} */
 const handlers = {
+    /**
+     * @param {PHP.Program} node
+     */
     program(node, state) {
         const chunks = [c("<?php\n\n")];
 
@@ -97,10 +100,16 @@ const handlers = {
         ];
     }),
 
+    /**
+     * @param {PHP.ExpressionStatement} node
+     */
     expressionstatement(node, state) {
         return [...handle(node.expression, state), c(";")];
     },
 
+    /**
+     * @param {PHP.Assign} node
+     */
     assign(node, state) {
         return [
             ...handle(node.left, state),
@@ -109,6 +118,9 @@ const handlers = {
         ];
     },
 
+    /**
+     * @param {PHP.Variable} node
+     */
     variable(node, state) {
         const chunks = [];
         if (node.byref) {
@@ -118,6 +130,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.StringLiteral} node
+     */
     string(node, state) {
         if (!node.value && node.raw) {
             return [c(node.raw)];
@@ -128,22 +143,37 @@ const handlers = {
         return [c(`${q}${node.value}${q}`)];
     },
 
+    /**
+     * @param {PHP.NullKeyword} node
+     */
     nullkeyword(node, state) {
         return [c(`${node.raw}`)];
     },
 
+    /**
+     * @param {PHP.BooleanLiteral} node
+     */
     boolean(node, state) {
         return [c(`${node.raw}`)];
     },
 
+    /**
+     * @param {PHP.NumberLiteral} node
+     */
     number(node, state) {
         return [c(`${node.value}`)];
     },
 
+    /**
+     * @param {PHP.Silent} node
+     */
     silent(node, state) {
         return [c("@"), ...handle(node.expr, state)];
     },
 
+    /**
+     * @param {PHP.Class} node
+     */
     class(node, state) {
         const chunks = [c("class ")];
 
@@ -163,14 +193,23 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Identifier} node
+     */
     identifier(node, state) {
         return [c(`${node.name}`)];
     },
 
+    /**
+     * @param {PHP.Name} node
+     */
     name(node, state) {
         return [c(node.name)];
     },
 
+    /**
+     * @param {PHP.Method} node
+     */
     method(node, state) {
         const chunks = [];
 
@@ -208,6 +247,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Parameter} node
+     */
     parameter(node, state) {
         const chunks = [];
 
@@ -235,10 +277,16 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.TypeReference} node
+     */
     typereference(node, state) {
         return [c(node.raw)];
     },
 
+    /**
+     * @param {PHP.Return} node
+     */
     return(node, state) {
         if (node.expr) {
             return [c("return "), ...handle(node.expr, state), c(";")];
@@ -247,6 +295,9 @@ const handlers = {
         return [c("return;")];
     },
 
+    /**
+     * @param {PHP.Bin} node
+     */
     bin(node, state) {
         /**
          * @type any[]
@@ -274,6 +325,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Namespace} node
+     */
     namespace(node, state) {
         const chunks = [c("namespace "), c(node.name), c(";\n\n")];
 
@@ -282,6 +336,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.If} node
+     */
     if(node, state) {
         const chunks = [
             c("if ("),
@@ -298,6 +355,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.PropertyLookup} node
+     */
     propertylookup(node, state) {
         const what = handle(node.what, state);
 
@@ -315,48 +375,62 @@ const handlers = {
         return [...what, arrow, ...handle(node.offset, state)];
     },
 
-    propertystatement(node, state) {
-        const chunks = [];
+    // /**
+    //  * ?? what the flip is this unused stuff?
+    //  *
+    //  * @param {PHP.PropertyStatement} node
+    //  */
+    // propertystatement(node, state) {
+    //     const chunks = [];
+    //
+    //     if (node.visibility) {
+    //         chunks.push(c(node.visibility + " "));
+    //     }
+    //
+    //     if (node.isStatic) {
+    //         chunks.push(c("static "));
+    //     }
+    //
+    //     for (let i = 0; i < node.properties.length; i++) {
+    //         const n = node.properties[i];
+    //         push_array(chunks, handle(n, state));
+    //         if (i !== node.properties.length - 1) {
+    //             chunks.push(c(", "));
+    //         }
+    //     }
+    //
+    //     chunks.push(c(";"));
+    //
+    //     return chunks;
+    // },
+    //
+    // /**
+    //  * ?? same here
+    //  *
+    //  * @param {PHP.Property} node
+    //  */
+    // property(node, state) {
+    //     const chunks = [];
+    //
+    //     if (node.type) {
+    //         if (node.nullable) {
+    //             chunks.push(c("?"));
+    //         }
+    //
+    //         push_array(chunks, [...handle(node.type, state), c(" ")]);
+    //     }
+    //
+    //     chunks.push(c("$"));
+    //     push_array(chunks, handle(node.name, state));
+    //
+    //     return chunks;
+    // },
 
-        if (node.visibility) {
-            chunks.push(c(node.visibility + " "));
-        }
-
-        if (node.isStatic) {
-            chunks.push(c("static "));
-        }
-
-        for (let i = 0; i < node.properties.length; i++) {
-            const n = node.properties[i];
-            push_array(chunks, handle(n, state));
-            if (i !== node.properties.length - 1) {
-                chunks.push(c(", "));
-            }
-        }
-
-        chunks.push(c(";"));
-
-        return chunks;
-    },
-
-    property(node, state) {
-        const chunks = [];
-
-        if (node.type) {
-            if (node.nullable) {
-                chunks.push(c("?"));
-            }
-
-            push_array(chunks, [...handle(node.type, state), c(" ")]);
-        }
-
-        chunks.push(c("$"));
-        push_array(chunks, handle(node.name, state));
-
-        return chunks;
-    },
-
+    /**
+     * @param {PHP.Call} node
+     */
     call(node, state) {
+        /** @type {Chunk[]} */
         const chunks = [];
 
         if (node.wrap === true) {
@@ -367,33 +441,42 @@ const handlers = {
 
         chunks.push(c("("));
 
-        node.arguments.forEach(
-            (/** @type {import("php-parser").Node} */ arg, i, arr) => {
-                push_array(chunks, handle(arg, state));
-                if (i < arr.length - 1) {
-                    chunks.push(c(", "));
-                }
-            },
-        );
+        for (let i = 0; i < node.arguments.length; i++) {
+            const arg = node.arguments[i];
+
+            push_array(chunks, handle(arg, state));
+            if (i < node.arguments.length - 1) {
+                chunks.push(c(", "));
+            }
+        }
 
         chunks.push(c(")"));
 
         return chunks;
     },
 
+    /**
+     * @param {PHP.Encapsed} node
+     */
     encapsed(node, state) {
         const chunks = [c('"')];
 
-        node.value.forEach((/** @type {import("php-parser").Node} */ part) => {
+        for (let i = 0; i < node.value.length; i++) {
+            const part = node.value[i];
+
             push_array(chunks, handle(part, state));
-        });
+        }
 
         chunks.push(c('"'));
 
         return chunks;
     },
 
+    /**
+     * @param {PHP.EncapsedPart} node
+     */
     encapsedpart(node, state) {
+        /** @type {Chunk[]} */
         const chunks = [];
 
         if (node.curly) {
@@ -401,14 +484,14 @@ const handlers = {
             push_array(chunks, handle(node.expression, state));
             chunks.push(c("}"));
         } else {
-            chunks.push(c(node.expression.raw));
+            push_array(chunks, handle(node.expression, state));
         }
 
         return chunks;
     },
 
     /**
-     * @param {import("../types.js").UseGroup} node
+     * @param {PHP.UseGroup} node
      */
     usegroup(node, state) {
         const chunks = [c("use ")];
@@ -438,7 +521,7 @@ const handlers = {
     },
 
     /**
-     * @param {import("../types.js").UseItem} node
+     * @param {PHP.UseItem} node
      */
     useitem(node, state) {
         const chunks = [c(node.name)];
@@ -450,10 +533,18 @@ const handlers = {
         return chunks;
     },
 
-    selfreference(node, state) {
-        return [c(node.raw)];
-    },
+    // /**
+    //  * ?? another one
+    //  *
+    //  * @param {PHP.SelfReference} node
+    //  */
+    // selfreference(node, state) {
+    //     return [c(node.raw)];
+    // },
 
+    /**
+     * @param {PHP.RetIf} node
+     */
     retif(node, state) {
         const chunks = [...handle(node.test, state), c(" ? ")];
 
@@ -478,6 +569,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.New} node
+     */
     new(node, state) {
         const chunks = [c("new "), ...handle(node.what, state), c("(")];
 
@@ -495,6 +589,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.ForEach} node
+     */
     foreach(node, state) {
         const chunks = [
             c("foreach ("),
@@ -552,18 +649,30 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Post} node
+     */
     post(node, state) {
         return [...handle(node.what, state), c(node.type.repeat(2))];
     },
 
+    /**
+     * @param {PHP.Pre} node
+     */
     pre(node, state) {
         return [c(node.type.repeat(2)), ...handle(node.what, state)];
     },
 
+    /**
+     * @param {PHP.Cast} node
+     */
     cast(node, state) {
         return [c("("), c(node.type), c(")"), ...handle(node.expr, state)];
     },
 
+    /**
+     * @param {PHP.ArrayLiteral} node
+     */
     array(node, state) {
         const indent = `${state.indent}\t`;
         const chunks = [c("[")];
@@ -572,27 +681,29 @@ const handlers = {
             chunks.push(c(`\n${indent}`));
         }
 
-        node.items.forEach(
-            (/** @type {import("php-parser").Node} */ entry, i, arr) => {
-                push_array(
-                    chunks,
-                    handle(entry, {
-                        ...state,
-                        indent,
-                    }),
-                );
+        node.items.forEach((entry, i, arr) => {
+            push_array(
+                chunks,
+                handle(entry, {
+                    ...state,
+                    indent,
+                }),
+            );
 
-                const last = i === arr.length - 1;
+            const last = i === arr.length - 1;
 
-                chunks.push(c(`,\n${last ? indent.slice(1) : indent}`));
-            },
-        );
+            chunks.push(c(`,\n${last ? indent.slice(1) : indent}`));
+        });
 
         chunks.push(c("]"));
         return chunks;
     },
 
+    /**
+     * @param {PHP.Entry} node
+     */
     entry(node, state) {
+        /** @type {Chunk[]} */
         const chunks = [];
 
         if (node.unpack) {
@@ -610,6 +721,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.OffsetLookup} node
+     */
     offsetlookup(node, state) {
         const chunks = [...handle(node.what, state), c("[")];
 
@@ -622,10 +736,16 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Empty} node
+     */
     empty(node, state) {
         return [c("empty("), ...handle(node.expression, state), c(")")];
     },
 
+    /**
+     * @param {PHP.Isset} node
+     */
     isset(node, state) {
         const chunks = [c("isset(")];
 
@@ -641,6 +761,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.StaticLookup} node
+     */
     staticlookup(node, state) {
         return [
             ...handle(node.what, state),
@@ -649,6 +772,9 @@ const handlers = {
         ];
     },
 
+    /**
+     * @param {PHP.Unary} node
+     */
     unary(node, state) {
         const chunks = [c(node.type)];
 
@@ -661,6 +787,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.Closure} node
+     */
     closure(node, state) {
         const chunks = [];
         if (node.isStatic) {
@@ -691,6 +820,9 @@ const handlers = {
         return chunks;
     },
 
+    /**
+     * @param {PHP.ArrowFunc} node
+     */
     arrowfunc(node, state) {
         const chunks = [];
 
@@ -714,18 +846,18 @@ const handlers = {
     },
 
     /**
-     * @param {import("../types.js").Template} node
+     * @param {PHP.Template} node
      */
     template(node, state) {
         if (node.quasis.length === 1 && node.expressions.length === 0) {
-            return [c(`'${node.quasis[0].value.cooked}'`)];
+            return [c(`'${node.quasis[0].value.raw.replace(/\'/g, "\\'")}'`)];
         }
 
         const chunks = [c("sprintf('")];
 
         for (let i = 0; i < node.quasis.length; i++) {
             const quasi = node.quasis[i];
-            chunks.push(c(quasi.value.cooked));
+            chunks.push(c(quasi.value.raw.replace(/\'/g, "\\'")));
 
             if (!quasi.tail) {
                 chunks.push(c("%s"));
@@ -745,7 +877,7 @@ const handlers = {
 };
 
 /**
- * @param {import("../types.js").Node[]} nodes
+ * @param {PHP.Node[]} nodes
  * @param {State} state
  */
 const handle_body = (nodes, state) => {
@@ -785,12 +917,13 @@ const handle_body = (nodes, state) => {
 
 /**
  * @param {string} content
- * @param {import("../types.js").Node} [node]
+ * @param {PHP.Node} [node]
  * @returns {Chunk}
  */
 function c(content, node) {
     return {
         content,
+        // @ts-ignore
         loc: node && node.loc,
         has_newline: /\n/.test(content),
     };
@@ -804,6 +937,9 @@ const has_newline = (chunks) => {
     return false;
 };
 
+/**
+ * @type {Record<string, number>}
+ */
 const OPERATOR_PRECEDENCE = {
     "||": 2,
     "&&": 3,
