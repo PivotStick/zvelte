@@ -46,10 +46,15 @@ export function create_attribute(name, start, end, value) {
         metadata: {
             dynamic: false,
             delegated: null,
-            expression: {
-                has_call: false,
-                has_state: false,
-            },
+            expression: create_expression_metadata(),
         },
+    };
+}
+
+export function create_expression_metadata() {
+    return {
+        dependencies: new Set(),
+        has_state: false,
+        has_call: false,
     };
 }

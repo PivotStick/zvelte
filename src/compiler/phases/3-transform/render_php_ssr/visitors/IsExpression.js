@@ -24,7 +24,7 @@ export function IsExpression(node, { state, visit }) {
     const left = /** @type {any} */ (visit(node.left));
 
     if (node.right.type === "Identifier" && node.right.name === "empty") {
-        const expression = b.call("Internal::testEmpty", left);
+        const expression = b.call("Internals::testEmpty", left);
         return node.not ? b.unary("!", expression) : expression;
     }
 

@@ -33,7 +33,7 @@ export function AwaitBlock(node, context) {
     context.state.template.push(
         empty_comment,
         b.stmt(
-            b.call("Internal::await", [
+            b.call("Internals::await", [
                 /** @type {Expression} */ (context.visit(node.expression)),
                 node.pending
                     ? b.closure(

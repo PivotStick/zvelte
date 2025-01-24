@@ -17,5 +17,5 @@ export function FilterExpression(node, { visit }) {
         args.push(/** @type {any} */ (visit(arg)));
     }
 
-    return b.call("Internal::filter", args);
+    return b.call("Internals::filter", args);
 }

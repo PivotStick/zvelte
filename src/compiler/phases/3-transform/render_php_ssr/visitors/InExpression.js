@@ -13,7 +13,7 @@ export function InExpression(node, { visit }) {
     const right = /** @type {any} */ (visit(node.right));
     const left = /** @type {any} */ (visit(node.left));
 
-    const expression = b.call("Internal::in", [left, right]);
+    const expression = b.call("Internals::in", [left, right]);
 
     return node.not ? b.unary("!", expression) : expression;
 }

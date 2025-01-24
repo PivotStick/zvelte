@@ -12,7 +12,7 @@ export function ZvelteHead(node, context) {
 
     context.state.template.push(
         b.stmt(
-            b.call("Internal::head", [
+            b.call("Internals::head", [
                 b.id("$payload"),
                 b.closure(
                     true,

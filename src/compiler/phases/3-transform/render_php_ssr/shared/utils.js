@@ -56,7 +56,7 @@ export function process_children(nodes, { visit, state }) {
                 }
             } else {
                 expressions.push(
-                    b.call("Internal::escape", [
+                    b.call("Internals::escape", [
                         /** @type {import("../types.js").Expression} */ (
                             visit(node.expression)
                         ),
@@ -243,7 +243,7 @@ export function build_attribute_value(
                 : node.data;
         } else {
             expressions.push(
-                b.call("Internal::stringify", [
+                b.call("Internals::stringify", [
                     /** @type {Expression} */ (context.visit(node.expression)),
                 ]),
             );

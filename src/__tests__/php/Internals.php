@@ -11,13 +11,13 @@ class Internals
     {
         if ($value == null || (!$value && $is_boolean) || ($value === '' && $name === 'class')) return '';
 
-        $assignment = $is_boolean ? '' : '="' . self::escape_html($value, true) . '"';
+        $assignment = $is_boolean ? '' : '="' . self::escape($value, true) . '"';
 
         return sprintf(' %s%s', $name, $assignment);
     }
 
 
-    public static function escape_html(mixed $value, bool $is_attr = false): string
+    public static function escape(mixed $value, bool $is_attr = false): string
     {
         $str = is_scalar($value)
             ? (is_bool($value)
@@ -121,5 +121,14 @@ class Internals
         if (!empty($fakePayload->title)) {
             $payload->head->title = sprintf('<title>%s</title>', $fakePayload->title);
         }
+    }
+
+    public static function stringify($value): string
+    {
+        return is_string($value)
+            ? $value
+            : ($value == null
+                ? ''
+                : $value . '');
     }
 }

@@ -850,16 +850,16 @@ const handlers = {
      */
     template(node, state) {
         if (node.quasis.length === 1 && node.expressions.length === 0) {
-            return [c(`'${node.quasis[0].value.raw.replace(/\'/g, "\\'")}'`)];
+            return [c(`'${node.quasis[0].value.raw}'`)];
         }
 
         const chunks = [c("sprintf('")];
 
         for (let i = 0; i < node.quasis.length; i++) {
             const quasi = node.quasis[i];
-            chunks.push(c(quasi.value.raw.replace(/\'/g, "\\'")));
+            chunks.push(c(quasi.value.raw));
 
-            if (!quasi.tail) {
+            if (!quasi.tail && node.expressions[i]) {
                 chunks.push(c("%s"));
             }
         }

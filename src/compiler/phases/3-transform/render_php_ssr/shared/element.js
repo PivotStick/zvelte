@@ -16,6 +16,10 @@ import {
 import { regex_starts_with_newline } from "../../../patterns.js";
 import { build_attribute_value } from "./utils.js";
 import { binding_properties } from "../../../bindings.js";
+import {
+    create_attribute,
+    create_expression_metadata,
+} from "../../../nodes.js";
 
 const WHITESPACE_INSENSITIVE_ATTRIBUTES = ["class", "style"];
 
@@ -86,7 +90,7 @@ export function build_element_attributes(node, context) {
 
                     if (attribute.metadata.needs_clsx) {
                         const clsx_value = b.call(
-                            "Internal::clsx",
+                            "Internals::clsx",
                             /** @type {AST.ExpressionTag} */ (attribute.value)
                                 .expression,
                         );
@@ -312,7 +316,7 @@ export function build_element_attributes(node, context) {
             );
 
             context.state.template.push(
-                b.call("Internal::attr", [
+                b.call("Internals::attr", [
                     b.string(name),
                     value,
                     is_boolean_attribute(name) ? b.true : b.false,

@@ -31,7 +31,7 @@ export function ForBlock(node, context) {
         b.assign(
             array_id,
             "=",
-            b.call("Internal::ensure_array_like", [collection]),
+            b.call("Internals::ensure_array_like", [collection]),
         ),
     );
 

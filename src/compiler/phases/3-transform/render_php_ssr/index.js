@@ -61,7 +61,7 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     /**
      * @type {Set<string>}
      */
-    const internalImports = new Set();
+    const internalImports = new Set(["Internals", "Filters"]);
 
     /** @type {any[]} */
     const namespace = [];
