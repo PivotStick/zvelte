@@ -1,5 +1,6 @@
 /** @import * as AST from "#ast" */
-/** @import { ComponentContext, Expression } from '../types.js' */
+/** @import { ComponentContext } from '../types.js' */
+/** @import * as PHP from '../types.js' */
 
 import { escape_html } from "../../../../escaping.js";
 import { sanitize_template_string } from "../../../../utils/sanitize_template_string.js";
@@ -57,8 +58,8 @@ export function process_children(nodes, { visit, state }) {
             } else {
                 expressions.push(
                     b.call("Internals::escape", [
-                        /** @type {import("../types.js").Expression} */ (
-                            visit(node.expression)
+                        /** @type {PHP.Expression} */ (
+                            /** @type {any} */ (visit(node.expression))
                         ),
                     ]),
                 );
@@ -202,7 +203,7 @@ function is_statement(node) {
  * @param {ComponentContext} context
  * @param {boolean} trim_whitespace
  * @param {boolean} is_component
- * @returns {Expression}
+ * @returns {PHP.Expression}
  */
 export function build_attribute_value(
     value,
@@ -225,13 +226,13 @@ export function build_attribute_value(
             return b.literal(is_component ? data : escape_html(data, true));
         }
 
-        return /** @type {Expression} */ (context.visit(chunk.expression));
+        return /** @type {PHP.Expression} */ (context.visit(chunk.expression));
     }
 
     let quasi = b.quasi("", false);
     const quasis = [quasi];
 
-    /** @type {Expression[]} */
+    /** @type {PHP.Expression[]} */
     const expressions = [];
 
     for (let i = 0; i < value.length; i++) {
@@ -244,7 +245,9 @@ export function build_attribute_value(
         } else {
             expressions.push(
                 b.call("Internals::stringify", [
-                    /** @type {Expression} */ (context.visit(node.expression)),
+                    /** @type {PHP.Expression} */ (
+                        context.visit(node.expression)
+                    ),
                 ]),
             );
 

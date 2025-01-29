@@ -87,7 +87,7 @@ export function RegularElement(node, context) {
         let id = body;
 
         if (body.kind !== "identifier") {
-            id = b.variable("$$body");
+            id = b.variable("body");
             state.template.push(b.assign(id, "=", body));
         }
 

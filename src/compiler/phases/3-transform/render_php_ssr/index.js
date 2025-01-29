@@ -182,4 +182,8 @@ const visitors = {
     BooleanLiteral,
     NumericLiteral,
     StringLiteral,
+
+    TransitionDirective() {},
+    OnDirective() {},
+    UseDirective() {},
 };

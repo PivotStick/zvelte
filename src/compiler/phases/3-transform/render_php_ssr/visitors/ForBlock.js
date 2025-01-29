@@ -52,7 +52,17 @@ export function ForBlock(node, context) {
         each.push(b.assign(b.variable(node.index.name), "=", index));
     }
 
-    each.push(.../** @type {Block} */ (context.visit(node.body)).children);
+    each.push(
+        .../** @type {Block} */ (
+            context.visit(node.body, {
+                ...context.state,
+                overrides: {
+                    ...context.state.overrides,
+                    [node.context.name]: b.variable(node.context.name),
+                },
+            })
+        ).children,
+    );
 
     const for_loop = b.for(
         [

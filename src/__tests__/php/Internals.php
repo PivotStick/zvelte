@@ -119,7 +119,7 @@ class Internals
         $payload->head->out .= $fakePayload->out;
         $payload->head->out .= '<!--]-->';
         if (!empty($fakePayload->title)) {
-            $payload->head->title = sprintf('<title>%s</title>', $fakePayload->title);
+            $payload->head->title = $fakePayload->title;
         }
     }
 

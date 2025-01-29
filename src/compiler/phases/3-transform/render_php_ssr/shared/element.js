@@ -9,6 +9,7 @@ import {
     is_load_error_element,
 } from "../../../../../utils.js";
 import {
+    get_attribute_chunks,
     is_event_attribute,
     is_text_attribute,
 } from "../../../../utils/ast.js";
@@ -19,7 +20,12 @@ import { binding_properties } from "../../../bindings.js";
 import {
     create_attribute,
     create_expression_metadata,
+    is_custom_element_node,
 } from "../../../nodes.js";
+import {
+    ELEMENT_IS_NAMESPACED,
+    ELEMENT_PRESERVE_ATTRIBUTE_CASE,
+} from "../../../constants.js";
 
 const WHITESPACE_INSENSITIVE_ATTRIBUTES = ["class", "style"];
 
@@ -61,10 +67,9 @@ export function build_element_attributes(node, context) {
                         attribute.value[0].data =
                             "\n" + attribute.value[0].data;
                     }
-                    content = b.call(
-                        "$.escape",
+                    content = b.call("Internals::escape", [
                         build_attribute_value(attribute.value, context),
-                    );
+                    ]);
                 } else if (node.name !== "select") {
                     // omit value attribute for select elements, it's irrelevant for the initially selected value and has no
                     // effect on the selected value after the user interacts with the select element (the value _property_ does, but not the attribute)
@@ -89,11 +94,15 @@ export function build_element_attributes(node, context) {
                     class_index = attributes.length;
 
                     if (attribute.metadata.needs_clsx) {
-                        const clsx_value = b.call(
-                            "Internals::clsx",
-                            /** @type {AST.ExpressionTag} */ (attribute.value)
-                                .expression,
-                        );
+                        const clsx_value = b.call("Internals::clsx", [
+                            /** @type {any} */ (
+                                context.visit(
+                                    /** @type {AST.ExpressionTag} */ (
+                                        attribute.value
+                                    ).expression,
+                                )
+                            ),
+                        ]);
                         attributes.push({
                             ...attribute,
                             value: {
@@ -157,7 +166,7 @@ export function build_element_attributes(node, context) {
             if (is_content_editable_binding(attribute.name)) {
                 content = expression;
             } else if (attribute.name === "value" && node.name === "textarea") {
-                content = b.call("$.escape", expression);
+                content = b.call("Internals::escape", [expression]);
             } else if (
                 attribute.name === "group"
                 /** && attribute.expression.kind !== "SequenceExpression" */
@@ -187,18 +196,15 @@ export function build_element_attributes(node, context) {
                             start: -1,
                             end: -1,
                             expression: is_checkbox
-                                ? b.call(
-                                      b.member(
-                                          attribute.expression,
-                                          "includes",
-                                      ),
+                                ? b.call("in_array", [
                                       build_attribute_value(
                                           value_attribute.value,
                                           context,
                                       ),
-                                  )
+                                      context.visit(attribute.expression),
+                                  ])
                                 : b.bin(
-                                      attribute.expression,
+                                      context.visit(attribute.expression),
                                       "===",
                                       build_attribute_value(
                                           value_attribute.value,
@@ -255,6 +261,7 @@ export function build_element_attributes(node, context) {
             /** @type {AST.Attribute | null} */ (
                 attributes[class_index] ?? null
             ),
+            context,
         );
         if (class_index === -1) {
             attributes.push(class_attribute);
@@ -348,4 +355,159 @@ function get_attribute_name(element, attribute) {
         // check for the lowercase variants of boolean attributes
     }
     return name;
+}
+
+/**
+ *
+ * @param {AST.ClassDirective[]} class_directives
+ * @param {AST.Attribute | null} class_attribute
+ * @param {ComponentContext} context
+ * @returns
+ */
+function build_class_directives(class_directives, class_attribute, context) {
+    const expressions = class_directives.map((directive) =>
+        b.entry(
+            undefined,
+            b.ternary(
+                /** @type {any} */ (context.visit(directive.expression)),
+                b.literal(directive.name),
+                b.literal(""),
+            ),
+        ),
+    );
+
+    if (class_attribute === null) {
+        class_attribute = create_attribute("class", -1, -1, []);
+    }
+
+    const chunks = get_attribute_chunks(class_attribute.value);
+    const last = chunks.at(-1);
+
+    if (last?.type === "Text") {
+        last.data += " ";
+    } else if (last) {
+        chunks.push({
+            type: "Text",
+            start: -1,
+            end: -1,
+            data: " ",
+        });
+    }
+
+    chunks.push({
+        type: "ExpressionTag",
+        start: -1,
+        end: -1,
+        // @ts-expect-error
+        expression: b.call(b.name("implode"), [
+            b.literal(" "),
+            b.call(b.name("array_filter"), [
+                b.array(expressions),
+                b.string("boolval"),
+            ]),
+        ]),
+        metadata: {
+            expression: create_expression_metadata(),
+        },
+    });
+
+    class_attribute.value = chunks;
+    return class_attribute;
+}
+
+/**
+ *
+ * @param {AST.RegularElement | AST.ZvelteElement} element
+ * @param {Array<AST.Attribute | AST.SpreadAttribute>} attributes
+ * @param {unknown[]} style_directives
+ * @param {AST.ClassDirective[]} class_directives
+ * @param {ComponentContext} context
+ */
+function build_element_spread_attributes(
+    element,
+    attributes,
+    style_directives,
+    class_directives,
+    context,
+) {
+    let classes;
+    let styles;
+    let flags = 0;
+
+    if (class_directives.length > 0 || context.state.analysis.css?.hash) {
+        const properties = class_directives.map((directive) =>
+            b.entry(
+                directive.name,
+                directive.expression.type === "Identifier" &&
+                    directive.expression.name === directive.name
+                    ? b.id(directive.name)
+                    : /** @type {Expression} */ (
+                          context.visit(directive.expression)
+                      ),
+            ),
+        );
+
+        if (context.state.analysis.css?.hash) {
+            properties.unshift(
+                b.entry(context.state.analysis.css.hash, b.literal(true)),
+            );
+        }
+
+        classes = b.object(properties);
+    }
+
+    // if (style_directives.length > 0) {
+    // 	const properties = style_directives.map((directive) =>
+    // 		b.init(
+    // 			directive.name,
+    // 			directive.value === true
+    // 				? b.id(directive.name)
+    // 				: build_attribute_value(directive.value, context, true)
+    // 		)
+    // 	);
+    //
+    // 	styles = b.object(properties);
+    // }
+
+    if (element.metadata.svg || element.metadata.mathml) {
+        flags |= ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    } else if (is_custom_element_node(element)) {
+        flags |= ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    }
+
+    const object = b.object(
+        attributes.map((attribute) => {
+            if (attribute.type === "Attribute") {
+                const name = get_attribute_name(element, attribute);
+                const value = build_attribute_value(
+                    attribute.value,
+                    context,
+                    WHITESPACE_INSENSITIVE_ATTRIBUTES.includes(name),
+                );
+
+                return b.entry(name, value);
+            }
+
+            return b.entry(
+                undefined,
+                /** @type {Expression} */ (context.visit(attribute)),
+                true,
+            );
+        }),
+    );
+
+    /**
+     * @type {Expression[]}
+     */
+    const args = [object];
+
+    if (classes) {
+        args.push(classes);
+    }
+
+    if (flags) {
+        args.push(b.number(flags));
+    }
+
+    context.state.template.push(b.call("Internals::spread_attributes", args));
 }

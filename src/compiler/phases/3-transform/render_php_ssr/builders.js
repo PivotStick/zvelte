@@ -341,7 +341,7 @@ export function nullKeyword() {
 export function string(value) {
     return {
         kind: "string",
-        value: value.replace(/'/g, "\\'"),
+        value: value,
         raw: `'${value}'`,
         unicode: false,
         isDoubleQuote: false,
