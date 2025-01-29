@@ -28,6 +28,14 @@ class Internals
         return htmlspecialchars($str, $is_attr ? ENT_QUOTES : ENT_NOQUOTES);
     }
 
+    public static function html($value): string
+    {
+        $html = strval($value ?? '');
+        $open = '<!---->';
+
+        return $open . $html . '<!---->';
+    }
+
     public static function in(mixed $left, mixed $right): bool
     {
         return is_array($right) ? in_array($left, $right) : property_exists($right, $left);

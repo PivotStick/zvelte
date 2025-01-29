@@ -14,5 +14,5 @@ export function HtmlTag(node, context) {
         context.visit(node.expression)
     );
 
-    context.state.template.push(b.call("$.html", [expression]));
+    context.state.template.push(b.call("Internals::html", [expression]));
 }
