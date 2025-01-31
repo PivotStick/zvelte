@@ -36,6 +36,7 @@ import { KeyBlock } from "./visitors/KeyBlock.js";
 import { AwaitBlock } from "./visitors/AwaitBlock.js";
 import { SnippetBlock } from "./visitors/SnippetBlock.js";
 import { ForBlock } from "./visitors/ForBlock.js";
+import { block_close, block_open } from "./shared/utils.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -100,6 +101,13 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
 
     /** @type {import("./types.d.ts").Block} */
     const block = /** @type {any} */ (walk(ast.fragment, state, visitors));
+
+    if (options.async) {
+        const out = b.variable("payload->out");
+
+        block.children.unshift(b.assign(out, ".=", block_open));
+        block.children.push(b.assign(out, ".=", block_close));
+    }
 
     renderMethod.body = block;
 
