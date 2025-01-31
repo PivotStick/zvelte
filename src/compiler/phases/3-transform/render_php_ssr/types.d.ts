@@ -138,6 +138,7 @@ export type Expression =
     | Call
     | OffsetLookup
     | StaticLookup
+    | EncapsedPart
     | PropertyLookup
     | ArrayLiteral
     | Assign

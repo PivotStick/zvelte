@@ -13,7 +13,7 @@ import { propsName } from "../index.js";
 export function Identifier(node, { path, state }) {
     const parent = path[path.length - 1];
 
-    if (parent.type === "MemberExpression") {
+    if (parent.type === "MemberExpression" && !parent.computed) {
         const root = getRootObject(parent);
 
         if (root !== node) {
@@ -27,7 +27,10 @@ export function Identifier(node, { path, state }) {
 
     const out = b.propertyLookup(b.variable(propsName), b.id(node.name));
 
-    if (!state.isInIsset && parent.type !== "MemberExpression") {
+    if (
+        !state.isInIsset &&
+        (parent.type !== "MemberExpression" || parent.computed)
+    ) {
         return b.silent(out);
     }
 

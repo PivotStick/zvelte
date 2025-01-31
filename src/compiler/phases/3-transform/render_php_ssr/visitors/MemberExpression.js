@@ -15,15 +15,21 @@ export function MemberExpression(node, { state, path, visit }) {
     let what = /** @type {any} */ (visit(node.object));
     let offset = /** @type {any} */ (visit(node.property));
 
+    /** @type {Expression} */
+    let member;
+
     if (node.computed) {
-        offset = b.encapsedPart(offset);
+        member = b.ternary(
+            b.call("is_array", [what]),
+            b.offsetLookup(what, offset),
+            b.propertyLookup(what, b.encapsedPart(offset), node.optional),
+        );
+    } else {
+        member = b.propertyLookup(what, offset, node.optional);
     }
 
-    /** @type {Expression} */
-    let member = b.propertyLookup(what, offset, node.optional);
-
     if (!state.isInIsset && parent?.type !== "MemberExpression") {
-        return b.silent(member);
+        member = b.silent(member);
     }
 
     return member;
