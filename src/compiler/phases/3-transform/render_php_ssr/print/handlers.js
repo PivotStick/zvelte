@@ -134,13 +134,7 @@ const handlers = {
      * @param {PHP.StringLiteral} node
      */
     string(node, state) {
-        if (!node.value && node.raw) {
-            return [c(node.raw)];
-        }
-
-        const q = node.isDoubleQuote ? '"' : "'";
-
-        return [c(`${q}${node.value}${q}`)];
+        return [c(node.raw)];
     },
 
     /**

@@ -342,7 +342,7 @@ export function string(value) {
     return {
         kind: "string",
         value: value,
-        raw: `'${value}'`,
+        raw: `'${value.replace(/([^\\])'/g, "$1\\'")}'`,
         unicode: false,
         isDoubleQuote: false,
     };

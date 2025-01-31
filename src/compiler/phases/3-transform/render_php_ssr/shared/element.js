@@ -300,6 +300,7 @@ export function build_element_attributes(node, context) {
                         WHITESPACE_INSENSITIVE_ATTRIBUTES.includes(name),
                     )
                 ).value;
+
                 if (name !== "class" || literal_value) {
                     context.state.template.push(
                         b.literal(
