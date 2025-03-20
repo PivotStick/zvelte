@@ -95,6 +95,10 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
     };
 
     ast.imports.forEach((n) => {
+        state.overrides[n.specifier.name] = b.name(
+            `${n.specifier.name}::class`,
+        );
+
         namespace.push(
             b.useitem(n.source.value.replace(/\//g, "\\"), n.specifier.name),
         );

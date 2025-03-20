@@ -1,0 +1,4 @@
+{% import Logo from "Zvelte/Components/samples/T009/Logo" %}
+{% import Header from "Zvelte/Components/samples/T009/Header" %}
+
+<Header {{ Logo }} />
