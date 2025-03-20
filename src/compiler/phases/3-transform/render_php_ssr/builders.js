@@ -519,7 +519,7 @@ export function object(map = new Map()) {
     const entries = Array.from(map.entries());
 
     return cast(
-        array(entries.map(([key, value]) => entry(value, key))),
+        array(entries.map(([key, value]) => entry(key, value))),
         "object",
     );
 }
