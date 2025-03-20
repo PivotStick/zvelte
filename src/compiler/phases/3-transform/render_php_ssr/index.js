@@ -26,6 +26,7 @@ import { InExpression } from "./visitors/InExpression.js";
 import { IsExpression } from "./visitors/IsExpression.js";
 import { RangeExpression } from "./visitors/RangeExpression.js";
 import { LogicalExpression } from "./visitors/LogicalExpression.js";
+import { ConditionalExpression } from "./visitors/ConditionalExpression.js";
 import { UnaryExpression } from "./visitors/UnaryExpression.js";
 import { UpdateExpression } from "./visitors/UpdateExpression.js";
 import { AssignmentExpression } from "./visitors/AssignmentExpression.js";
@@ -185,6 +186,7 @@ const visitors = {
 
     BinaryExpression,
     LogicalExpression,
+    ConditionalExpression,
 
     NullLiteral,
     BooleanLiteral,
