@@ -152,6 +152,21 @@ describe("Parser: will test expressions", () => {
             });
         });
 
+        test("!", () => {
+            ExpressionTagOf("{{ !foo }}", {
+                type: "UnaryExpression",
+                start: 3,
+                end: 8,
+                operator: "!",
+                argument: {
+                    type: "Identifier",
+                    start: 4,
+                    end: 7,
+                    name: "foo",
+                },
+            });
+        });
+
         test("+", () => {
             ExpressionTagOf("{{ +foo }}", {
                 type: "UnaryExpression",
@@ -194,7 +209,9 @@ describe("Parser: will test expressions", () => {
             "*",
             "~",
             "==",
+            "===",
             "!=",
+            "!==",
             "<=",
             ">=",
             "<",
@@ -229,7 +246,7 @@ describe("Parser: will test expressions", () => {
         /**
          * @type {Array<import("#ast").LogicalExpression["operator"]>}
          */
-        const operators = ["||", "or", "??", "and"];
+        const operators = ["||", "or", "??", "and", "&&"];
 
         for (const operator of operators) {
             test(`${operator} operator`, () => {

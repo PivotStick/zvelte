@@ -172,7 +172,7 @@ export function parseLogicExpression(parser) {
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^\s*(or|and|\?\?|\|\|)/))
+        (operator = parser.read(/^\s*(or|and|&&|\?\?|\|\|)/))
     ) {
         parser.allowWhitespace();
         const right = parseComparison(parser);
@@ -201,13 +201,13 @@ export function parseComparison(parser) {
 
     parser.allowWhitespace();
     /**
-     * @type {">" | "<" | "<=" | ">=" | "==" | "!="}
+     * @type {">" | "<" | "<=" | ">=" | "==" | "!=" | "===" | "!=="}
      */
     let operator;
 
     while (
         // @ts-ignore
-        (operator = parser.read(/^(<=|>=|==|!=|>|<)/))
+        (operator = parser.read(/^(<=|>=|!==|===|==|!=|>|<)/))
     ) {
         parser.allowWhitespace();
         const right = parseAdditive(parser);
@@ -715,7 +715,7 @@ export function parseUnaryExpression(parser) {
     const start = parser.index;
     let operator;
 
-    if ((operator = parser.read(/^(not(?=\s)|-|\+)/))) {
+    if ((operator = parser.read(/^(not(?=\s)|!|-|\+)/))) {
         if (operator === "not") {
             parser.requireWhitespace();
         }

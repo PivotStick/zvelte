@@ -369,7 +369,7 @@ export interface UpdateExpression extends BaseNode {
 export interface LogicalExpression extends BaseNode {
     type: "LogicalExpression";
     left: Expression;
-    operator: "||" | "or" | "and" | "??";
+    operator: "||" | "or" | "and" | "??" | "&&";
     right: Expression;
 }
 
@@ -383,7 +383,9 @@ export interface BinaryExpression extends BaseNode {
         | "*"
         | "~"
         | "=="
+        | "==="
         | "!="
+        | "!=="
         | "<="
         | ">="
         | "<"
@@ -412,7 +414,7 @@ export interface Identifier extends BaseNode {
 
 export interface UnaryExpression extends BaseNode {
     type: "UnaryExpression";
-    operator: "not" | "-" | "+";
+    operator: "!" | "not" | "-" | "+";
     argument: Expression;
 }
 
