@@ -719,6 +719,7 @@ describe("Parser: will test tags", () => {
                 type: "Root",
                 js: null,
                 css: null,
+                zs: null,
                 start: 0,
                 end: 27,
                 fragment: {

@@ -124,14 +124,16 @@ export function build_template(
 
     const flush = () => {
         statements.push(
-            b.assign(
-                out,
-                operator,
-                b.template(
-                    strings.map((cooked, i) =>
-                        b.quasi(cooked, i === strings.length - 1),
+            b.stmt(
+                b.assign(
+                    out,
+                    operator,
+                    b.template(
+                        strings.map((cooked, i) =>
+                            b.quasi(cooked, i === strings.length - 1),
+                        ),
+                        expressions,
                     ),
-                    expressions,
                 ),
             ),
         );

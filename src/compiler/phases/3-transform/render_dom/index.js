@@ -166,15 +166,23 @@ export function renderDom(source, ast, analysis, options, meta) {
         renderedCss = renderStylesheet(source, analysis, options);
     }
 
+    const context = combineVisitors(
+        setScope(analysis.template.scopes),
+        templateVisitors,
+    );
+
+    const init = [];
+
+    if (ast.zs) {
+        init.unshift(...ast.zs.body.map((stmt) => walk(stmt, state, context)));
+    }
+
     // @ts-ignore
     const template = /** @type {import('estree').Program} */ (
         walk(
             /** @type {import('#ast').ZvelteNode} */ (analysis.template.ast),
             state,
-            combineVisitors(
-                setScope(analysis.template.scopes),
-                templateVisitors,
-            ),
+            context,
         )
     );
 
@@ -207,6 +215,8 @@ export function renderDom(source, ast, analysis, options, meta) {
     if (analysis.needs_props) {
         component.params.push(b.id("$$props"));
     }
+
+    component.body.body.unshift(...init);
 
     if (options.hasJS) {
         state.hoisted.unshift(
@@ -516,6 +526,22 @@ const templateVisitors = {
 
     // @ts-ignore
     AssignmentExpression(node, context) {
+        if (
+            node.left.type === "Identifier" &&
+            node.right.type === "FilterExpression" &&
+            node.right.name.name === "$derived"
+        ) {
+            const id = b.id(context.state.scope.generate(node.left.name));
+            context.state.overrides[node.left.name] = id;
+
+            const right = b.call(
+                "$.derived",
+                b.thunk(context.visit(node.right.arguments[0])),
+            );
+
+            return b.const(id, right);
+        }
+
         return b.assignment(
             node.operator === "~=" ? "+=" : node.operator,
             /** @type {import("estree").Pattern} */ (context.visit(node.left)),
@@ -731,12 +757,20 @@ const templateVisitors = {
             };
         });
 
+        const ctx = { ...state, nonPropVars: vars };
+
         return b.arrow(
             params,
-            /** @type {import('estree').Expression} */ (
-                visit(node.body, { ...state, nonPropVars: vars })
-            ),
+            /** @type {import('estree').Expression} */ (visit(node.body, ctx)),
         );
+    },
+
+    BlockStatement(
+        /** @type {import("#ast").BlockStatement} */ node,
+        // @ts-expect-error
+        { state, visit },
+    ) {
+        return b.block(node.body.map((statement) => visit(statement, state)));
     },
 
     // @ts-ignore

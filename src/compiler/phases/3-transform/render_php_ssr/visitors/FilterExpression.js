@@ -17,5 +17,9 @@ export function FilterExpression(node, { visit }) {
         args.push(/** @type {any} */ (visit(arg)));
     }
 
+    if (node.name.name === "$derived") {
+        return args[2];
+    }
+
     return b.call("Internals::filter", args);
 }

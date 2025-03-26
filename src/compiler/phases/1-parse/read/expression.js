@@ -1,5 +1,48 @@
 import { Parser } from "../index.js";
 
+/** @import * as AST from "#ast" */
+
+/**
+ * @param {Parser} parser
+ * @returns {AST.Program}
+ */
+export function parseProgram(parser) {
+    const start = parser.index;
+    const body = parseBody(parser, () => parser.match("</script>"));
+    const end = parser.index;
+
+    return {
+        type: "Program",
+        body,
+        start,
+        end,
+    };
+}
+
+/**
+ * @param {Parser} parser
+ * @param {() => boolean} end
+ * @returns {AST.Program['body']}
+ */
+function parseBody(parser, end) {
+    /** @type {AST.Program["body"]} */
+    const body = [];
+
+    parser.allowWhitespace();
+    let node;
+    while (!end() && (node = parseExpression(parser))) {
+        body.push({
+            type: "ExpressionStatement",
+            expression: node,
+        });
+        parser.allowWhitespace();
+        parser.eat(";");
+        parser.allowWhitespace();
+    }
+
+    return body;
+}
+
 /**
  * @param {Parser} parser
  */
@@ -9,7 +52,7 @@ export function parseExpression(parser) {
 
 /**
  * @param {Parser} parser
- * @returns {import("#ast").Expression}
+ * @returns {AST.Expression}
  */
 export function parseAssignmentExpression(parser) {
     const start = parser.index;
@@ -17,7 +60,7 @@ export function parseAssignmentExpression(parser) {
     parser.allowWhitespace();
 
     /**
-     * @type {import("#ast").AssignmentExpression["operator"] | null}
+     * @type {AST.AssignmentExpression["operator"] | null}
      */
     // @ts-ignore
     const operator = parser.read(/^(=|\+=|-=|\/=|\*=|~=)/);
@@ -80,13 +123,25 @@ export function parseArrowFunctionExpression(parser) {
         parser.eat("=>", true);
         parser.allowWhitespace();
 
-        const body = parseExpression(parser);
+        let expression = !parser.eat("{");
+        let body;
+
+        if (expression) {
+            body = parseExpression(parser);
+        } else {
+            body = {
+                type: "BlockStatement",
+                start: parser.index - 1,
+                body: parseBody(parser, () => parser.eat("}")),
+                end: parser.index,
+            };
+        }
 
         return /** @type {import("../types.js").ArrowFunctionExpression} */ ({
             type: "ArrowFunctionExpression",
             start,
             end: body.end,
-            expression: true,
+            expression,
             params,
             body,
         });
@@ -561,14 +616,14 @@ export function parseRangeExpression(parser) {
 
 /**
  * @param {Parser} parser
- * @returns {import("#ast").Expression}
+ * @returns {AST.Expression}
  */
 export function parseUpdateExpression(parser) {
     const regex = /^(\+\+|--)/;
     const start = parser.index;
 
     /**
-     * @type {import("#ast").UpdateExpression["operator"] | null}
+     * @type {AST.UpdateExpression["operator"] | null}
      */
     let operator = null;
     let prefix = false;

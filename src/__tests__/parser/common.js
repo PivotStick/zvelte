@@ -12,6 +12,7 @@ export function TemplateRootOf(source, nodes) {
         type: "Root",
         css: null,
         js: null,
+        zs: null,
         start: 0,
         end: source.length,
         imports: [],

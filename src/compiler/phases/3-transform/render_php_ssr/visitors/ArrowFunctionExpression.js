@@ -2,6 +2,7 @@
 /** @import { ComponentContext } from '../types.js' */
 
 import * as b from "../builders.js";
+import { propsName } from "../index.js";
 
 /**
  * @param {AST.ArrowFunctionExpression} node
@@ -24,6 +25,10 @@ export function ArrowFunctionExpression(node, { visit, state }) {
             overrides,
         })
     );
+
+    if (!node.expression) {
+        return b.closure(true, args, [b.variable(propsName)], body);
+    }
 
     return b.arrow(args, body);
 }

@@ -183,15 +183,15 @@ export function arrayFromObject(o) {
  * @param {PHP.Assign["operator"]} operator
  * @param {PHP.Assign["right"]} right
  *
- * @returns {PHP.Statement<PHP.Assign>}
+ * @returns {PHP.Assign}
  */
 export function assign(left, operator, right) {
-    return stmt({
+    return {
         kind: "assign",
         left,
         operator,
         right,
-    });
+    };
 }
 
 /**

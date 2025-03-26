@@ -28,10 +28,12 @@ export function ForBlock(node, context) {
     const length_id = b.variable(context.state.unique("length"));
 
     state.init.push(
-        b.assign(
-            array_id,
-            "=",
-            b.call("Internals::ensure_array_like", [collection]),
+        b.stmt(
+            b.assign(
+                array_id,
+                "=",
+                b.call("Internals::ensure_array_like", [collection]),
+            ),
         ),
     );
 
@@ -40,16 +42,18 @@ export function ForBlock(node, context) {
 
     if (node.context) {
         each.push(
-            b.assign(
-                b.variable(node.context.name),
-                "=",
-                b.offsetLookup(array_id, index),
+            b.stmt(
+                b.assign(
+                    b.variable(node.context.name),
+                    "=",
+                    b.offsetLookup(array_id, index),
+                ),
             ),
         );
     }
 
     if (index.name !== node.index?.name && node.index != null) {
-        each.push(b.assign(b.variable(node.index.name), "=", index));
+        each.push(b.stmt(b.assign(b.variable(node.index.name), "=", index)));
     }
 
     each.push(

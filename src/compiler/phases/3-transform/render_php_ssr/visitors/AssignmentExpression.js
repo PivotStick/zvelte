@@ -9,7 +9,17 @@ import * as b from "../builders.js";
  *
  * @returns {any};
  */
-export function AssignmentExpression(node, { visit }) {
+export function AssignmentExpression(node, { visit, state }) {
+    if (
+        node.left.type === "Identifier" &&
+        node.right.type === "FilterExpression" &&
+        node.right.name.name === "$derived"
+    ) {
+        state.overrides[node.left.name] = b.variable(
+            state.unique(node.left.name),
+        );
+    }
+
     return b.assign(
         /** @type {any} */ (visit(node.left)),
         node.operator === "~=" ? ".=" : node.operator,

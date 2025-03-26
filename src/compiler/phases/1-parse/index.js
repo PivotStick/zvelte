@@ -23,6 +23,7 @@ export class Parser {
             start: this.index,
             end: -1,
             js: null,
+            zs: null,
             css: null,
             imports: [],
             fragment: createFragment(),
@@ -114,7 +115,7 @@ export class Parser {
             throw this.error(
                 errorMessage,
                 this.index,
-                this.index + str.length - 1
+                this.index + str.length - 1,
             );
         }
 
@@ -196,12 +197,12 @@ export class Parser {
             0,
             `${red}${"-".repeat(Math.max(0, range.start.col))}^ ${message} at ${
                 range.start.ln + 1
-            }:${range.start.col + 1}${reset}${dim}`
+            }:${range.start.col + 1}${reset}${dim}`,
         );
 
         lines[range.start.ln] = `${lines[range.start.ln].replace(
             /[^\s]/,
-            `${underline}${bold}$&`
+            `${underline}${bold}$&`,
         )}${reset}`;
 
         return new ParseError({

@@ -1,4 +1,8 @@
-import { parseExpression, parseIdentifier } from "../read/expression.js";
+import {
+    parseExpression,
+    parseIdentifier,
+    parseProgram,
+} from "../read/expression.js";
 import { createFragment } from "../utils/createFragment.js";
 import { isVoid } from "../../../shared/utils/names.js";
 import { Parser } from "../index.js";
@@ -40,8 +44,8 @@ export const element = (parser) => {
     let type = /[A-Z]/.test(name[0])
         ? "Component"
         : name === "title"
-        ? "TitleElement"
-        : "RegularElement";
+          ? "TitleElement"
+          : "RegularElement";
 
     if (name.includes(":")) {
         const [left, right] = name.split(":");
@@ -49,7 +53,7 @@ export const element = (parser) => {
             throw parser.error(
                 `"${left}" must match ${parser.specialTag}`,
                 start + 1,
-                start + 1 + left.length
+                start + 1 + left.length,
             );
         }
 
@@ -62,7 +66,7 @@ export const element = (parser) => {
         } else {
             throw parser.error(
                 `"${right}" unknown ${left} meta tag kind`,
-                start + left.length + 2
+                start + left.length + 2,
             );
         }
     }
@@ -131,7 +135,7 @@ export const element = (parser) => {
                               element.attributes.find(
                                   (attr) =>
                                       attr.type === "Attribute" &&
-                                      attr.name === "type"
+                                      attr.name === "type",
                               )
                           )
                         : undefined;
@@ -146,7 +150,7 @@ export const element = (parser) => {
                 ) {
                     throw parser.error(
                         "'type' attribute must be a static text value if input uses two-way binding",
-                        typeAttr.value[0].start
+                        typeAttr.value[0].start,
                     );
                 } else if (
                     typeAttr &&
@@ -160,12 +164,12 @@ export const element = (parser) => {
                     case "value": {
                         if (
                             !["input", "textarea", "select"].includes(
-                                element.name
+                                element.name,
                             )
                         ) {
                             throw parser.error(
                                 "`bind:value` can only be used with <input>, <textarea>, <select>",
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -174,7 +178,7 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:group` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -183,14 +187,14 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:checked` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
 
                         if (staticTypeAttrValue !== "checkbox") {
                             throw parser.error(
                                 '`bind:checked` can only be used with <input type="checkbox">',
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -199,14 +203,14 @@ export const element = (parser) => {
                         if (element.name !== "input") {
                             throw parser.error(
                                 "`bind:files` can only be used with <input>",
-                                attr.start
+                                attr.start,
                             );
                         }
 
                         if (staticTypeAttrValue !== "file") {
                             throw parser.error(
                                 '`bind:files` can only be used with <input type="file">',
-                                attr.start
+                                attr.start,
                             );
                         }
                         break;
@@ -217,13 +221,13 @@ export const element = (parser) => {
     } else if (element.type === "ZvelteComponent") {
         const thisAttr = /** @type {import("#ast").Attribute=} */ (
             element.attributes.find(
-                (attr) => attr.type === "Attribute" && attr.name === "this"
+                (attr) => attr.type === "Attribute" && attr.name === "this",
             )
         );
         if (!thisAttr) {
             throw parser.error(
                 `\`<${name}>\` must have a 'this' attribute`,
-                start
+                start,
             );
         }
 
@@ -233,13 +237,14 @@ export const element = (parser) => {
         ) {
             throw parser.error(
                 'Invalid component definition — must be an `"{{ expression }}"`',
-                thisAttr.start + thisAttr.name.length + 1
+                thisAttr.start + thisAttr.name.length + 1,
             );
         }
 
         const thisAttrIndex = element.attributes.indexOf(thisAttr);
         element.attributes.splice(thisAttrIndex, 1);
         element.expression = thisAttr.value[0].expression;
+        // @ts-expect-error
         (element.metadata ??= {}).this = {
             index: thisAttrIndex,
             node: thisAttr,
@@ -253,12 +258,12 @@ export const element = (parser) => {
                 (attr) =>
                     attr.type === "ClassDirective" ||
                     attr.type === "UseDirective" ||
-                    attr.type === "TransitionDirective"
+                    attr.type === "TransitionDirective",
             ))
         ) {
             throw parser.error(
                 "This type of directive is not valid on components",
-                attr.start
+                attr.start,
             );
         }
     }
@@ -266,7 +271,7 @@ export const element = (parser) => {
     if (element.name === "style") {
         if (parser.root.css)
             throw parser.error(
-                "Only one style tag can be declared in a component"
+                "Only one style tag can be declared in a component",
             );
 
         let start = parser.index;
@@ -282,26 +287,41 @@ export const element = (parser) => {
             ast: content,
         };
     } else if (element.name === "script") {
-        if (!selfClosing) {
-            const start = parser.index;
-            const data = parser.readUntil(new RegExp(`</${name}>`));
-            const end = parser.index;
-
-            /** @type {import("../types.d.ts").Text} */
-            const node = {
-                start,
-                end,
-                type: "Text",
-                data,
-                parent: null,
-            };
-
-            element.fragment.nodes.push(node);
+        if (
+            element.attributes.find(
+                (a) =>
+                    a.type === "Attribute" &&
+                    a.name === "lang" &&
+                    a.value !== true &&
+                    a.value.length === 1 &&
+                    a.value[0].type === "Text" &&
+                    a.value[0].data === "zs",
+            )
+        ) {
+            parser.root.zs = parseProgram(parser);
             parser.eat(`</${name}>`, true);
-            element.end = parser.index;
-        }
+        } else {
+            if (!selfClosing) {
+                const start = parser.index;
+                const data = parser.readUntil(new RegExp(`</${name}>`));
+                const end = parser.index;
 
-        parser.append(element);
+                /** @type {import("../types.d.ts").Text} */
+                const node = {
+                    start,
+                    end,
+                    type: "Text",
+                    data,
+                    parent: null,
+                };
+
+                element.fragment.nodes.push(node);
+                parser.eat(`</${name}>`, true);
+                element.end = parser.index;
+            }
+
+            parser.append(element);
+        }
     } else {
         parser.append(element);
 
@@ -344,7 +364,7 @@ const readAttribute = (parser, uniqueNames) => {
             throw parser.error(
                 `Duplicate attribute "${name}"`,
                 start,
-                start + name.length - 1
+                start + name.length - 1,
             );
         }
         uniqueNames.add(name);
@@ -373,7 +393,7 @@ const readAttribute = (parser, uniqueNames) => {
         if (!identifier) {
             throw parser.error(
                 `"{{ ... }}" expression cannot be used directly inside element's attributes, only in attribute's values. It also can be used like this {{ foo }} as a shortcut for foo="{{ foo }}"`,
-                start
+                start,
             );
         }
 
@@ -403,7 +423,7 @@ const readAttribute = (parser, uniqueNames) => {
     if (tagBlockMatch) {
         throw parser.error(
             `"{% ${tagBlockMatch[1]} %} blocks cannot be used inside element's attributes"`,
-            start
+            start,
         );
     }
 
@@ -432,7 +452,7 @@ const readAttribute = (parser, uniqueNames) => {
                 throw parser.error(
                     "Directive value must be an expression enclosed in curly braces",
                     value[0].start,
-                    value[value.length - 1].end - 1
+                    value[value.length - 1].end - 1,
                 );
             }
 
@@ -474,7 +494,7 @@ const readAttribute = (parser, uniqueNames) => {
                 if (directive.name !== "this") {
                     checkUnique(
                         directive.name,
-                        start + directive.type.length + 1
+                        start + directive.type.length + 1,
                     );
                 }
 
@@ -486,7 +506,7 @@ const readAttribute = (parser, uniqueNames) => {
                     throw parser.error(
                         "Can only bind to an Identifier or MemberExpression",
                         expression.start,
-                        expression.end
+                        expression.end,
                     );
                 }
 
@@ -585,8 +605,8 @@ const readAttributeValue = (parser) => {
     const quoteMark = parser.eat("'")
         ? "'"
         : (double = parser.eat('"'))
-        ? '"'
-        : null;
+          ? '"'
+          : null;
 
     /**
      * @type {import("../types.d.ts").Attribute["value"]}

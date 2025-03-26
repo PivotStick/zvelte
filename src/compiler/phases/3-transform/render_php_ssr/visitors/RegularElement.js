@@ -88,7 +88,7 @@ export function RegularElement(node, context) {
 
         if (body.kind !== "identifier") {
             id = b.variable("body");
-            state.template.push(b.assign(id, "=", body));
+            state.template.push(b.stmt(b.assign(id, "=", body)));
         }
 
         // if this is a `<textarea>` value or a contenteditable binding, we only add

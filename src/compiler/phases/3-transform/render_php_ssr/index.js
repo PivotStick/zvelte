@@ -38,6 +38,8 @@ import { AwaitBlock } from "./visitors/AwaitBlock.js";
 import { SnippetBlock } from "./visitors/SnippetBlock.js";
 import { ForBlock } from "./visitors/ForBlock.js";
 import { block_close, block_open } from "./shared/utils.js";
+import { BlockStatement } from "./visitors/BlockStatement.js";
+import { ExpressionStatement } from "./visitors/ExpressionStatement.js";
 
 export const outputName = "payload";
 export const propsName = "props";
@@ -104,14 +106,23 @@ export function renderPhpSSR(source, ast, analysis, options, meta) {
         );
     });
 
+    if (ast.zs) {
+        const nodes = ast.zs.body.map((statement) =>
+            walk(statement, state, visitors),
+        );
+        state.init.push(...nodes);
+    }
+
     /** @type {import("./types.d.ts").Block} */
     const block = /** @type {any} */ (walk(ast.fragment, state, visitors));
+
+    block.children.unshift(...state.init);
 
     if (options.async) {
         const out = b.variable("payload->out");
 
-        block.children.unshift(b.assign(out, ".=", block_open));
-        block.children.push(b.assign(out, ".=", block_close));
+        block.children.unshift(b.stmt(b.assign(out, ".=", block_open)));
+        block.children.push(b.stmt(b.assign(out, ".=", block_close)));
     }
 
     renderMethod.body = block;
@@ -177,6 +188,9 @@ const visitors = {
     ArrayExpression,
     ObjectExpression,
     ArrowFunctionExpression,
+
+    BlockStatement,
+    ExpressionStatement,
 
     CallExpression,
     FilterExpression,

@@ -33,10 +33,15 @@ export function SnippetBlock(node, context) {
     );
 
     context.state.init.push(
-        b.assign(
-            b.propertyLookup(b.variable(propsName), b.id(node.expression.name)),
-            "=",
-            fn,
+        b.stmt(
+            b.assign(
+                b.propertyLookup(
+                    b.variable(propsName),
+                    b.id(node.expression.name),
+                ),
+                "=",
+                fn,
+            ),
         ),
     );
 }

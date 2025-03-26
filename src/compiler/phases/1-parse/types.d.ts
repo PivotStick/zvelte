@@ -249,6 +249,7 @@ export interface Root extends BaseNode {
     fragment: Fragment;
     imports: Array<ImportTag>;
     js: null;
+    zs: null | Program;
     css:
         | null
         | (Omit<BaseNode, "type"> & {
@@ -280,6 +281,28 @@ export type Attribute = BaseNode & {
 export interface SpreadAttribute extends BaseNode {
     type: "SpreadAttribute";
     expression: Expression;
+}
+
+export interface Program extends BaseNode {
+    type: "Program";
+    body: Statement[];
+}
+
+export type Statement = ExpressionStatement | BlockStatement;
+
+export interface ExpressionStatement extends BaseStatement {
+    type: "ExpressionStatement";
+    expression: Expression;
+}
+
+export interface BlockStatement extends BaseStatement {
+    type: "BlockStatement";
+    body: Statement[];
+}
+
+export interface BlockStatement extends BaseStatement {
+    type: "BlockStatement";
+    body: Statement[];
 }
 
 export interface Property extends BaseNode {
@@ -432,17 +455,25 @@ export interface RangeExpression extends BaseNode {
     step: 1 | -1;
 }
 
-export interface ArrowFunctionExpression extends BaseNode {
+export type ArrowFunctionExpression = BaseNode & {
     type: "ArrowFunctionExpression";
-    expression: true;
-    body: Expression;
     params: Array<Identifier>;
-}
+} & (
+        | {
+              expression: true;
+              body: Expression;
+          }
+        | {
+              expression: false;
+              body: BlockStatement;
+          }
+    );
 
 export type ZvelteNode =
     | Directive
     | Block
     | Tag
+    | Statement
     | Expression
     | ElementLike
     | Comment
