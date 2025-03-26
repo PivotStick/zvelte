@@ -532,7 +532,7 @@ const templateVisitors = {
             node.right.name.name === "$derived"
         ) {
             const id = b.id(context.state.scope.generate(node.left.name));
-            context.state.overrides[node.left.name] = id;
+            context.state.overrides[node.left.name] = b.call("$.get", id);
 
             const right = b.call(
                 "$.derived",
