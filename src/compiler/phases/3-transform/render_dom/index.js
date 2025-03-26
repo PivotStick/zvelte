@@ -570,18 +570,28 @@ const templateVisitors = {
         ) {
             if (state.overrides[member.object.name]) {
                 const o = state.overrides[member.object.name];
-                member = b.member(o, property);
+                member = b.member(o, property, node.computed, node.optional);
             } else if (state.transform[member.object.name]) {
                 const o = state.transform[member.object.name].read(
                     member.object,
                 );
-                member = b.member(o, property);
+                member = b.member(o, property, node.computed, node.optional);
             } else if (state.nonPropUnwraps.includes(member.object.name)) {
-                member = b.member(member.object, property);
+                member = b.member(member.object, property, node.optional);
             } else if (state.nonPropSources.includes(member.object.name)) {
-                member = b.member(b.call("$.get", member.object), property);
+                member = b.member(
+                    b.call("$.get", member.object),
+                    property,
+                    node.computed,
+                    node.optional,
+                );
             } else if (state.nonPropGetters.includes(member.object.name)) {
-                member = b.member(b.call(member.object), property);
+                member = b.member(
+                    b.call(member.object),
+                    property,
+                    node.computed,
+                    node.optional,
+                );
             } else if (!state.nonPropVars.includes(member.object.name)) {
                 if (!state.options.hasJS)
                     state.initProps.add(member.object.name);
