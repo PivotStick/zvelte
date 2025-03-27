@@ -383,7 +383,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                         ),
                         b.stmt(
                             b.call(
-                                "$.import.meta.hot.acceptExports",
+                                "import.meta.hot.acceptExports",
                                 b.array([b.string("default")]),
                                 b.arrow(
                                     [b.id("module")],
