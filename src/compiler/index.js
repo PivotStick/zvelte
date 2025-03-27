@@ -29,7 +29,8 @@ export function compile(source, options = {}, meta = {}) {
     options.css ??= "injected";
     options.namespace ??= "Zvelte\\Components";
     options.internalsNamespace ??= "Zvelte\\Core";
-    options.filename ??= "_unknown_.zvelte";
+    options.filepath ??= "_unknown_.zvelte";
+    options.filename ??= options.filepath.split("/").pop() ?? "";
     options.hasJS ??= false;
     options.preserveWhitespace ??= false;
     options.preserveComments ??= false;
@@ -39,6 +40,7 @@ export function compile(source, options = {}, meta = {}) {
         dir: options.dir,
         namespace: options.namespace,
         internalsNamespace: options.internalsNamespace,
+        filepath: options.filepath,
         filename: options.filename,
         hasJS: options.hasJS,
         generate: options.generate,

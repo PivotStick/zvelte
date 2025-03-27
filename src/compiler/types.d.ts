@@ -11,6 +11,7 @@ export type CompilerOptions = {
     dev: boolean;
     hmr: boolean;
 
+    filepath: string;
     filename: string;
     preserveWhitespace: boolean;
     preserveComments: boolean;

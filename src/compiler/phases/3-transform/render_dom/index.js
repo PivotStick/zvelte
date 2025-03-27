@@ -321,7 +321,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                 b.assignment(
                     "=",
                     b.member(cmp.id, b.id("$.FILENAME"), true),
-                    b.string(options.filename),
+                    b.string(options.filepath),
                 ),
             ),
         );
@@ -850,11 +850,7 @@ const templateVisitors = {
         );
     },
 
-    BlockStatement(
-        /** @type {import("#ast").BlockStatement} */ node,
-        // @ts-expect-error
-        { state, visit },
-    ) {
+    BlockStatement(node, { state, visit }) {
         return b.block(node.body.map((statement) => visit(statement, state)));
     },
 
