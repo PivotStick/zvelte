@@ -296,14 +296,6 @@ export function renderDom(source, ast, analysis, options, meta) {
                 ),
             );
         }
-
-        if (options.hmr) {
-            component.body.body.unshift(
-                b.stmt(b.call("$.check_target", b.id("new.target"))),
-                b.stmt(b.call("$.push", b.id("$$props"), b.true, component.id)),
-            );
-            component.body.body.push(b.return(b.call("$.pop", b.object([]))));
-        }
     }
 
     /**
@@ -316,6 +308,12 @@ export function renderDom(source, ast, analysis, options, meta) {
      */
     function handleHmr(cmp) {
         if (!options.hmr) return body.push(b.exportDefault(cmp));
+
+        cmp.body.body.unshift(
+            b.stmt(b.call("$.check_target", b.id("new.target"))),
+            b.stmt(b.call("$.push", b.id("$$props"), b.true, cmp.id)),
+        );
+        cmp.body.body.push(b.return(b.call("$.pop", b.object([]))));
 
         body.push(b.stmt(b.call("$.mark_module_start")));
         body.push(
