@@ -305,8 +305,9 @@ export function renderDom(source, ast, analysis, options, meta) {
 
     /**
      * @param {import("estree").FunctionDeclaration} cmp
+     * @param {string[]} acceptExports
      */
-    function handleHmr(cmp) {
+    function handleHmr(cmp, acceptExports) {
         if (!options.hmr) return body.push(b.exportDefault(cmp));
 
         cmp.body.body.unshift(
@@ -346,7 +347,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                     b.stmt(
                         b.call(
                             "import.meta.hot.acceptExports",
-                            b.array([b.string("default")]),
+                            b.array(acceptExports.map(b.string)),
                             b.arrow(
                                 [b.id("module")],
                                 b.block([
@@ -425,13 +426,13 @@ export function renderDom(source, ast, analysis, options, meta) {
             ),
         );
 
-        handleHmr(load);
+        handleHmr(load, ["default", "$$fetch"]);
 
         if (Object.keys(exportSpecifiers).length) {
             body.push(b.exportSpecifiers(exportSpecifiers));
         }
     } else {
-        handleHmr(component);
+        handleHmr(component, ["default"]);
     }
 
     return print({
