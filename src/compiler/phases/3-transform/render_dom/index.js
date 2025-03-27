@@ -426,7 +426,11 @@ export function renderDom(source, ast, analysis, options, meta) {
             ),
         );
 
-        handleHmr(load, ["default", "$$fetch"]);
+        handleHmr(load, [
+            "default",
+            "$$fetch",
+            ...Object.keys(exportSpecifiers),
+        ]);
 
         if (Object.keys(exportSpecifiers).length) {
             body.push(b.exportSpecifiers(exportSpecifiers));
