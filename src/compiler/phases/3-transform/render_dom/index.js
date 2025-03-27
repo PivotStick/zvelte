@@ -213,7 +213,7 @@ export function renderDom(source, ast, analysis, options, meta) {
         b.block(/** @type {import('estree').Statement[]} */ (template.body)),
     );
 
-    if (analysis.needs_props) {
+    if (analysis.needs_props || options.hmr) {
         component.params.push(b.id("$$props"));
     }
 
@@ -295,6 +295,14 @@ export function renderDom(source, ast, analysis, options, meta) {
                     ),
                 ),
             );
+        }
+
+        if (options.hmr) {
+            component.body.body.unshift(
+                b.stmt(b.call("$.check_target", b.id("new.target"))),
+                b.stmt(b.call("$.push", b.id("$$props"), b.true, component.id)),
+            );
+            component.body.body.push(b.return(b.call("$.pop", b.object([]))));
         }
     }
 
