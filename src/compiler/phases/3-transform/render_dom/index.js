@@ -311,6 +311,78 @@ export function renderDom(source, ast, analysis, options, meta) {
      */
     const body = [...state.hoisted];
 
+    /**
+     * @param {import("estree").FunctionDeclaration} cmp
+     */
+    function handleHmr(cmp) {
+        if (!options.hmr) return body.push(b.exportDefault(cmp));
+
+        body.push(b.stmt(b.call("$.mark_module_start")));
+        body.push(
+            b.stmt(
+                b.assignment(
+                    "=",
+                    b.member(cmp.id, b.id("$.FILENAME"), true),
+                    b.string(options.filename),
+                ),
+            ),
+        );
+        body.push(cmp);
+
+        const source = b.member(
+            b.member(cmp.id, b.id("$.HMR"), true),
+            b.id("source"),
+        );
+
+        body.push(
+            b.if(
+                b.id("import.meta.hot"),
+                b.block([
+                    b.stmt(
+                        b.assignment(
+                            "=",
+                            cmp.id,
+                            b.call("$.hmr", cmp.id, b.thunk(source)),
+                        ),
+                    ),
+                    b.stmt(
+                        b.call(
+                            "import.meta.hot.acceptExports",
+                            b.array([b.string("default")]),
+                            b.arrow(
+                                [b.id("module")],
+                                b.block([
+                                    b.stmt(
+                                        b.assignment(
+                                            "=",
+                                            b.id(
+                                                "module.default[$.HMR].source",
+                                            ),
+                                            source,
+                                        ),
+                                    ),
+
+                                    b.stmt(
+                                        b.call(
+                                            "$.set",
+                                            source,
+                                            b.id(
+                                                "module.default[$.HMR].original",
+                                            ),
+                                        ),
+                                    ),
+                                ]),
+                            ),
+                        ),
+                    ),
+                ]),
+            ),
+        );
+
+        body.push(b.exportDefault(cmp.id));
+        body.push(b.stmt(b.call("$.mark_module_end", cmp.id)));
+    }
+
     if (options.async) {
         body.push(component);
 
@@ -353,81 +425,15 @@ export function renderDom(source, ast, analysis, options, meta) {
                     b.call("$.create_load", b.literal(options.async.endpoint)),
                 ),
             ),
-            b.exportDefault(load),
         );
+
+        handleHmr(load);
 
         if (Object.keys(exportSpecifiers).length) {
             body.push(b.exportSpecifiers(exportSpecifiers));
         }
     } else {
-        if (options.hmr) {
-            body.push(b.stmt(b.call("$.mark_module_start")));
-            body.push(
-                b.stmt(
-                    b.assignment(
-                        "=",
-                        b.member(component.id, b.id("$.FILENAME"), true),
-                        b.string(options.filename),
-                    ),
-                ),
-            );
-            body.push(component);
-
-            const source = b.member(
-                b.member(component.id, b.id("$.HMR"), true),
-                b.id("source"),
-            );
-
-            body.push(
-                b.if(
-                    b.id("import.meta.hot"),
-                    b.block([
-                        b.stmt(
-                            b.assignment(
-                                "=",
-                                component.id,
-                                b.call("$.hmr", component.id, b.thunk(source)),
-                            ),
-                        ),
-                        b.stmt(
-                            b.call(
-                                "import.meta.hot.acceptExports",
-                                b.array([b.string("default")]),
-                                b.arrow(
-                                    [b.id("module")],
-                                    b.block([
-                                        b.stmt(
-                                            b.assignment(
-                                                "=",
-                                                b.id(
-                                                    "module.default[$.HMR].source",
-                                                ),
-                                                source,
-                                            ),
-                                        ),
-
-                                        b.stmt(
-                                            b.call(
-                                                "$.set",
-                                                source,
-                                                b.id(
-                                                    "module.default[$.HMR].original",
-                                                ),
-                                            ),
-                                        ),
-                                    ]),
-                                ),
-                            ),
-                        ),
-                    ]),
-                ),
-            );
-
-            body.push(b.exportDefault(component.id));
-            body.push(b.stmt(b.call("$.mark_module_end", component.id)));
-        } else {
-            body.push(b.exportDefault(component));
-        }
+        handleHmr(component);
     }
 
     return print({
