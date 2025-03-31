@@ -160,6 +160,8 @@ export function renderDom(source, ast, analysis, options, meta) {
         state.hoisted.unshift(
             b.importDefault(node.specifier.name, node.source.value),
         );
+
+        state.overrides[node.specifier.name] = node.specifier;
     }
 
     let renderedCss;
