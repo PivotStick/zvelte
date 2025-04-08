@@ -417,7 +417,7 @@ export function parseMultiplicative(parser) {
     let operator;
 
     // @ts-ignore
-    while ((operator = parser.read(/^(\*|\/|%)(?!=)/))) {
+    while ((operator = parser.read(/^(\*|\/|%(?!\}))(?!=)/))) {
         parser.allowWhitespace();
         const right = parseChainableExpression(parser);
         const end = right.end;

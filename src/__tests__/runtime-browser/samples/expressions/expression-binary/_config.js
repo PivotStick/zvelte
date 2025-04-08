@@ -16,6 +16,8 @@ export default defineTest({
         mult4: undefined,
         mult5: undefined,
         mult6: undefined,
+        mod1: undefined,
+        mod2: undefined,
         concat1: undefined,
         concat2: undefined,
         concat3: undefined,
@@ -58,6 +60,9 @@ export default defineTest({
         expect(props.mult4).toEqual(1);
         expect(props.mult5).toEqual(0);
         expect(props.mult6).toEqual(Infinity);
+
+        expect(props.mod1).toEqual(0);
+        expect(props.mod2).toEqual(1);
 
         expect(props.concat1).toEqual("Hello world!");
         expect(props.concat2).toEqual("undefined world!");

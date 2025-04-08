@@ -1551,6 +1551,40 @@ describe("Parser: will test expressions", () => {
                     end: 14,
                 },
             });
+
+            ExpressionTagOf(`{{ (1 + 2) % 3 }}`, {
+                type: "BinaryExpression",
+                operator: "%",
+                start: 3,
+                end: 14,
+                left: {
+                    type: "BinaryExpression",
+                    operator: "+",
+                    start: 4,
+                    end: 9,
+                    left: {
+                        type: "NumericLiteral",
+                        raw: "1",
+                        value: 1,
+                        start: 4,
+                        end: 5,
+                    },
+                    right: {
+                        type: "NumericLiteral",
+                        raw: "2",
+                        value: 2,
+                        start: 8,
+                        end: 9,
+                    },
+                },
+                right: {
+                    type: "NumericLiteral",
+                    raw: "3",
+                    value: 3,
+                    start: 13,
+                    end: 14,
+                },
+            });
         });
     });
 

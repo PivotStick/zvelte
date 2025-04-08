@@ -12,6 +12,9 @@
 {% set mult5 = 0 / 20 %}
 {% set mult6 = 20 / 0 %}
 
+{% set mod1 = 10 % 2 %}
+{% set mod2 = 13 % 2 %}
+
 {% set concat1 = foo2 ~ " world!" %}
 {% set concat2 = undefinedProp ~ " world!" %}
 {% set concat3 = 1 ~ 2 %}
