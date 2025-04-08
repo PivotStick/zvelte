@@ -404,6 +404,7 @@ export interface BinaryExpression extends BaseNode {
         | "-"
         | "/"
         | "*"
+        | "%"
         | "~"
         | "=="
         | "==="

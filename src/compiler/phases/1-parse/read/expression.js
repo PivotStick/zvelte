@@ -412,12 +412,12 @@ export function parseMultiplicative(parser) {
 
     parser.allowWhitespace();
     /**
-     * @type {"*" | "/"}
+     * @type {"*" | "/" | "%"}
      */
     let operator;
 
     // @ts-ignore
-    while ((operator = parser.read(/^(\*|\/)(?!=)/))) {
+    while ((operator = parser.read(/^(\*|\/|%)(?!=)/))) {
         parser.allowWhitespace();
         const right = parseChainableExpression(parser);
         const end = right.end;
