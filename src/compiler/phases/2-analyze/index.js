@@ -417,8 +417,9 @@ function set_attr_expression_meta(metadata, expression) {
                 node.metadata ??= {};
                 return next();
             },
-            CallExpression() {
+            CallExpression(node, { next }) {
                 metadata.expression.has_call = true;
+                return next();
             },
             Identifier(_, { path, next }) {
                 const parent = path.at(-1);
