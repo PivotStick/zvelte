@@ -132,6 +132,13 @@ export function buildLoadWrapper({
                     ),
                 ),
             ),
+            b.stmt(
+                b.assignment(
+                    "=",
+                    b.id("$$props.__$$initialLoad"),
+                    b.id("undefined"),
+                ),
+            ),
             b.block(statements),
             b.stmt(b.call("$.append", b.id("$$anchor"), b.id("fragment"))),
         ]),
