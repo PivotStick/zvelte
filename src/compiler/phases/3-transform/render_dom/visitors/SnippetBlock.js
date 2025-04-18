@@ -91,8 +91,6 @@ export function SnippetBlock(node, context) {
     //     );
     // }
 
-    const declaration = b.const(node.expression, snippet);
-
     // Top-level snippets are hoisted so they can be referenced in the `<script>`
     if (context.path.length === 1 && context.path[0].type === "Fragment") {
         context.state.before_init.push(
@@ -103,6 +101,8 @@ export function SnippetBlock(node, context) {
             ),
         );
     } else {
+        const declaration = b.const(node.expression, snippet);
+        context.state.overrides[node.expression.name] = node.expression;
         context.state.init.push(declaration);
     }
 }
