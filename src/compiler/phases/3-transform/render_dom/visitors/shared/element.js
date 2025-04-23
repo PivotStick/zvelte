@@ -1,71 +1,53 @@
+/** @import * as AST from '#ast' */
+/** @import { ArrayExpression, Expression, Identifier, ObjectExpression } from "estree" */
+/** @import { ExpressionMetadata } from "../../../../../types.js" */
+
 import { is_event_attribute } from "../../../../../utils/ast.js";
-import { build_template_literal, build_update } from "./utils.js";
+import {
+    build_template_chunk,
+    build_template_literal,
+    build_update,
+    get_expression_id,
+} from "./utils.js";
 
 import * as b from "../../builders.js";
 import { is_ignored } from "../../../../../state.js";
 import { normalize_attribute } from "../../../utils.js";
+import { build_class_directives_object } from "../RegularElement.js";
 
 /**
- * @param {import("#ast").Attribute['value']} value
+ * @param {Array<AST.Attribute | AST.SpreadAttribute>} attributes
+ * @param {AST.ClassDirective[]} class_directives
+ * @param {unknown[]} style_directives
  * @param {import("../../types.js").ComponentContext} context
- * @returns {{ value: import("estree").Expression, has_state: boolean, has_call: boolean }}
- */
-export function build_attribute_value(value, context) {
-    if (value === true) {
-        return { has_state: false, has_call: false, value: b.literal(true) };
-    }
-
-    if (!Array.isArray(value) || value.length === 1) {
-        const chunk = Array.isArray(value) ? value[0] : value;
-
-        if (chunk.type === "Text") {
-            return {
-                has_state: false,
-                has_call: false,
-                value: b.literal(chunk.data),
-            };
-        }
-
-        return {
-            has_state: chunk.metadata.expression.has_state,
-            has_call: chunk.metadata.expression.has_call,
-            value: /** @type {import("estree").Expression} */ (
-                context.visit(chunk.expression)
-            ),
-        };
-    }
-
-    return build_template_literal(value, context.visit, context.state);
-}
-
-/**
- * @param {Array<import("#ast").Attribute | import("#ast").SpreadAttribute>} attributes
- * @param {import("../../types.js").ComponentContext} context
- * @param {import("#ast").RegularElement | import("#ast").ZvelteElement} element
- * @param {import("#ast").Identifier} element_id
- * @param {import("estree").Identifier} attributes_id
- * @param {false | import("estree").Expression} preserve_attribute_case
- * @param {false | import("estree").Expression} is_custom_element
- * @param {import("../../types.js").ComponentClientTransformState} state
+ * @param {AST.RegularElement | AST.ZvelteElement} element
+ * @param {Identifier} element_id
+ * @param {Identifier} attributes_id
  */
 export function build_set_attributes(
     attributes,
+    class_directives,
+    style_directives,
     context,
     element,
     element_id,
     attributes_id,
-    preserve_attribute_case,
-    is_custom_element,
-    state,
 ) {
-    let has_state = false;
+    let is_dynamic = false;
 
-    /** @type {import("estree").ObjectExpression['properties']} */
+    /** @type {ObjectExpression['properties']} */
     const values = [];
 
     for (const attribute of attributes) {
         if (attribute.type === "Attribute") {
-            const { value } = build_attribute_value(attribute.value, context);
+            const { value, has_state } = build_attribute_value(
+                attribute.value,
+                context,
+                (value, metadata) =>
+                    metadata.has_call
+                        ? get_expression_id(context.state, value)
+                        : value,
+            );
 
             if (
                 is_event_attribute(attribute) &&
@@ -80,48 +62,104 @@ export function build_set_attributes(
                 values.push(b.init(attribute.name, value));
             }
 
-            has_state ||= attribute.metadata.expression.has_state;
+            is_dynamic ||= has_state;
         } else {
             // objects could contain reactive getters -> play it safe and always assume spread attributes are reactive
-            has_state = true;
+            is_dynamic = true;
 
-            let value = /** @type {import("estree").Expression} */ (
-                context.visit(attribute)
-            );
+            let value = /** @type {Expression} */ (context.visit(attribute));
 
             if (attribute.metadata.expression.has_call) {
-                const id = b.id(state.scope.generate("spread_with_call"));
-                state.init.push(
-                    b.const(id, b.call("$.derived", b.thunk(value))),
-                );
-                value = b.call("$.get", id);
+                value = get_expression_id(context.state, value);
             }
+
             values.push(b.spread(value));
         }
     }
 
+    if (class_directives.length) {
+        values.push(
+            b.prop(
+                "init",
+                b.array([b.id("$.CLASS")]),
+                build_class_directives_object(class_directives, context),
+            ),
+        );
+
+        is_dynamic ||=
+            class_directives.find(
+                (directive) => directive.metadata.expression.has_state,
+            ) !== null;
+    }
+
+    // if (style_directives.length) {
+    //     values.push(
+    //         b.prop(
+    //             "init",
+    //             b.array([b.id("$.STYLE")]),
+    //             build_style_directives_object(style_directives, context),
+    //         ),
+    //     );
+    //
+    //     is_dynamic ||= style_directives.some(
+    //         (directive) => directive.metadata.expression.has_state,
+    //     );
+    // }
+
     const call = b.call(
         "$.set_attributes",
         element_id,
-        has_state ? attributes_id : b.literal(null),
+        is_dynamic ? attributes_id : b.null,
         b.object(values),
-        context.state.analysis.css?.hash
-            ? b.literal(context.state.analysis.css?.hash ?? "")
-            : false,
-        preserve_attribute_case,
-        is_custom_element,
+        element.metadata.scoped &&
+            context.state.analysis.css &&
+            context.state.analysis.css.hash !== "" &&
+            b.literal(context.state.analysis.css.hash),
         is_ignored(element, "hydration_attribute_changed") && b.true,
     );
 
-    if (has_state) {
+    if (is_dynamic) {
         context.state.init.push(b.let(attributes_id));
         const update = b.stmt(b.assignment("=", attributes_id, call));
         context.state.update.push(update);
-        return true;
+    } else {
+        context.state.init.push(b.stmt(call));
+    }
+}
+
+/**
+ * @param {AST.Attribute['value']} value
+ * @param {import("../../types.js").ComponentContext} context
+ * @param {(value: Expression, metadata: ExpressionMetadata) => Expression} memoize
+ * @returns {{ value: Expression, has_state: boolean }}
+ */
+export function build_attribute_value(
+    value,
+    context,
+    memoize = (value) => value,
+) {
+    if (value === true) {
+        return { value: b.true, has_state: false };
     }
 
-    context.state.init.push(b.stmt(call));
-    return false;
+    if (!Array.isArray(value) || value.length === 1) {
+        const chunk = Array.isArray(value) ? value[0] : value;
+
+        if (chunk.type === "Text") {
+            return { value: b.literal(chunk.data), has_state: false };
+        }
+
+        let expression = /** @type {Expression} */ (
+            context.visit(chunk.expression)
+        );
+
+        return {
+            value: memoize(expression, chunk.metadata.expression),
+            has_state: chunk.metadata.expression.has_state,
+        };
+    }
+
+    return build_template_chunk(value, context.visit, context.state, memoize);
 }
 
 /**
@@ -181,4 +219,54 @@ export function build_class_directives(
             state.init.push(update);
         }
     }
+}
+
+/**
+ * @param {Identifier} node_id
+ * @param {AST.Attribute} attribute
+ * @param {unknown[]} style_directives
+ * @param {import("../../types.js").ComponentContext} context
+ */
+export function build_set_style(node_id, attribute, style_directives, context) {
+    let { value, has_state } = build_attribute_value(
+        attribute.value,
+        context,
+        (value, metadata) =>
+            metadata.has_call ? get_expression_id(context.state, value) : value,
+    );
+
+    /** @type {Identifier | undefined} */
+    let previous_id;
+
+    /** @type {ObjectExpression | Identifier | undefined} */
+    let prev;
+
+    /** @type {ArrayExpression | ObjectExpression | undefined} */
+    let next;
+
+    if (style_directives.length) {
+        // next = build_style_directives_object(style_directives, context);
+        // has_state ||= style_directives.some(
+        //     (d) => d.metadata.expression.has_state,
+        // );
+        //
+        // if (has_state) {
+        //     previous_id = b.id(context.state.scope.generate("styles"));
+        //     context.state.init.push(b.declaration("let", previous_id));
+        //     prev = previous_id;
+        // } else {
+        //     prev = b.object([]);
+        // }
+    }
+
+    /** @type {Expression} */
+    let set_style = b.call("$.set_style", node_id, value, prev, next);
+
+    if (previous_id) {
+        set_style = b.assignment("=", previous_id, set_style);
+    }
+
+    (has_state ? context.state.update : context.state.init).push(
+        b.stmt(set_style),
+    );
 }

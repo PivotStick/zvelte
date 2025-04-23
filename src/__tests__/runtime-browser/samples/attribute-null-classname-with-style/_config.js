@@ -9,7 +9,7 @@ export default defineTest({
         };
     },
 
-    html: '<div class=" zvelte-x1o6ra"></div>',
+    html: '<div class="zvelte-x1o6ra"></div>',
 
     async test({ props, target }) {
         const div = target.querySelector("div");
@@ -17,11 +17,11 @@ export default defineTest({
 
         props.testName = null;
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
 
         props.testName = undefined;
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
 
         props.testName = undefined + "";
         await tick();
@@ -53,7 +53,7 @@ export default defineTest({
 
         props.testName = "";
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
 
         props.testName = "testClassName";
         await tick();

@@ -646,6 +646,7 @@ function if_builder(test, consequent, alternate) {
 
 const true_instance = literal(true);
 const false_instance = literal(false);
+const null_instance = literal(null);
 
 /** @type {import('estree').ThisExpression} */
 const this_instance = {
@@ -663,6 +664,7 @@ export {
     var_builder as var,
     true_instance as true,
     false_instance as false,
+    null_instance as null,
     function_builder as function,
     return_builder as return,
     this_instance as this,

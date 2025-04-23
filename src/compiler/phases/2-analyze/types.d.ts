@@ -7,6 +7,7 @@ export interface ComponentAnalysis extends Analysis {
 
     root: ScopeRoot;
 
+    runes: boolean;
     css: null | {
         hash: string;
         ast: Css.StyleSheet;

@@ -210,7 +210,377 @@ export class Scope {
             this.root.conflicts.add(node.name);
         }
     }
+
+    // /**
+    // * Does partial evaluation to find an exact value or at least the rough type of the expression.
+    // * Only call this once scope has been fully generated in a first pass,
+    // * else this evaluates on incomplete data and may yield wrong results.
+    // * @param {import("estree").Expression} expression
+    // * @param {Set<any>} [values]
+    // */
+    //evaluate(expression, values = new Set()) {
+    //	return new Evaluation(this, expression, values);
+    //}
 }
+
+// class Evaluation {
+// 	/** @type {Set<any>} */
+// 	values;
+//
+// 	/**
+// 	 * True if there is exactly one possible value
+// 	 * @readonly
+// 	 * @type {boolean}
+// 	 */
+// 	is_known = true;
+//
+// 	/**
+// 	 * True if the value is known to not be null/undefined
+// 	 * @readonly
+// 	 * @type {boolean}
+// 	 */
+// 	is_defined = true;
+//
+// 	/**
+// 	 * True if the value is known to be a string
+// 	 * @readonly
+// 	 * @type {boolean}
+// 	 */
+// 	is_string = true;
+//
+// 	/**
+// 	 * True if the value is known to be a number
+// 	 * @readonly
+// 	 * @type {boolean}
+// 	 */
+// 	is_number = true;
+//
+// 	/**
+// 	 * @readonly
+// 	 * @type {any}
+// 	 */
+// 	value = undefined;
+//
+// 	/**
+// 	 *
+// 	 * @param {Scope} scope
+// 	 * @param {import("estree").Expression} expression
+// 	 * @param {Set<any>} values
+// 	 */
+// 	constructor(scope, expression, values) {
+// 		this.values = values;
+//
+// 		switch (expression.type) {
+// 			case 'Literal': {
+// 				this.values.add(expression.value);
+// 				break;
+// 			}
+//
+// 			case 'Identifier': {
+// 				const binding = scope.get(expression.name);
+//
+// 				if (binding) {
+// 					if (
+// 						binding.initial?.type === 'CallExpression' &&
+// 						get_rune(binding.initial, scope) === '$props.id'
+// 					) {
+// 						this.values.add(STRING);
+// 						break;
+// 					}
+//
+// 					const is_prop =
+// 						binding.kind === 'prop' ||
+// 						binding.kind === 'rest_prop' ||
+// 						binding.kind === 'bindable_prop';
+//
+// 					if (binding.initial?.type === 'EachBlock' && binding.initial.index === expression.name) {
+// 						this.values.add(NUMBER);
+// 						break;
+// 					}
+//
+// 					if (!binding.updated && binding.initial !== null && !is_prop) {
+// 						binding.scope.evaluate(/** @type {Expression} */ (binding.initial), this.values);
+// 						break;
+// 					}
+// 				} else if (expression.name === 'undefined') {
+// 					this.values.add(undefined);
+// 					break;
+// 				}
+//
+// 				// TODO glean what we can from reassignments
+// 				// TODO one day, expose props and imports somehow
+//
+// 				this.values.add(UNKNOWN);
+// 				break;
+// 			}
+//
+// 			case 'BinaryExpression': {
+// 				const a = scope.evaluate(/** @type {Expression} */ (expression.left)); // `left` cannot be `PrivateIdentifier` unless operator is `in`
+// 				const b = scope.evaluate(expression.right);
+//
+// 				if (a.is_known && b.is_known) {
+// 					this.values.add(binary[expression.operator](a.value, b.value));
+// 					break;
+// 				}
+//
+// 				switch (expression.operator) {
+// 					case '!=':
+// 					case '!==':
+// 					case '<':
+// 					case '<=':
+// 					case '>':
+// 					case '>=':
+// 					case '==':
+// 					case '===':
+// 					case 'in':
+// 					case 'instanceof':
+// 						this.values.add(true);
+// 						this.values.add(false);
+// 						break;
+//
+// 					case '%':
+// 					case '&':
+// 					case '*':
+// 					case '**':
+// 					case '-':
+// 					case '/':
+// 					case '<<':
+// 					case '>>':
+// 					case '>>>':
+// 					case '^':
+// 					case '|':
+// 						this.values.add(NUMBER);
+// 						break;
+//
+// 					case '+':
+// 						if (a.is_string || b.is_string) {
+// 							this.values.add(STRING);
+// 						} else if (a.is_number && b.is_number) {
+// 							this.values.add(NUMBER);
+// 						} else {
+// 							this.values.add(STRING);
+// 							this.values.add(NUMBER);
+// 						}
+// 						break;
+//
+// 					default:
+// 						this.values.add(UNKNOWN);
+// 				}
+// 				break;
+// 			}
+//
+// 			case 'ConditionalExpression': {
+// 				const test = scope.evaluate(expression.test);
+// 				const consequent = scope.evaluate(expression.consequent);
+// 				const alternate = scope.evaluate(expression.alternate);
+//
+// 				if (test.is_known) {
+// 					for (const value of (test.value ? consequent : alternate).values) {
+// 						this.values.add(value);
+// 					}
+// 				} else {
+// 					for (const value of consequent.values) {
+// 						this.values.add(value);
+// 					}
+//
+// 					for (const value of alternate.values) {
+// 						this.values.add(value);
+// 					}
+// 				}
+// 				break;
+// 			}
+//
+// 			case 'LogicalExpression': {
+// 				const a = scope.evaluate(expression.left);
+// 				const b = scope.evaluate(expression.right);
+//
+// 				if (a.is_known) {
+// 					if (b.is_known) {
+// 						this.values.add(logical[expression.operator](a.value, b.value));
+// 						break;
+// 					}
+//
+// 					if (
+// 						(expression.operator === '&&' && !a.value) ||
+// 						(expression.operator === '||' && a.value) ||
+// 						(expression.operator === '??' && a.value != null)
+// 					) {
+// 						this.values.add(a.value);
+// 					} else {
+// 						for (const value of b.values) {
+// 							this.values.add(value);
+// 						}
+// 					}
+//
+// 					break;
+// 				}
+//
+// 				for (const value of a.values) {
+// 					this.values.add(value);
+// 				}
+//
+// 				for (const value of b.values) {
+// 					this.values.add(value);
+// 				}
+// 				break;
+// 			}
+//
+// 			case 'UnaryExpression': {
+// 				const argument = scope.evaluate(expression.argument);
+//
+// 				if (argument.is_known) {
+// 					this.values.add(unary[expression.operator](argument.value));
+// 					break;
+// 				}
+//
+// 				switch (expression.operator) {
+// 					case '!':
+// 					case 'delete':
+// 						this.values.add(false);
+// 						this.values.add(true);
+// 						break;
+//
+// 					case '+':
+// 					case '-':
+// 					case '~':
+// 						this.values.add(NUMBER);
+// 						break;
+//
+// 					case 'typeof':
+// 						this.values.add(STRING);
+// 						break;
+//
+// 					case 'void':
+// 						this.values.add(undefined);
+// 						break;
+//
+// 					default:
+// 						this.values.add(UNKNOWN);
+// 				}
+// 				break;
+// 			}
+//
+// 			case 'CallExpression': {
+// 				const keypath = get_global_keypath(expression.callee, scope);
+//
+// 				if (keypath) {
+// 					if (is_rune(keypath)) {
+// 						const arg = /** @type {Expression | undefined} */ (expression.arguments[0]);
+//
+// 						switch (keypath) {
+// 							case '$state':
+// 							case '$state.raw':
+// 							case '$derived':
+// 								if (arg) {
+// 									scope.evaluate(arg, this.values);
+// 								} else {
+// 									this.values.add(undefined);
+// 								}
+// 								break;
+//
+// 							case '$props.id':
+// 								this.values.add(STRING);
+// 								break;
+//
+// 							case '$effect.tracking':
+// 								this.values.add(false);
+// 								this.values.add(true);
+// 								break;
+//
+// 							case '$derived.by':
+// 								if (arg?.type === 'ArrowFunctionExpression' && arg.body.type !== 'BlockStatement') {
+// 									scope.evaluate(arg.body, this.values);
+// 									break;
+// 								}
+//
+// 								this.values.add(UNKNOWN);
+// 								break;
+//
+// 							default: {
+// 								this.values.add(UNKNOWN);
+// 							}
+// 						}
+//
+// 						break;
+// 					}
+//
+// 					if (
+// 						Object.hasOwn(globals, keypath) &&
+// 						expression.arguments.every((arg) => arg.type !== 'SpreadElement')
+// 					) {
+// 						const [type, fn] = globals[keypath];
+// 						const values = expression.arguments.map((arg) => scope.evaluate(arg));
+//
+// 						if (fn && values.every((e) => e.is_known)) {
+// 							this.values.add(fn(...values.map((e) => e.value)));
+// 						} else {
+// 							this.values.add(type);
+// 						}
+//
+// 						break;
+// 					}
+// 				}
+//
+// 				this.values.add(UNKNOWN);
+// 				break;
+// 			}
+//
+// 			case 'TemplateLiteral': {
+// 				let result = expression.quasis[0].value.cooked;
+//
+// 				for (let i = 0; i < expression.expressions.length; i += 1) {
+// 					const e = scope.evaluate(expression.expressions[i]);
+//
+// 					if (e.is_known) {
+// 						result += e.value + expression.quasis[i + 1].value.cooked;
+// 					} else {
+// 						this.values.add(STRING);
+// 						break;
+// 					}
+// 				}
+//
+// 				this.values.add(result);
+// 				break;
+// 			}
+//
+// 			case 'MemberExpression': {
+// 				const keypath = get_global_keypath(expression, scope);
+//
+// 				if (keypath && Object.hasOwn(global_constants, keypath)) {
+// 					this.values.add(global_constants[keypath]);
+// 					break;
+// 				}
+//
+// 				this.values.add(UNKNOWN);
+// 				break;
+// 			}
+//
+// 			default: {
+// 				this.values.add(UNKNOWN);
+// 			}
+// 		}
+//
+// 		for (const value of this.values) {
+// 			this.value = value; // saves having special logic for `size === 1`
+//
+// 			if (value !== STRING && typeof value !== 'string') {
+// 				this.is_string = false;
+// 			}
+//
+// 			if (value !== NUMBER && typeof value !== 'number') {
+// 				this.is_number = false;
+// 			}
+//
+// 			if (value == null || value === UNKNOWN) {
+// 				this.is_defined = false;
+// 			}
+// 		}
+//
+// 		if (this.values.size > 1 || typeof this.value === 'symbol') {
+// 			this.is_known = false;
+// 		}
+// 	}
+// }
 
 export class ScopeRoot {
     /** @type {Set<string>} */

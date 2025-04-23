@@ -220,7 +220,7 @@ export function Fragment(node, context) {
     }
 
     if (state.update.length > 0) {
-        body.push(build_render_statement(state.update));
+        body.push(build_render_statement(state));
     }
 
     body.push(...state.after_update);

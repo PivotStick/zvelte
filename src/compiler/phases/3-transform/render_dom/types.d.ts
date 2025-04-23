@@ -8,6 +8,7 @@ export type ComponentClientTransformState = {
     readonly scope: Scope;
     readonly scopes: Map<ZvelteNode, Scope>;
     readonly events: Set<string>;
+    expressions: import("estree").Expression[];
     analysis: ComponentAnalysis;
     options: CompilerOptions;
     hoisted: (

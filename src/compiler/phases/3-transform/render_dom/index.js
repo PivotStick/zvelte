@@ -65,6 +65,7 @@ export function renderDom(source, ast, analysis, options, meta) {
     const state = {
         scope: analysis.template.scope,
         scopes: analysis.template.scopes,
+        expressions: [],
         analysis,
         options,
         hoisted: [b.importAll("$", "@pivotass/zvelte/internal/client")],

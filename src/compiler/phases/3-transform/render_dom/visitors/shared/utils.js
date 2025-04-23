@@ -1,8 +1,16 @@
+/** @import * as AST from '#ast' */
+/** @import { ArrayExpression, Expression, Identifier, ObjectExpression } from "estree" */
+/** @import { ExpressionMetadata } from "../../../../../types.js" */
+/** @import { ComponentClientTransformState, ComponentContext } from "../../types.js" */
+
 import { walk } from "zimmerframe";
 import { sanitize_template_string } from "../../../../../utils/sanitize_template_string.js";
 import { regex_is_valid_identifier } from "../../../../patterns.js";
 import is_reference from "is-reference";
 import * as b from "../../builders.js";
+import { build_attribute_value } from "./element.js";
+import { build_class_directives_object } from "../RegularElement.js";
+import { escape_html } from "../../../../../escaping.js";
 
 /**
  * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
@@ -27,12 +35,28 @@ export function get_states_and_calls(values) {
 }
 
 /**
- * @param {import("estree").Statement[]} update
+ * @param {ComponentClientTransformState} state
  */
-export function build_render_statement(update) {
-    return update.length === 1
-        ? build_update(update[0])
-        : b.stmt(b.call("$.template_effect", b.thunk(b.block(update))));
+export function build_render_statement(state) {
+    return b.stmt(
+        b.call(
+            "$.template_effect",
+            b.arrow(
+                state.expressions.map((_, i) => b.id(`$${i}`)),
+                state.update.length === 1 &&
+                    state.update[0].type === "ExpressionStatement"
+                    ? state.update[0].expression
+                    : b.block(state.update),
+            ),
+            state.expressions.length > 0 &&
+                b.array(
+                    state.expressions.map((expression) => b.thunk(expression)),
+                ),
+            state.expressions.length > 0 &&
+                !state.analysis.runes &&
+                b.id("$.derived_safe_equal"),
+        ),
+    );
 }
 
 /**
@@ -48,10 +72,10 @@ export function build_update(statement) {
 }
 
 /**
- * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
- * @param {(node: import("#ast").ZvelteNode, state: any) => any} visit
- * @param {import("../../types.js").ComponentClientTransformState} state
- * @returns {{ value: import("estree").Expression, has_state: boolean, has_call: boolean }}
+ * @param {Array<AST.Text | AST.ExpressionTag>} values
+ * @param {(node: AST.ZvelteNode, state: any) => any} visit
+ * @param {ComponentClientTransformState} state
+ * @returns {{ value: Expression, has_state: boolean, has_call: boolean }}
  */
 export function build_template_literal(values, visit, state) {
     /** @type {import("estree").Expression[]} */
@@ -137,31 +161,35 @@ export function build_template_literal(values, visit, state) {
 }
 
 /**
- * @param {Array<import("#ast").Text | import("#ast").ExpressionTag>} values
- * @param {(node: import("#ast").ZvelteNode, state: any) => any} visit
- * @param {import("../../types.js").ComponentClientTransformState} state
- * @returns {{ value: import("estree").Expression, has_state: boolean, has_call: boolean }}
+ *
+ * @param {ComponentClientTransformState} state
+ * @param {Expression} value
  */
-export function build_template_chunk(values, visit, state) {
-    /** @type {import("estree").Expression[]} */
+export function get_expression_id(state, value) {
+    return b.id(`$${state.expressions.push(value) - 1}`);
+}
+
+/**
+ * @param {Array<AST.Text | AST.ExpressionTag>} values
+ * @param {(node: AST.ZvelteNode, state: any) => any} visit
+ * @param {ComponentClientTransformState} state
+ * @param {(value: Expression, metadata: ExpressionMetadata) => Expression} memoize
+ * @returns {{ value: Expression, has_state: boolean }}
+ */
+export function build_template_chunk(
+    values,
+    visit,
+    state,
+    memoize = (value, metadata) =>
+        metadata.has_call ? get_expression_id(state, value) : value,
+) {
+    /** @type {Expression[]} */
     const expressions = [];
 
     let quasi = b.quasi("");
     const quasis = [quasi];
 
-    let has_call = false;
     let has_state = false;
-    let contains_multiple_call_expression = false;
-
-    for (const node of values) {
-        if (node.type === "ExpressionTag") {
-            const metadata = node.metadata.expression;
-
-            contains_multiple_call_expression ||= has_call && metadata.has_call;
-            has_call ||= metadata.has_call;
-            has_state ||= metadata.has_state;
-        }
-    }
 
     for (let i = 0; i < values.length; i++) {
         const node = values[i];
@@ -169,53 +197,46 @@ export function build_template_chunk(values, visit, state) {
         if (node.type === "Text") {
             quasi.value.cooked += node.data;
         } else if (
-            node.type === "ExpressionTag" &&
-            (node.expression.type === "NullLiteral" ||
-                node.expression.type === "BooleanLiteral" ||
-                node.expression.type === "StringLiteral" ||
-                node.expression.type === "NumericLiteral")
+            node.expression.type === "NullLiteral" ||
+            node.expression.type === "BooleanLiteral" ||
+            node.expression.type === "NumericLiteral" ||
+            node.expression.type === "StringLiteral"
         ) {
             if (node.expression.value != null) {
                 quasi.value.cooked += node.expression.value + "";
             }
-        } else {
-            if (contains_multiple_call_expression) {
-                const id = b.id(state.scope.generate("stringified_text"));
-                state.init.push(
-                    b.const(
-                        id,
-                        b.call(
-                            "$.derived",
-                            b.thunk(
-                                b.logical(
-                                    /** @type {import("estree").Expression} */ (
-                                        visit(node.expression, state)
-                                    ),
-                                    "??",
-                                    b.literal(""),
-                                ),
-                            ),
-                        ),
-                    ),
-                );
-                expressions.push(b.call("$.get", id));
-            } else if (values.length === 1) {
-                // If we have a single expression, then pass that in directly to possibly avoid doing
-                // extra work in the template_effect (instead we do the work in set_text).
-                return {
-                    value: visit(node.expression, state),
-                    has_state,
-                    has_call,
-                };
-            } else {
-                expressions.push(
-                    b.logical(
-                        visit(node.expression, state),
-                        "??",
-                        b.literal(""),
-                    ),
-                );
+        } else if (
+            node.expression.type !== "Identifier" ||
+            node.expression.name !== "undefined" ||
+            state.scope.get("undefined")
+        ) {
+            let value = memoize(
+                /** @type {Expression} */ (visit(node.expression, state)),
+                node.metadata.expression,
+            );
+
+            has_state ||= node.metadata.expression.has_state;
+
+            if (values.length === 1) {
+                return { value, has_state };
             }
+
+            if (
+                value.type === "LogicalExpression" &&
+                value.right.type === "Literal" &&
+                (value.operator === "??" || value.operator === "||")
+            ) {
+                // `foo ?? null` -=> `foo ?? ''`
+                // otherwise leave the expression untouched
+                if (value.right.value === null) {
+                    value = { ...value, right: b.literal("") };
+                }
+            }
+
+            // add `?? ''` where necessary
+            value = b.logical(value, "??", b.literal(""));
+
+            expressions.push(value);
 
             quasi = b.quasi("", i + 1 === values.length);
             quasis.push(quasi);
@@ -228,9 +249,12 @@ export function build_template_chunk(values, visit, state) {
         );
     }
 
-    const value = b.template(quasis, expressions);
+    const value =
+        expressions.length > 0
+            ? b.template(quasis, expressions)
+            : b.literal(/** @type {string} */ (quasi.value.cooked));
 
-    return { value, has_state, has_call };
+    return { value, has_state };
 }
 
 /**
@@ -462,4 +486,105 @@ export function object(expression) {
     }
 
     return expression;
+}
+
+/**
+ * @param {AST.RegularElement | AST.ZvelteElement} element
+ * @param {Identifier} node_id
+ * @param {AST.Attribute} attribute
+ * @param {AST.ClassDirective[]} class_directives
+ * @param {ComponentContext} context
+ * @param {boolean} is_html
+ */
+export function build_set_class(
+    element,
+    node_id,
+    attribute,
+    class_directives,
+    context,
+    is_html,
+) {
+    let { value, has_state } = build_attribute_value(
+        attribute.value,
+        context,
+        (value, metadata) => {
+            if (attribute.metadata.needs_clsx) {
+                value = b.call("$.clsx", value);
+            }
+
+            return metadata.has_call
+                ? get_expression_id(context.state, value)
+                : value;
+        },
+    );
+
+    /** @type {Identifier | undefined} */
+    let previous_id;
+
+    /** @type {ObjectExpression | Identifier | undefined} */
+    let prev;
+
+    /** @type {ObjectExpression | Identifier | undefined} */
+    let next;
+
+    if (class_directives.length) {
+        next = build_class_directives_object(class_directives, context);
+        has_state ||= class_directives.some(
+            (d) => d.metadata.expression.has_state,
+        );
+
+        if (has_state) {
+            previous_id = b.id(context.state.scope.generate("classes"));
+            context.state.init.push(b.declaration("let", previous_id));
+            prev = previous_id;
+        } else {
+            prev = b.object([]);
+        }
+    }
+
+    /** @type {Expression | undefined} */
+    let css_hash;
+
+    if (element.metadata.scoped && context.state.analysis.css?.hash) {
+        if (
+            value.type === "Literal" &&
+            (value.value === "" || value.value === null)
+        ) {
+            value = b.literal(context.state.analysis.css.hash);
+        } else if (
+            value.type === "Literal" &&
+            typeof value.value === "string"
+        ) {
+            value = b.literal(
+                escape_html(value.value, true) +
+                    " " +
+                    context.state.analysis.css.hash,
+            );
+        } else {
+            css_hash = b.literal(context.state.analysis.css.hash);
+        }
+    }
+
+    if (!css_hash && next) {
+        css_hash = b.null;
+    }
+
+    /** @type {Expression} */
+    let set_class = b.call(
+        "$.set_class",
+        node_id,
+        is_html ? b.literal(1) : b.literal(0),
+        value,
+        css_hash,
+        prev,
+        next,
+    );
+
+    if (previous_id) {
+        set_class = b.assignment("=", previous_id, set_class);
+    }
+
+    (has_state ? context.state.update : context.state.init).push(
+        b.stmt(set_class),
+    );
 }

@@ -33,6 +33,7 @@ export function analyseComponent(root, options) {
     const analysis = {
         name: options.filename.match(/([^/]+)\.\w+$/)?.[1] ?? "_unknown_",
         root: scopeRoot,
+        runes: true,
         elements: [],
         source: "",
         css: root.css
@@ -62,67 +63,78 @@ export function analyseComponent(root, options) {
         analyze_css(analysis.css.ast, analysis);
 
         // mark nodes as scoped/unused/empty etc
-        for (const element of analysis.elements) {
-            prune(analysis.css.ast, element);
+        for (const node of analysis.elements) {
+            prune(analysis.css.ast, node);
         }
 
-        outer: for (const node of analysis.elements) {
-            if (node.metadata.scoped) {
-                // Dynamic elements in dom mode always use spread for attributes and therefore shouldn't have a class attribute added to them
-                // TODO this happens during the analysis phase, which shouldn't know anything about client vs server
-                if (node.type === "ZvelteElement" && options.generate === "")
-                    continue;
+        // const { comment } = analysis.css.ast.content;
+        // const should_ignore_unused =
+        // 	comment &&
+        // 	extract_zvelte_ignore(comment.start, comment.data, analysis.runes).includes(
+        // 		'css_unused_selector'
+        // 	);
 
-                /** @type {import('#ast').Attribute | undefined} */
-                let class_attribute = undefined;
+        // if (!should_ignore_unused) {
+        // 	warn_unused(analysis.css.ast);
+        // }
+    }
 
-                for (const attribute of node.attributes) {
-                    if (attribute.type === "SpreadAttribute") {
-                        // The spread method appends the hash to the end of the class attribute on its own
-                        continue outer;
-                    }
+    for (const node of analysis.elements) {
+        if (node.metadata.scoped && is_custom_element_node(node)) {
+            mark_subtree_dynamic(node.metadata.path);
+        }
 
-                    if (attribute.type !== "Attribute") continue;
-                    if (attribute.name.toLowerCase() !== "class") continue;
+        let has_class = false;
+        let has_style = false;
+        let has_spread = false;
+        let has_class_directive = false;
+        let has_style_directive = false;
 
-                    class_attribute = attribute;
-                }
-
-                if (class_attribute && class_attribute.value !== true) {
-                    const chunks = class_attribute.value;
-
-                    if (chunks.length === 1 && chunks[0].type === "Text") {
-                        chunks[0].data += ` ${analysis.css.hash}`;
-                    } else {
-                        chunks.push({
-                            type: "Text",
-                            data: ` ${analysis.css.hash}`,
-                            start: -1,
-                            end: -1,
-                            parent: null,
-                        });
-                    }
-                } else {
-                    node.attributes.push(
-                        create_attribute("class", -1, -1, [
-                            {
-                                type: "Text",
-                                data: analysis.css.hash,
-                                parent: null,
-                                start: -1,
-                                end: -1,
-                            },
-                        ]),
-                    );
-
-                    if (
-                        is_custom_element_node(node) &&
-                        node.attributes.length === 1
-                    ) {
-                        mark_subtree_dynamic(node.metadata.path);
-                    }
-                }
+        for (const attribute of node.attributes) {
+            // The spread method appends the hash to the end of the class attribute on its own
+            if (attribute.type === "SpreadAttribute") {
+                has_spread = true;
+                break;
+            } else if (attribute.type === "Attribute") {
+                has_class ||= attribute.name.toLowerCase() === "class";
+                has_style ||= attribute.name.toLowerCase() === "style";
+            } else if (attribute.type === "ClassDirective") {
+                has_class_directive = true;
+            } else if (attribute.type === "StyleDirective") {
+                has_style_directive = true;
             }
+        }
+
+        // We need an empty class to generate the set_class() or class="" correctly
+        if (
+            !has_spread &&
+            !has_class &&
+            (node.metadata.scoped || has_class_directive)
+        ) {
+            node.attributes.push(
+                create_attribute("class", -1, -1, [
+                    {
+                        type: "Text",
+                        data: "",
+                        start: -1,
+                        end: -1,
+                    },
+                ]),
+            );
+        }
+
+        // We need an empty style to generate the set_style() correctly
+        if (!has_spread && !has_style && has_style_directive) {
+            node.attributes.push(
+                create_attribute("style", -1, -1, [
+                    {
+                        type: "Text",
+                        data: "",
+                        start: -1,
+                        end: -1,
+                    },
+                ]),
+            );
         }
     }
 

@@ -10,8 +10,9 @@ export function IfBlock(node, context) {
     context.state.template.push("<!>");
     const statements = [];
 
-    /** @type {BlockStatement} */
-    const consequent = /** @type {any} */ (context.visit(node.consequent));
+    const consequent = /** @type {BlockStatement} */ (
+        context.visit(node.consequent)
+    );
     const consequent_id = context.state.scope.generate("consequent");
 
     statements.push(
@@ -21,17 +22,29 @@ export function IfBlock(node, context) {
     let alternate_id;
 
     if (node.alternate) {
-        /** @type {BlockStatement} */
-        const alternate = /** @type {any} */ (context.visit(node.alternate));
         alternate_id = context.state.scope.generate("alternate");
+        const alternate = /** @type {BlockStatement} */ (
+            context.visit(node.alternate)
+        );
+        const nodes = node.alternate.nodes;
+
+        let alternate_args = [b.id("$$anchor")];
+        if (
+            nodes.length === 1 &&
+            nodes[0].type === "IfBlock" &&
+            nodes[0].elseif
+        ) {
+            alternate_args.push(b.id("$$elseif"));
+        }
+
         statements.push(
-            b.var(b.id(alternate_id), b.arrow([b.id("$$anchor")], alternate)),
+            b.var(b.id(alternate_id), b.arrow(alternate_args, alternate)),
         );
     }
 
     /** @type {Expression[]} */
     const args = [
-        context.state.node,
+        node.elseif ? b.id("$$anchor") : context.state.node,
         b.arrow(
             [b.id("$$render")],
             b.block([
@@ -43,7 +56,7 @@ export function IfBlock(node, context) {
                               b.call(
                                   b.id("$$render"),
                                   b.id(alternate_id),
-                                  node.alternate ? b.literal(false) : undefined,
+                                  b.false,
                               ),
                           )
                         : undefined,
@@ -74,7 +87,7 @@ export function IfBlock(node, context) {
         // ...even though they're logically equivalent. In the first case, the
         // transition will only play when `y` changes, but in the second it
         // should play when `x` or `y` change — both are considered 'local'
-        args.push(b.literal(true));
+        args.push(b.id("$$elseif"));
     }
 
     statements.push(b.stmt(b.call("$.if", ...args)));

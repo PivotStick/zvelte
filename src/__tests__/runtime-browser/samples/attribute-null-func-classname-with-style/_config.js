@@ -19,11 +19,11 @@ export default defineTest({
 
         props.testName = null;
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
 
         props.testName = undefined;
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
 
         props.testName = undefined + "";
         await tick();
@@ -55,6 +55,6 @@ export default defineTest({
 
         props.testName = "";
         await tick();
-        expect(div.className).toEqual(" zvelte-x1o6ra");
+        expect(div.className).toEqual("zvelte-x1o6ra");
     },
 });

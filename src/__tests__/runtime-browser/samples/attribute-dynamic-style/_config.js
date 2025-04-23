@@ -15,13 +15,11 @@ export default defineTest({
         props.columns = [{}, {}, { size: "33px" }];
         await tick();
         expect(target.innerHTML).toEqual(
-            `<div style="grid-template-columns: auto auto 33px;">Some stuff</div>`
+            `<div style="grid-template-columns: auto auto 33px;">Some stuff</div>`,
         );
 
         props.columns = [];
         await tick();
-        expect(target.innerHTML).toEqual(
-            `<div style="grid-template-columns: ;">Some stuff</div>`
-        );
+        expect(target.innerHTML).toEqual(`<div style="">Some stuff</div>`);
     },
 });
