@@ -319,16 +319,6 @@ export function renderDom(source, ast, analysis, options, meta) {
         );
         cmp.body.body.push(b.return(b.call("$.pop", b.object([]))));
 
-        body.push(b.stmt(b.call("$.mark_module_start")));
-        body.push(
-            b.stmt(
-                b.assignment(
-                    "=",
-                    b.member(cmp.id, b.id("$.FILENAME"), true),
-                    b.string(options.filepath),
-                ),
-            ),
-        );
         body.push(cmp);
 
         const source = b.member(
@@ -382,7 +372,6 @@ export function renderDom(source, ast, analysis, options, meta) {
         );
 
         body.push(b.exportDefault(cmp.id));
-        body.push(b.stmt(b.call("$.mark_module_end", cmp.id)));
     }
 
     if (options.async) {
