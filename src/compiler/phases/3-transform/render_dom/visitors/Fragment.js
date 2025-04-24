@@ -66,6 +66,7 @@ export function Fragment(node, context) {
     /** @type {import("../types.js").ComponentClientTransformState} */
     const state = {
         ...context.state,
+        expressions: [],
         before_init: [],
         init: [],
         update: [],
