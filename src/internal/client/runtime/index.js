@@ -137,7 +137,9 @@ export function create_load(endpoint) {
         if (!response.ok || response.redirected) {
             if (
                 !response.redirected &&
-                response.headers.get("content-type") === "application/json"
+                response.headers
+                    .get("content-type")
+                    ?.includes("application/json")
             ) {
                 throw await response.json();
             }
