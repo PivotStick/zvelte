@@ -290,17 +290,17 @@ export interface Program extends BaseNode {
 
 export type Statement = ExpressionStatement | BlockStatement;
 
-export interface ExpressionStatement extends BaseStatement {
+export interface ExpressionStatement extends BaseNode {
     type: "ExpressionStatement";
     expression: Expression;
 }
 
-export interface BlockStatement extends BaseStatement {
+export interface BlockStatement extends BaseNode {
     type: "BlockStatement";
     body: Statement[];
 }
 
-export interface BlockStatement extends BaseStatement {
+export interface BlockStatement extends BaseNode {
     type: "BlockStatement";
     body: Statement[];
 }
