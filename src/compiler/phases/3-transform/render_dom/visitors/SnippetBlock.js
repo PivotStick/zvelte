@@ -91,9 +91,9 @@ export function SnippetBlock(node, context) {
     //     );
     // }
 
-    // Top-level snippets are hoisted so they can be referenced in the `<script>`
+    // Top-level snippets are hoisted so they can be referenced in the `js code`
     if (context.path.length === 1 && context.path[0].type === "Fragment") {
-        context.state.before_init.push(
+        context.state.snippets.push(
             b.assignment(
                 "=",
                 b.member(b.id("$$props"), node.expression),

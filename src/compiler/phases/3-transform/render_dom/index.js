@@ -80,6 +80,7 @@ export function renderDom(source, ast, analysis, options, meta) {
         initProps: new Set(),
         ignoreScope: false,
         els: false,
+        snippets: [],
         // these should be set by create_block - if they're called outside, it's a bug
         get before_init() {
             /** @type {any[]} */
@@ -250,6 +251,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                     b.true,
                 ),
             ),
+            ...state.snippets,
             b.var("$$els", b.object([])),
             b.var(
                 "$$scope",
@@ -297,6 +299,7 @@ export function renderDom(source, ast, analysis, options, meta) {
                         b.call("$.wrap", b.id("$$props")),
                     ),
                 ),
+                ...state.snippets,
             );
         }
     }

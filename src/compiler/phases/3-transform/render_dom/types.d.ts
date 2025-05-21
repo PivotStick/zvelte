@@ -41,6 +41,7 @@ export type ComponentClientTransformState = {
     els: boolean;
     ignoreScope: boolean;
     componentId: import("estree").Identifier;
+    snippets: import("estree").Statement[];
 
     readonly transform: Record<
         string,
