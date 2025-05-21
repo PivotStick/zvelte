@@ -6,7 +6,14 @@ export {
 } from "./types.d.ts";
 
 export { registerFilter, getFilter } from "./runtime/filters.js";
-export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
+export {
+    onMount,
+    onDestroy,
+    setContext,
+    getContext,
+    tick,
+    Snippet,
+} from "svelte";
 
 export function state<T, K extends keyof T>(
     scope: T,
