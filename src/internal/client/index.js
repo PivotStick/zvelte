@@ -1,5 +1,12 @@
 export { registerFilter, getFilter } from "./runtime/filters.js";
-export { onMount, onDestroy, setContext, getContext, tick } from "svelte";
+export {
+    onMount,
+    onDestroy,
+    setContext,
+    getContext,
+    tick,
+    createRawSnippet,
+} from "svelte";
 import * as $ from "svelte/internal/client";
 
 /**

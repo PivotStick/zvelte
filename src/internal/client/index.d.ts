@@ -13,6 +13,7 @@ export {
     getContext,
     tick,
     Snippet,
+    createRawSnippet,
 } from "svelte";
 
 export function state<T, K extends keyof T>(
