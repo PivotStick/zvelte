@@ -12,10 +12,14 @@ export default defineTest({
     async test({ props, target }) {
         props.x = 4;
         await tick();
-        expect(target.innerHTML, "<!----><p>x is less than 5</p>");
+        expect(target.innerHTML).toEqual("<!----><p>x is less than 5</p>");
 
         props.x = 6;
         await tick();
-        expect(target.innerHTML, "<!----><p>x is between 5 and 10</p>");
+        expect(target.innerHTML).toEqual("<!----><p>x is between 5 and 10</p>");
+
+        props.x = 11;
+        await tick();
+        expect(target.innerHTML).toEqual("<!----><p>x is greater than 10</p>");
     },
 });

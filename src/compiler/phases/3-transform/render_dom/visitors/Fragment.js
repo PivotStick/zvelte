@@ -51,9 +51,10 @@ export function Fragment(node, context) {
         trimmed.length === 1 && trimmed[0].type === "RegularElement";
     const is_single_child_not_needing_template =
         trimmed.length === 1 &&
-        // @ts-expect-error - because it might be implemented one day
+        // @ts-ignore
         (trimmed[0].type === "ZvelteFragment" ||
-            trimmed[0].type === "TitleElement");
+            trimmed[0].type === "TitleElement" ||
+            (trimmed[0].type === "IfBlock" && trimmed[0].elseif));
 
     const template_name = context.state.scope.root.unique("root"); // TODO infer name from parent
 
