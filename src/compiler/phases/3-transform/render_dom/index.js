@@ -1,17 +1,12 @@
 import { print } from "esrap";
 import * as b from "./builders.js";
 import { walk } from "zimmerframe";
-import {
-    EACH_INDEX_REACTIVE,
-    EACH_IS_CONTROLLED,
-    EACH_ITEM_IMMUTABLE,
-    EACH_ITEM_REACTIVE,
-} from "../../constants.js";
 import { setScope } from "./scope.js";
 import { filters } from "../../../../internal/client/runtime/filters.js";
 import { renderStylesheet } from "../css/index.js";
 import { buildLoadWrapper } from "./buildLoadWrapper.js";
 import { HtmlTag } from "./visitors/HtmlTag.js";
+import { LangTag } from "./visitors/LangTag.js";
 import { Comment } from "./visitors/Comment.js";
 import { Fragment } from "./visitors/Fragment.js";
 import { RegularElement } from "./visitors/RegularElement.js";
@@ -30,7 +25,6 @@ import { VariableTag } from "./visitors/VariableTag.js";
 import { SnippetBlock } from "./visitors/SnippetBlock.js";
 import { RenderTag } from "./visitors/RenderTag.js";
 import { ForBlock } from "./visitors/ForBlock.js";
-import { arrow } from "../render_php_ssr/builders.js";
 
 /**
  * This function ensures visitor sets don't accidentally clobber each other
@@ -222,6 +216,20 @@ export function renderDom(source, ast, analysis, options, meta) {
     }
 
     component.body.body.unshift(...init);
+
+    if (options.hasLang) {
+        state.hoisted.unshift(
+            b.importDefault(
+                "$$lang",
+                `./${options.filename.replace(/\.[^\.]*$/, ".lang.json")}`,
+            ),
+        );
+
+        state.hoisted.push(
+            b.const(b.id("$$langid"), b.call("crypto.randomUUID")),
+            b.stmt(b.call("$.init_lang", b.id("$$langid"), b.id("$$lang"))),
+        );
+    }
 
     if (options.hasJS) {
         state.hoisted.unshift(
@@ -460,6 +468,7 @@ const templateVisitors = {
     SpreadAttribute,
 
     HtmlTag,
+    LangTag,
 
     Component,
     ZvelteComponent,
@@ -611,7 +620,11 @@ const templateVisitors = {
 
             const right = b.call(
                 "$.derived",
-                b.thunk(context.visit(node.right.arguments[0])),
+                b.thunk(
+                    /** @type {import('estree').Expression} */ (
+                        context.visit(node.right.arguments[0])
+                    ),
+                ),
             );
 
             return b.const(id, right);
@@ -850,8 +863,16 @@ const templateVisitors = {
         );
     },
 
+    // @ts-ignore
     BlockStatement(node, { state, visit }) {
-        return b.block(node.body.map((statement) => visit(statement, state)));
+        return b.block(
+            node.body.map(
+                (statement) =>
+                    /** @type {import('estree').Statement} */ (
+                        visit(statement, state)
+                    ),
+            ),
+        );
     },
 
     // @ts-ignore

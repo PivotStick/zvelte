@@ -35,3 +35,5 @@ export function effect(fn: () => void | (() => void)): void;
 effect.pre = (fn: () => void | (() => void)) => {};
 effect.root = (fn: () => void | (() => void)) => {};
 effect.tracking = () => true;
+
+export { setLangFunctions } from "./runtime/lang.js";

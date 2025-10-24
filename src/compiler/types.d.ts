@@ -16,6 +16,7 @@ export type CompilerOptions = {
     preserveWhitespace: boolean;
     preserveComments: boolean;
     hasJS: boolean;
+    hasLang: boolean;
     css: "injected" | "external";
     async?: {
         endpoint: string;

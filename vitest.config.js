@@ -37,6 +37,12 @@ export default defineConfig({
                     .then(() => true)
                     .catch(() => false);
 
+                const hasLang = await access(
+                    id.replace(/\.zvelte$/, ".lang.json"),
+                )
+                    .then(() => true)
+                    .catch(() => false);
+
                 let overrides = {};
 
                 if (params.has("options")) {
@@ -55,6 +61,7 @@ export default defineConfig({
                 /** @type {import("./src/compiler/types").CompilerOptions} */
                 const options = {
                     hasJS,
+                    hasLang,
                     namespace: dirname(id)
                         .replace(root, "")
                         .replace(
@@ -71,9 +78,9 @@ export default defineConfig({
                             ImportTag(node, ctx) {
                                 imports.push(node);
                                 ctx.next();
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 };
 
                 const output = compile(code, options);
@@ -96,7 +103,7 @@ export default defineConfig({
 
                     // Zvelte/Components/samples/T007/Layout
                     return `
-${imports.map(n => `import "${join(__dirname, './src/__tests__/svelte-ssr-match', n.source.value.replace(/^Zvelte\/Components\//, ""))}.zvelte?${query}";`).join('\n')}
+${imports.map((n) => `import "${join(__dirname, "./src/__tests__/svelte-ssr-match", n.source.value.replace(/^Zvelte\/Components\//, ""))}.zvelte?${query}";`).join("\n")}
 
 export default async function(payload, props) {
     const result = await fetch("${endpoint}", {

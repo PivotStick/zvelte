@@ -62,3 +62,5 @@ export function derived(scope, key, fn) {
 }
 
 export const proxy = $.proxy;
+
+export { setLangFunctions } from "./runtime/lang.js";

@@ -32,6 +32,7 @@ export function compile(source, options = {}, meta = {}) {
     options.filepath ??= "_unknown_.zvelte";
     options.filename ??= options.filepath.split("/").pop() ?? "";
     options.hasJS ??= false;
+    options.hasLang ??= false;
     options.preserveWhitespace ??= false;
     options.preserveComments ??= false;
     options.hmr ??= false;
@@ -43,6 +44,7 @@ export function compile(source, options = {}, meta = {}) {
         filepath: options.filepath,
         filename: options.filename,
         hasJS: options.hasJS,
+        hasLang: options.hasLang,
         generate: options.generate,
         async: options.async,
         preserveWhitespace: options.preserveWhitespace,

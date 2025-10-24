@@ -38,7 +38,13 @@ export type ElementLike =
     | ZvelteHead
     | ZvelteSelf
     | ZvelteElement;
-export type Tag = ExpressionTag | HtmlTag | RenderTag | VariableTag | ImportTag;
+export type Tag =
+    | ExpressionTag
+    | HtmlTag
+    | RenderTag
+    | LangTag
+    | VariableTag
+    | ImportTag;
 export type Block = ForBlock | IfBlock | SnippetBlock | KeyBlock | AwaitBlock;
 export type Expression =
     | ArrowFunctionExpression
@@ -242,6 +248,11 @@ export interface HtmlTag extends BaseNode {
 export interface RenderTag extends BaseNode {
     type: "RenderTag";
     expression: CallExpression | FilterExpression;
+}
+
+export interface LangTag extends BaseNode {
+    type: "LangTag";
+    expressions: Expression[];
 }
 
 export interface Root extends BaseNode {

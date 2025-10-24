@@ -36,6 +36,9 @@ function expressionTag(parser) {
     } else if (parser.eat("@render")) {
         type = "RenderTag";
         parser.allowWhitespace();
+    } else if (parser.eat("@lang")) {
+        type = "LangTag";
+        parser.allowWhitespace();
     }
 
     const expression = parseExpression(parser);
@@ -49,6 +52,29 @@ function expressionTag(parser) {
             "`{{ @render ... }` tags can only contain call expressions",
             expression.start,
         );
+    }
+
+    if (type === "LangTag") {
+        const expressions = [expression];
+        parser.allowWhitespace();
+
+        while (parser.eat(",")) {
+            parser.allowWhitespace();
+            expressions.push(parseExpression(parser));
+            parser.allowWhitespace();
+        }
+
+        parser.eat("}}", true);
+        /**
+         * @type {import("../types.js").LangTag }
+         */
+        parser.append({
+            start,
+            end: parser.index,
+            type,
+            expressions,
+        });
+        return;
     }
 
     parser.allowWhitespace();

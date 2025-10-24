@@ -7,6 +7,7 @@ import {
     PROPS_IS_RUNES,
     PROPS_IS_UPDATED,
 } from "../../../compiler/phases/constants.js";
+import { langFunctions } from "./lang.js";
 
 export { mount, hydrate } from "svelte";
 export * from "svelte/internal/client";
@@ -298,4 +299,20 @@ export function wrap($$props) {
             );
         },
     });
+}
+
+/**
+ * @param {string} id
+ * @param {any[]} args
+ */
+export function lang(id, args) {
+    return langFunctions.resolve(id, args);
+}
+
+/**
+ * @param {string} id
+ * @param {any} resource
+ */
+export function init_lang(id, resource) {
+    langFunctions.setup(id, resource);
 }

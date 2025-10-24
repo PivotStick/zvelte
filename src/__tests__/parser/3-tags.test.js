@@ -1037,6 +1037,83 @@ describe("Parser: will test tags", () => {
                 parse(`{{ @render "some other value" }}`);
             },
         );
+
+        test("@lang tag", () => {
+            TemplateRootOf(`{{ @lang 'some.key' }}`, [
+                {
+                    type: "LangTag",
+                    start: 0,
+                    end: 22,
+                    expressions: [
+                        {
+                            type: "StringLiteral",
+                            value: "some.key",
+                            raw: "'some.key'",
+                            start: 9,
+                            end: 19,
+                        },
+                    ],
+                },
+            ]);
+        });
+
+        test("@lang tag with multiple arguments", () => {
+            TemplateRootOf(`{{ @lang 455, { key: "value" }, [true] }}`, [
+                {
+                    type: "LangTag",
+                    start: 0,
+                    end: 41,
+                    expressions: [
+                        {
+                            type: "NumericLiteral",
+                            value: 455,
+                            raw: "455",
+                            start: 9,
+                            end: 12,
+                        },
+                        {
+                            type: "ObjectExpression",
+                            start: 14,
+                            end: 30,
+                            properties: [
+                                {
+                                    type: "Property",
+                                    start: 16,
+                                    end: 28,
+                                    key: {
+                                        type: "Identifier",
+                                        name: "key",
+                                        start: 16,
+                                        end: 19,
+                                    },
+                                    value: {
+                                        type: "StringLiteral",
+                                        value: "value",
+                                        raw: '"value"',
+                                        start: 21,
+                                        end: 28,
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            type: "ArrayExpression",
+                            start: 32,
+                            end: 38,
+                            elements: [
+                                {
+                                    type: "BooleanLiteral",
+                                    value: true,
+                                    raw: "true",
+                                    start: 33,
+                                    end: 37,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ]);
+        });
     });
 
     test.fails("should crash on unexpected tag opening", () => {
