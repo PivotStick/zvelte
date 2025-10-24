@@ -76,6 +76,11 @@ export type ComponentInitArgs<
      * It is mostly used for event listeners
      */
     scope: Record<string, any>;
+
+    /**
+     * Same as the `@lang` tag, but as a js function for this component
+     */
+    lang(...args: any[]): any;
 };
 
 export type ComponentInitAsyncArgs<

@@ -245,6 +245,19 @@ export function renderDom(source, ast, analysis, options, meta) {
             b.prop("init", b.id("els"), b.id("$$els")),
         ]);
 
+        if (options.hasLang) {
+            initArgs.properties.push(
+                b.prop(
+                    "init",
+                    b.id("lang"),
+                    b.arrow(
+                        [b.id("...args")],
+                        b.call("$.lang", b.id("$$langid"), b.id("args")),
+                    ),
+                ),
+            );
+        }
+
         component.body.body.unshift(
             b.stmt(
                 b.call(
