@@ -213,6 +213,28 @@ const visitors = {
         node.metadata.args_with_call_expression = new Set();
         return next();
     },
+    HtmlTag(node, { next, path }) {
+        node.metadata.dynamic = true;
+
+        for (let i = path.length - 1; i >= 0; i--) {
+            const parent = path[i];
+            if (parent.type === "Fragment") {
+                parent.metadata.dynamic = true;
+            }
+        }
+        return next();
+    },
+    LangTag(node, { next, path }) {
+        node.metadata.dynamic = true;
+
+        for (let i = path.length - 1; i >= 0; i--) {
+            const parent = path[i];
+            if (parent.type === "Fragment") {
+                parent.metadata.dynamic = true;
+            }
+        }
+        return next();
+    },
     Component(node, { state, next, path }) {
         for (const parent of path) {
             if (parent.type === "Fragment") {
