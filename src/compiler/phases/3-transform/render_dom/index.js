@@ -170,6 +170,7 @@ export function renderDom(source, ast, analysis, options, meta) {
         templateVisitors,
     );
 
+    /** @type {any[]} */
     const init = [];
 
     if (ast.zs) {
@@ -227,7 +228,6 @@ export function renderDom(source, ast, analysis, options, meta) {
 
         state.hoisted.push(
             b.const(b.id("$$langid"), b.call("crypto.randomUUID")),
-            b.stmt(b.call("$.init_lang", b.id("$$langid"), b.id("$$lang"))),
         );
     }
 
@@ -323,6 +323,12 @@ export function renderDom(source, ast, analysis, options, meta) {
                 ...state.snippets,
             );
         }
+    }
+
+    if (options.hasLang) {
+        component.body.body.unshift(
+            b.stmt(b.call("$.init_lang", b.id("$$langid"), b.id("$$lang"))),
+        );
     }
 
     /**

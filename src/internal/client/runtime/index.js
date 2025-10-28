@@ -162,7 +162,7 @@ export function init_load(get, payload, $$initialLoad, setter) {
     const initialLoad = getInitialLoad() ?? $$initialLoad;
 
     let promise = $.state(
-        initialLoad ? Promise.resolve(initialLoad) : get(payload),
+        initialLoad ? Promise.resolve(initialLoad) : get(payload)
     );
 
     let loading = $.state(!initialLoad);
@@ -309,10 +309,15 @@ export function lang(id, args) {
     return langFunctions.resolve(id, args);
 }
 
+const cachedInits = new Set();
+
 /**
  * @param {string} id
  * @param {any} resource
  */
 export function init_lang(id, resource) {
+    if (cachedInits.has(id)) return;
+
     langFunctions.setup(id, resource);
+    cachedInits.add(id);
 }

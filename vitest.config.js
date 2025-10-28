@@ -12,7 +12,8 @@ export default defineConfig({
     test: {
         browser: {
             enabled: true,
-            name: "chrome",
+            name: "chromium",
+            provider: "playwright",
             headless: true,
         },
         coverage: {
@@ -38,7 +39,7 @@ export default defineConfig({
                     .catch(() => false);
 
                 const hasLang = await access(
-                    id.replace(/\.zvelte$/, ".lang.json"),
+                    id.replace(/\.zvelte$/, ".lang.json")
                 )
                     .then(() => true)
                     .catch(() => false);
@@ -66,7 +67,7 @@ export default defineConfig({
                         .replace(root, "")
                         .replace(
                             "/src/__tests__/svelte-ssr-match",
-                            "Zvelte/Components",
+                            "Zvelte/Components"
                         )
                         .replace(/\//g, "\\"),
                     filename: basename(id),
@@ -89,7 +90,7 @@ export default defineConfig({
                     const path = id
                         .replace(
                             "/src/__tests__/svelte-ssr-match",
-                            "/src/__tests__/php/components",
+                            "/src/__tests__/php/components"
                         )
                         .replace(/\.zvelte$/, ".php");
 
@@ -98,12 +99,21 @@ export default defineConfig({
 
                     const endpoint = path.replace(
                         join(root, "src/__tests__/php/components"),
-                        "",
+                        ""
                     );
 
                     // Zvelte/Components/samples/T007/Layout
                     return `
-${imports.map((n) => `import "${join(__dirname, "./src/__tests__/svelte-ssr-match", n.source.value.replace(/^Zvelte\/Components\//, ""))}.zvelte?${query}";`).join("\n")}
+${imports
+    .map(
+        (n) =>
+            `import "${join(
+                __dirname,
+                "./src/__tests__/svelte-ssr-match",
+                n.source.value.replace(/^Zvelte\/Components\//, "")
+            )}.zvelte?${query}";`
+    )
+    .join("\n")}
 
 export default async function(payload, props) {
     const result = await fetch("${endpoint}", {
@@ -132,14 +142,13 @@ export default async function(payload, props) {
                         req.on("data", (chunk) => (body += chunk));
                         req.on("end", () => {
                             const props = btoa(body);
-                            const path =
-                                `Zvelte/Components${req.url.replace(".php", "")}`.replace(
-                                    /\//g,
-                                    "\\",
-                                );
+                            const path = `Zvelte/Components${req.url.replace(
+                                ".php",
+                                ""
+                            )}`.replace(/\//g, "\\");
 
                             const buffer = execSync(
-                                `cd ./src/__tests__/php/ && php render.php '${path}' '${props}'`,
+                                `cd ./src/__tests__/php/ && php render.php '${path}' '${props}'`
                             );
 
                             res.setHeader("content-type", "application/json");
@@ -174,7 +183,7 @@ export default async function(payload, props) {
 
                 code = code.replace(
                     /\/(\w+)\.svelte"/g,
-                    `/$1.svelte?${query}"`,
+                    `/$1.svelte?${query}"`
                 );
 
                 const result = svelte.compile(code, {
